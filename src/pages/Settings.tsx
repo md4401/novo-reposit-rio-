@@ -4,12 +4,14 @@ import type { Me, Rule } from "../../shared/types";
 import { Avatar, Heading, Panel, Spinner, Toggle } from "../components/ui";
 import { api } from "../lib/api";
 import { category } from "../lib/format";
+import { checkUpdate, isNative, type UpdateInfo } from "../lib/native";
 import { canInstall, isInstalled, onInstallChange, promptInstall } from "../lib/pwa";
 import { useData } from "../lib/useData";
 import { useApp } from "../state";
 import { inviteText } from "./Family";
 
-const APK_URL = "/download/ninho.apk";
+// No APK o link precisa ser absoluto: o Android entrega o download ao navegador.
+const APK_URL = `${window.location.origin}/download/ninho.apk`;
 
 export function SettingsPage() {
   const { me, refreshMe, toast, hidden, toggleHidden, signOut } = useApp();
@@ -20,7 +22,9 @@ export function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [, force] = useState(0);
+  const [update, setUpdate] = useState<UpdateInfo | null>(null);
   useEffect(() => onInstallChange(() => force((n) => n + 1)), []);
+  useEffect(() => void checkUpdate(true).then(setUpdate), []);
   if (!me) return null;
   const admin = me.profile.role === "admin";
 
@@ -191,11 +195,20 @@ export function SettingsPage() {
             <div className="setting-row" style={{ marginTop: 8 }}>
               <div>
                 <h4>App Android (APK)</h4>
-                <p>Versão instalável sem a Play Store. O Android pede para permitir “instalar apps desta fonte”.</p>
+                {isNative() ? (
+                  <p>
+                    Versão instalada: <b>{update?.current.name ?? "…"}</b>.{" "}
+                    {update?.latest ? `Nova versão ${update.latest.name} disponível — baixe e instale por cima (seus dados continuam).` : "Você está na versão mais recente."}
+                  </p>
+                ) : (
+                  <p>Versão instalável sem a Play Store. O Android pede para permitir “instalar apps desta fonte”.</p>
+                )}
               </div>
-              <a className="btn ghost small" href={APK_URL} download>
-                <Download size={13} /> Baixar
-              </a>
+              {(!isNative() || update?.latest) && (
+                <a className={`btn small ${update?.latest ? "primary" : "ghost"}`} href={APK_URL} download>
+                  <Download size={13} /> {update?.latest ? "Atualizar" : "Baixar"}
+                </a>
+              )}
             </div>
           </Panel>
 

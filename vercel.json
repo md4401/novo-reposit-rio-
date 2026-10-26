@@ -18,7 +18,7 @@
   ],
   "headers": [
     {
-      "source": "/download/(.*)",
+      "source": "/download/(.*)\\.apk",
       "headers": [
         {
           "key": "Content-Type",
@@ -66,6 +66,15 @@
         {
           "key": "Permissions-Policy",
           "value": "camera=(self), microphone=(self), geolocation=()"
+        }
+      ]
+    },
+    {
+      "source": "/download/version.json",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
         }
       ]
     }

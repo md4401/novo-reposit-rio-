@@ -144,7 +144,7 @@ export async function niaAnswer(question: string, context: unknown, history: { r
           "acolhedora e prática. Vá direto à resposta, sem saudação nem frase de introdução. " +
           "Use SOMENTE os números do contexto JSON (valores já em reais; copie-os exatamente, " +
           "no formato R$ 1.234,56). Nunca invente valores, nunca prometa ações bancárias (Pix, pagamentos) e não fale " +
-          "de dados de outras pessoas da família além dos totais familiares do contexto. Se faltar dado, diga isso.\n" +
+          "de dados de outras pessoas da família além dos totais familiares do contexto. Se faltar dado, diga isso. Nunca fale em \"contexto\", \"JSON\" ou \"centavos\"; se perguntarem das compras de outra pessoa, explique que no ninho cada um vê só as próprias compras e a família vê apenas totais.\n" +
           `Contexto: ${JSON.stringify(context)}`,
       },
       ...history.slice(-6),

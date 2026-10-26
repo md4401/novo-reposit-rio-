@@ -1,6 +1,7 @@
 // Estado global: pessoa logada, valores ocultos, avisos (toast) e janelas (modal).
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Me } from "../shared/types";
+import { checkUpdate } from "./lib/native";
 import { api, getToken, onLogout, setToken } from "./lib/api";
 import { clearCache } from "./lib/useData";
 
@@ -140,6 +141,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.body.style.overflow = modal ? "hidden" : "";
   }, [modal]);
+
+  // App Android desatualizado: avisa uma vez por abertura
+  const signedIn = Boolean(me);
+  useEffect(() => {
+    if (!signedIn) return;
+    void checkUpdate().then((u) => u?.latest && toast(`Nova versão do app (${u.latest.name}). Atualize em Configurações.`));
+  }, [signedIn, toast]);
 
   return (
     <Ctx.Provider value={{ me, loadingMe, refreshMe, signIn, signOut, hidden, toggleHidden, toast, openModal, closeModal }}>

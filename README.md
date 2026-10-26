@@ -86,10 +86,11 @@ npm test                    # testes
 
 ```bash
 npx cap sync android                       # copia android-web/ (página "sem conexão") para o APK
-cd android && ./gradlew assembleDebug      # precisa de Java 21 e Android SDK
-# resultado: android/app/build/outputs/apk/debug/app-debug.apk
+cd android && ./gradlew assembleRelease    # precisa de Java 21 e Android SDK
+# resultado: android/app/build/outputs/apk/release/app-release.apk
 ```
 
+Ao mudar a versão em `android/app/build.gradle`, atualize `public/download/version.json`: o app instalado compara com ele e avisa “Nova versão do app”.
 A assinatura usa a chave de teste `android/app/ninho-debug.keystore` (a mesma no computador e no GitHub, para atualizar por cima).
 Para publicar na Play Store, gere uma chave própria e um `bundleRelease` (AAB).
 

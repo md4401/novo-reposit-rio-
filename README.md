@@ -77,9 +77,20 @@ npm test                    # testes
 
 ## Publicação
 
-- **Vercel**: projeto ligado a este repositório; cada `git push` na `main` publica. Variáveis: `DATABASE_URL` (obrigatória) e, se quiser IA, `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL` (ver `.env.example`).
-- **Banco**: `npm run db:migrate` com a `DATABASE_URL` de produção.
-- **APK**: o GitHub Actions (`.github/workflows/android.yml`) gera o APK a cada push e publica em *Releases*.
+- **Vercel** (projeto `ninho-financas-familia` → https://ninho-financas-familia.vercel.app): importado deste repositório; cada `git push` na `main` publica. Variáveis: `DATABASE_URL` (obrigatória) e, se quiser IA, `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL` (ver `.env.example`).
+- **Banco**: projeto `ninho` no Neon (região São Paulo). `npm run db:migrate` aplica as migrations.
+- **APK**: `public/download/ninho.apk` (baixável em `/download/ninho.apk` e em Configurações → App Android). O GitHub Actions (`.github/workflows/android.yml`) gera um APK novo a cada mudança e publica em *Releases*. O APK abre o site publicado, então atualizações do site chegam sem reinstalar; só é preciso gerar outro APK se mudar algo do Android (ícone, permissões, endereço).
+
+### Gerar o APK no computador
+
+```bash
+npm run build && npx cap sync android
+cd android && ./gradlew assembleDebug      # precisa de Java 21 e Android SDK
+# resultado: android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+A assinatura usa a chave de teste `android/app/ninho-debug.keystore` (a mesma no computador e no GitHub, para atualizar por cima).
+Para publicar na Play Store, gere uma chave própria e um `bundleRelease` (AAB).
 
 ### Ligar a IA de graça (opcional)
 

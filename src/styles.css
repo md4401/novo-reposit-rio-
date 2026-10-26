@@ -23,8 +23,9 @@
   --shadow: 0 6px 28px rgba(15, 45, 30, 0.04);
   --radius: 19px;
   --bottom-nav: 64px;
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --safe-top: env(safe-area-inset-top, 0px);
+  /* No APK, o Capacitor injeta --safe-area-inset-*; no navegador vale env() */
+  --safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  --safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
   color-scheme: light;
 }
 

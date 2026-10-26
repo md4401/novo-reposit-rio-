@@ -45,4 +45,4 @@ jobs:
           body: |
             APK de teste do ninho. Para instalar: baixe o ninho.apk no celular Android,
             abra o arquivo e permita "instalar apps desta fonte".
-            O app abre https://novo-reposit-rio-alpha.vercel.app — atualizações do site chegam sozinhas.
+            O app abre https://ninho-financas-familia.vercel.app — atualizações do site chegam sozinhas.

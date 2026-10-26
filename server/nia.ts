@@ -95,6 +95,17 @@ async function buildContext(user: SessionUser) {
 
 type Context = Awaited<ReturnType<typeof buildContext>>;
 
+const MONEY_KEY = /(cents|centavos|guardado|alvo|custo_recorrente_mensal|meus_gastos_mes_passado)$/i;
+
+/** Para a IA: valores já formatados em reais (o modelo erra ao converter centavos). */
+export function moneyForAi(value: unknown, key = ""): unknown {
+  if (typeof value === "number" && MONEY_KEY.test(key)) return formatMoney(value);
+  if (Array.isArray(value)) return value.map((v) => moneyForAi(v, key));
+  if (value && typeof value === "object")
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k.replace(/centavos$/, "valor").replace(/Cents$/, ""), moneyForAi(v, k)]));
+  return value;
+}
+
 const money = formatMoney;
 
 function list(items: string[]) {
@@ -214,7 +225,7 @@ export async function askNia(user: SessionUser, message: string): Promise<NiaMes
     reply = ruleReply(message, ctx);
     if (aiEnabled()) {
       try {
-        const answer = await niaAnswer(message, ctx, history);
+        const answer = await niaAnswer(message, moneyForAi(ctx), history);
         if (answer) reply = answer;
       } catch (error) {
         console.error("IA indisponível, usando regras", error);

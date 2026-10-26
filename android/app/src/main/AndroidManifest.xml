@@ -41,4 +41,7 @@
     <!-- Câmera: foto da nota fiscal (campo de arquivo com captura) -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- Microfone: mensagens de voz para a Nia (só grava quando você toca no botão) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 </manifest>

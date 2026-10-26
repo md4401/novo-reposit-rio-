@@ -58,7 +58,7 @@ export function ReceiptModal() {
     setBusy(true);
     setError(null);
     try {
-      setReading(await api<ReceiptReading>("nia/receipt", { body: { image: await resize(file) } }));
+      setReading(await api<ReceiptReading>("nia/receipt", { body: { image: await resize(file) }, silent: true }));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -106,8 +106,8 @@ export function ReceiptModal() {
       </label>
       {!ai && (
         <div className="modal-note" style={{ marginTop: 12 }}>
-          <b>Leitura automática desligada:</b> para ler notas de verdade é preciso configurar uma chave de IA no servidor (veja o
-          README). Enquanto isso, você pode ver um <b>exemplo simulado</b> — ele não usa sua foto.
+          <b>Leitura automática desligada:</b> para ler notas de verdade, adicione a chave de IA (AI_API_KEY) nas variáveis da
+          Vercel. Enquanto isso, você pode ver um <b>exemplo simulado</b> — ele não usa sua foto.
         </div>
       )}
       {items.length > 0 && (

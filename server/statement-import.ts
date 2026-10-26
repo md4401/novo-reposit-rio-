@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { looksLikeTransfer, normalizeMerchant } from "../shared/merchant.js";
 import type { ImportResult } from "../shared/types.js";
 import type { SessionUser } from "./auth.js";
+import { aiEnabled, classifyManyWithAi } from "./ai.js";
 import { classifyWith, loadClassifier } from "./classify.js";
 import { batch, one, q, query } from "./db.js";
 import { NO_ACCOUNT } from "./finance.js";
@@ -77,6 +78,21 @@ export async function importStatement(
         scope: c.allocation?.scope ?? null,
       };
     });
+    // O que regras, histórico e palavras-chave não resolveram vai para a IA (uma chamada só).
+    if (aiEnabled()) {
+      const unknown = [...new Set(records.filter((r) => r.status === "pending" && r.direction === "expense").map((r) => r.description))].slice(0, 60);
+      try {
+        const guesses = await classifyManyWithAi(unknown);
+        for (const r of records) {
+          const g = guesses.get(r.description);
+          if (r.status === "pending" && g && g.confidence >= 0.75) {
+            Object.assign(r, { status: "auto", classified_by: "ai", category_id: g.categoryId, scope: "personal" });
+          }
+        }
+      } catch (error) {
+        console.error("IA indisponível na importação; linhas ficam pendentes", error);
+      }
+    }
     const [inserted] = await batch([
       q(
         `WITH rows AS (

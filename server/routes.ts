@@ -17,7 +17,7 @@ import type {
   Rule,
   SourceHealth,
 } from "../shared/types.js";
-import { aiEnabled, readReceiptWithAi } from "./ai.js";
+import { aiEnabled, readReceiptWithAi, transcribe, transcriptionEnabled } from "./ai.js";
 import { loadAlerts } from "./alerts.js";
 import {
   audit,
@@ -218,6 +218,7 @@ async function loadMe(user: SessionUser): Promise<Me> {
     accounts: accounts.map(mapAccount),
     pendingCount: num(pending[0].n),
     aiEnabled: aiEnabled(),
+    voiceEnabled: transcriptionEnabled(),
     hasDemoData: Boolean(demo[0].has_demo),
     today: todayKey(user.timezone),
   };
@@ -741,6 +742,29 @@ route("POST", "nia/clear", async ({ request }) => {
   const user = await requireUser(request);
   await query(`DELETE FROM ai_messages WHERE profile_id = $1`, [user.id]);
   return json(await listMessages(user));
+});
+
+// Mensagem de voz: o áudio vem do celular, vira texto e é descartado (nada fica guardado).
+route("POST", "nia/transcribe", async ({ request }) => {
+  const user = await requireUser(request);
+  if (!transcriptionEnabled()) throw new HttpError(503, "Mensagens de voz precisam de uma chave de IA com transcrição (Groq ou OpenAI).");
+  const body = await readJson(request, 3 * 1024 * 1024);
+  await rateLimit(`voice:${user.id}`, 30, 10);
+  const audio = typeof body.audio === "string" ? body.audio : "";
+  const match = /^data:(audio\/[a-z0-9.+-]+)(?:;[^,]*)?;base64,(.+)$/i.exec(audio);
+  if (!match) throw new HttpError(400, "Áudio inválido");
+  const bytes = Buffer.from(match[2], "base64");
+  if (bytes.length < 1000) throw new HttpError(400, "Áudio curto demais. Segure e fale um pouco mais.");
+  const extension = match[1].includes("mp4") || match[1].includes("m4a") ? "m4a" : match[1].includes("ogg") ? "ogg" : match[1].includes("wav") ? "wav" : "webm";
+  try {
+    const text = await transcribe(new Blob([bytes], { type: match[1] }), `voz.${extension}`);
+    if (!text) throw new HttpError(422, "Não entendi o áudio. Tente falar mais perto do microfone.");
+    return json({ text });
+  } catch (error) {
+    if (error instanceof HttpError) throw error;
+    console.error(error);
+    throw new HttpError(502, "A transcrição não respondeu agora. Tente de novo ou digite.");
+  }
 });
 
 route("POST", "nia/receipt", async ({ request }) => {

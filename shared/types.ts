@@ -24,6 +24,8 @@ export type Me = {
   accounts: Account[];
   pendingCount: number;
   aiEnabled: boolean;
+  /** Mensagens de voz gravadas e transcritas no servidor (Whisper) */
+  voiceEnabled: boolean;
   hasDemoData: boolean;
   today: string;
 };

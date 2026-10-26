@@ -46,7 +46,8 @@ export function onLogout(listener: Listener) {
   return () => void logoutListeners.delete(listener);
 }
 
-export async function api<T>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> {
+/** `silent`: não avisa as telas para recarregar (ex.: só ler uma nota ou transcrever um áudio). */
+export async function api<T>(path: string, options: { method?: string; body?: unknown; silent?: boolean } = {}): Promise<T> {
   const token = getToken();
   const method = options.method ?? (options.body === undefined ? "GET" : "POST");
   let response: Response;
@@ -70,6 +71,6 @@ export async function api<T>(path: string, options: { method?: string; body?: un
     }
     throw new ApiError(response.status, data.error ?? "Algo deu errado. Tente de novo.");
   }
-  if (method !== "GET") notifyChange();
+  if (method !== "GET" && !options.silent) notifyChange();
   return data as T;
 }

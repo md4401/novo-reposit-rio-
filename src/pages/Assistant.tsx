@@ -1,10 +1,11 @@
 // Assistente Nia: conversa privada, lançamentos por texto ou voz (com confirmação) e nota fiscal.
-import { Bell, Camera, Check, ChevronRight, Lock, Mic, Pencil, Send, Sparkles, Trash2 } from "lucide-react";
+import { Bell, Camera, Check, ChevronRight, Lock, Mic, Pencil, Send, Sparkles, Square, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { NiaMessage, Proposal } from "../../shared/types";
 import { ErrorBox, Heading, Panel, Spinner } from "../components/ui";
 import { api } from "../lib/api";
 import { category, dayLabel, formatMoney } from "../lib/format";
+import { blobToDataUrl, recordingSupported, startRecording, type Recording } from "../lib/recorder";
 import { listen, speechSupported } from "../lib/speech";
 import { useData } from "../lib/useData";
 import { DigestModal } from "../modals/DigestModal";
@@ -87,6 +88,9 @@ export function AssistantPage() {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [listening, setListening] = useState(false);
+  const [recording, setRecording] = useState<Recording | null>(null);
+  const [seconds, setSeconds] = useState(0);
+  const [transcribing, setTranscribing] = useState(false);
   const [saved, setSaved] = useState(savedProposals);
   const stop = useRef<() => void>(() => undefined);
   const box = useRef<HTMLDivElement>(null);
@@ -98,6 +102,16 @@ export function AssistantPage() {
     box.current?.scrollTo({ top: box.current.scrollHeight, behavior: "smooth" });
   }, [messages, sending]);
   useEffect(() => () => stop.current(), []);
+  // Cronômetro da gravação (para sozinho em 60 s)
+  useEffect(() => {
+    if (!recording) return;
+    setSeconds(0);
+    const id = window.setInterval(() => setSeconds((s) => s + 1), 1000);
+    return () => window.clearInterval(id);
+  }, [recording]);
+  useEffect(() => {
+    if (recording && seconds >= 60) void finishRecording();
+  }, [seconds]);
 
   function markSaved(id: string) {
     setSaved((s) => {
@@ -130,7 +144,35 @@ export function AssistantPage() {
     }
   }
 
-  function toggleVoice() {
+  async function finishRecording() {
+    if (!recording) return;
+    const rec = recording;
+    setRecording(null);
+    setTranscribing(true);
+    try {
+      const audio = await blobToDataUrl(await rec.stop());
+      const { text: heard } = await api<{ text: string }>("nia/transcribe", { body: { audio }, silent: true });
+      setText((t) => (t ? `${t} ${heard}` : heard));
+      toast("Confira o que entendi e toque em enviar.");
+    } catch (e) {
+      toast((e as Error).message);
+    } finally {
+      setTranscribing(false);
+    }
+  }
+
+  async function toggleVoice() {
+    // Com IA de transcrição: grava e transcreve no servidor (funciona também no APK)
+    if (me?.voiceEnabled && recordingSupported()) {
+      if (recording) return finishRecording();
+      try {
+        setRecording(await startRecording());
+        toast("Pode falar. Toque no quadrado vermelho para terminar.");
+      } catch {
+        toast("Permita o uso do microfone para mandar mensagens de voz.");
+      }
+      return;
+    }
     if (listening) {
       stop.current();
       return;
@@ -204,13 +246,28 @@ export function AssistantPage() {
                 void send(text);
               }}
             >
-              <button type="button" className={`icon-btn ${listening ? "listening" : ""}`} onClick={toggleVoice} aria-label={listening ? "Parar de ouvir" : "Falar"} title="Falar (a transcrição aparece antes de enviar)">
-                <Mic size={17} />
+              <button
+                type="button"
+                className={`icon-btn ${listening || recording ? "listening" : ""}`}
+                onClick={() => void toggleVoice()}
+                disabled={transcribing}
+                aria-label={listening || recording ? "Parar de gravar" : "Mandar mensagem de voz"}
+                title="Falar (a transcrição aparece antes de enviar)"
+              >
+                {transcribing ? <Spinner size={16} /> : recording ? <Square size={15} /> : <Mic size={17} />}
               </button>
               <button type="button" className="icon-btn" onClick={() => openModal(<ReceiptModal />)} aria-label="Ler nota fiscal" title="Ler nota fiscal">
                 <Camera size={17} />
               </button>
-              <input className="chat-input" placeholder={listening ? "Ouvindo… fale naturalmente" : "Pergunte ou conte uma compra…"} value={text} onChange={(e) => setText(e.target.value)} maxLength={1000} autoComplete="off" />
+              <input className="chat-input" placeholder={
+                  recording
+                    ? `Gravando… 0:${String(seconds).padStart(2, "0")}`
+                    : transcribing
+                      ? "Transcrevendo seu áudio…"
+                      : listening
+                        ? "Ouvindo… fale naturalmente"
+                        : "Pergunte ou conte uma compra…"
+                } value={text} onChange={(e) => setText(e.target.value)} maxLength={1000} autoComplete="off" />
               <button className="chat-send" type="submit" disabled={!text.trim() || sending} aria-label="Enviar">
                 <Send size={17} />
               </button>
@@ -231,7 +288,7 @@ export function AssistantPage() {
                 <span className="insight-ic">🎙️</span>
                 <div>
                   <h4>Entender sua voz</h4>
-                  <p>Fale “comprei 80 de comida e 30 de limpeza no mercado”. Você confere antes de salvar.</p>
+                  <p>Toque no microfone e fale “comprei 80 de comida e 30 de limpeza no mercado”. Você confere o texto antes de enviar.</p>
                 </div>
               </div>
               <div className="insight">

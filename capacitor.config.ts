@@ -7,7 +7,8 @@ const APP_URL = process.env.APP_URL ?? "https://ninho-financas-familia.vercel.ap
 const config: CapacitorConfig = {
   appId: "app.ninho.familia",
   appName: "ninho.",
-  webDir: "dist",
+  // O APK abre o site publicado; dentro dele vai só a página de "sem conexão".
+  webDir: "android-web",
   backgroundColor: "#0d2922",
   server: {
     url: APP_URL,

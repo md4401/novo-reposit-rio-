@@ -94,6 +94,11 @@ export async function rateLimit(key: string, max: number, minutes: number) {
     [key, minutes],
   );
   if ((row?.n ?? 0) >= max) throw new HttpError(429, "Muitas tentativas. Aguarde alguns minutos e tente de novo.");
+  // De vez em quando, apaga registros velhos (tentativas e sessões vencidas)
+  if (Math.random() < 0.02) {
+    await query(`DELETE FROM auth_attempts WHERE created_at < now() - interval '1 day'`);
+    await query(`DELETE FROM sessions WHERE expires_at < now()`);
+  }
 }
 
 const INVITE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";

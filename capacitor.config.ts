@@ -2,7 +2,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 // O APK abre o app publicado na Vercel: cada novo deploy já chega ao celular sem
 // reinstalar. Se o endereço mudar, ajuste APP_URL e gere o APK de novo.
-const APP_URL = process.env.APP_URL ?? "https://ninho-financas-familia.vercel.app";
+const APP_URL = process.env.APP_URL ?? "https://novo-reposit-rio-alpha.vercel.app";
 
 const config: CapacitorConfig = {
   appId: "app.ninho.familia",

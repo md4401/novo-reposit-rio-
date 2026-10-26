@@ -78,7 +78,7 @@ npm test                    # testes
 
 ## Publicação
 
-- **Vercel** (projeto `ninho-financas-familia` → https://ninho-financas-familia.vercel.app): importado deste repositório; cada `git push` na `main` publica. Variáveis: `DATABASE_URL` (obrigatória) e, se quiser IA, `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL` (ver `.env.example`).
+- **Vercel** (projeto `novo-reposit-rio` → https://novo-reposit-rio-alpha.vercel.app): importado deste repositório; cada `git push` na `main` publica. Variáveis: `DATABASE_URL` (obrigatória) e, se quiser IA, `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL` (ver `.env.example`).
 - **Banco**: projeto `ninho` no Neon (região São Paulo). `npm run db:migrate` aplica as migrations.
 - **APK**: `public/download/ninho.apk` (baixável em `/download/ninho.apk` e em Configurações → App Android). O GitHub Actions (`.github/workflows/android.yml`) gera um APK novo a cada mudança e publica em *Releases*. O APK abre o site publicado, então atualizações do site chegam sem reinstalar; só é preciso gerar outro APK se mudar algo do Android (ícone, permissões, endereço).
 

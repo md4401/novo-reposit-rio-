@@ -1,0 +1,240 @@
+// "Organizar compra": dividir em categorias (cada parte pessoal ou familiar), fechando centavo por centavo.
+import { Plus, Trash2, X } from "lucide-react";
+import { useMemo, useState } from "react";
+import { categoriesFor } from "../../shared/categories";
+import type { Allocation, Direction, Scope, Transaction } from "../../shared/types";
+import { ModalHeader, Spinner } from "../components/ui";
+import { api } from "../lib/api";
+import { category, centsToInput, dayLabel, formatMoney, parseMoney } from "../lib/format";
+import { useApp } from "../state";
+
+type Row = { categoryId: string; value: string; scope: Scope };
+
+const QUICK = ["alimentacao", "compras", "saude", "transporte", "lazer", "moradia", "outros"];
+
+export function OrganizeModal({ transaction: t }: { transaction: Transaction }) {
+  const { closeModal, toast, refreshMe } = useApp();
+  const manual = t.source !== "csv" && t.source !== "ofx";
+  const [direction, setDirection] = useState<Direction>(t.direction);
+  const [description, setDescription] = useState(t.description);
+  const [amount, setAmount] = useState(centsToInput(t.amountCents));
+  const [rows, setRows] = useState<Row[]>(() =>
+    t.allocations.length && t.direction !== "transfer"
+      ? t.allocations.map((a) => ({ categoryId: a.categoryId, value: centsToInput(a.amountCents), scope: a.scope }))
+      : [{ categoryId: t.direction === "income" ? "outras-receitas" : "outros", value: centsToInput(t.amountCents), scope: "personal" }],
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const totalCents = manual ? (parseMoney(amount) ?? 0) : t.amountCents;
+  const parsed = rows.map((r) => parseMoney(r.value) ?? 0);
+  const sum = parsed.reduce((a, b) => a + b, 0);
+  const ok = direction === "transfer" || (rows.length > 0 && parsed.every((v) => v > 0) && sum === totalCents && totalCents > 0);
+  const options = useMemo(() => categoriesFor(direction === "income" ? "income" : "expense"), [direction]);
+
+  const update = (i: number, patch: Partial<Row>) => setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+
+  const changeDirection = (d: Direction) => {
+    setDirection(d);
+    if (d !== "transfer") {
+      const valid = categoriesFor(d === "income" ? "income" : "expense").map((c) => c.id);
+      setRows((rs) => rs.map((r) => (valid.includes(r.categoryId) ? r : { ...r, categoryId: d === "income" ? "outras-receitas" : "outros" })));
+    }
+  };
+
+  const fillRest = () => {
+    const diff = totalCents - sum;
+    if (diff === 0) return;
+    const last = rows.length - 1;
+    const value = (parseMoney(rows[last].value) ?? 0) + diff;
+    if (value > 0) update(last, { value: centsToInput(value) });
+    else setRows((rs) => [...rs, { categoryId: "outros", value: centsToInput(diff), scope: "personal" }]);
+  };
+
+  async function save(allocations?: Allocation[]) {
+    setSaving(true);
+    setError(null);
+    try {
+      const body: Record<string, unknown> = {
+        direction,
+        allocations:
+          allocations ??
+          (direction === "transfer"
+            ? [{ categoryId: "transferencia", amountCents: totalCents, scope: "personal" }]
+            : rows.map((r, i) => ({ categoryId: r.categoryId, amountCents: parsed[i], scope: r.scope }))),
+      };
+      if (manual) {
+        body.description = description;
+        body.amountCents = totalCents;
+      }
+      const result = await api<{ learnedRule: { merchant: string; categoryId: string; applied: number } | null }>(`transactions/${t.id}`, {
+        method: "PATCH",
+        body,
+      });
+      await refreshMe();
+      closeModal();
+      if (result.learnedRule) {
+        const r = result.learnedRule;
+        toast(`Aprendi! “${r.merchant}” agora vira ${category(r.categoryId).name} automaticamente${r.applied ? ` (${r.applied} pendência(s) resolvida(s))` : ""}.`);
+      } else toast("Categorias e visibilidade atualizadas.");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function remove() {
+    const imported = !manual;
+    if (!window.confirm(imported ? "Ignorar esta movimentação? Ela continua guardada, mas sai dos totais." : "Excluir este lançamento?")) return;
+    setSaving(true);
+    try {
+      await api(`transactions/${t.id}`, { method: "DELETE" });
+      await refreshMe();
+      closeModal();
+      toast(imported ? "Movimentação ignorada." : "Lançamento excluído.");
+    } catch (e) {
+      setError((e as Error).message);
+      setSaving(false);
+    }
+  }
+
+  async function restore() {
+    setSaving(true);
+    try {
+      await api(`transactions/${t.id}`, { method: "PATCH", body: { ignored: false } });
+      closeModal();
+      toast("Movimentação voltou para os totais.");
+    } catch (e) {
+      setError((e as Error).message);
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <ModalHeader
+        title="Organizar compra"
+        subtitle={`${t.description} • ${dayLabel(t.occurredOn)} • ${formatMoney(t.amountCents)}${t.method ? ` · ${t.method}` : ""}${t.accountName ? ` · ${t.accountName}` : ""}`}
+      />
+      {error && <div className="form-error">{error}</div>}
+
+      <div className="segmented" style={{ marginBottom: 14 }}>
+        {(
+          [
+            ["expense", "Despesa"],
+            ["income", "Receita"],
+            ["transfer", "Transferência / fatura"],
+          ] as [Direction, string][]
+        ).map(([d, label]) => (
+          <button key={d} type="button" className={direction === d ? "on" : ""} onClick={() => changeDirection(d)}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {manual && (
+        <div className="form-row">
+          <div className="field">
+            <label htmlFor="desc">Descrição</label>
+            <input id="desc" value={description} maxLength={120} onChange={(e) => setDescription(e.target.value)} />
+          </div>
+          <div className="field">
+            <label htmlFor="amount">Valor (R$)</label>
+            <input id="amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          </div>
+        </div>
+      )}
+
+      {direction === "transfer" ? (
+        <div className="modal-note">
+          Pagamento de fatura, transferência entre contas suas ou aplicação: <b>não conta como gasto</b>. Assim a compra no cartão e o
+          pagamento da fatura não viram duas despesas.
+        </div>
+      ) : (
+        <>
+          <div className="modal-note" style={{ marginBottom: 14 }}>
+            Divida o valor em categorias. Cada parte pode ser <b>pessoal</b> (só você vê) ou <b>familiar</b> (entra nos totais da casa,
+            sem mostrar onde nem quem comprou). A soma precisa fechar exatamente {formatMoney(totalCents)}.
+          </div>
+          {t.status === "pending" && rows.length === 1 && (
+            <div style={{ marginBottom: 12 }}>
+              <span className="field-label">Toque para classificar de uma vez:</span>
+              <div className="quick-cats">
+                {(direction === "income" ? ["salario", "renda-extra", "reembolso", "outras-receitas"] : QUICK).map((id) => (
+                  <button key={id} type="button" onClick={() => update(0, { categoryId: id })} style={rows[0].categoryId === id ? { background: "#e2f3df", borderColor: "#9fd09a" } : undefined}>
+                    {category(id).icon} {category(id).name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <h3>Categorias</h3>
+            <span className={`chip ${t.status === "pending" ? "amber" : "lime"}`}>{t.status === "pending" ? "Aguardando revisão" : "Editável"}</span>
+          </div>
+          {rows.map((r, i) => (
+            <div className="alloc-row" key={i}>
+              <select aria-label={`Categoria ${i + 1}`} value={r.categoryId} onChange={(e) => update(i, { categoryId: e.target.value })}>
+                {options.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.icon} {c.name}
+                  </option>
+                ))}
+              </select>
+              <input aria-label={`Valor ${i + 1}`} inputMode="decimal" value={r.value} onChange={(e) => update(i, { value: e.target.value })} />
+              <select aria-label={`Visibilidade ${i + 1}`} value={r.scope} onChange={(e) => update(i, { scope: e.target.value as Scope })}>
+                <option value="personal">🔒 Pessoal</option>
+                <option value="family">🏠 Familiar</option>
+              </select>
+              <button type="button" className="remove" aria-label="Remover categoria" disabled={rows.length === 1} onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}>
+                <X size={16} />
+              </button>
+            </div>
+          ))}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button type="button" className="btn ghost small" onClick={() => setRows((rs) => [...rs, { categoryId: "outros", value: "", scope: rows[rs.length - 1]?.scope ?? "personal" }])}>
+              <Plus size={13} /> Adicionar categoria
+            </button>
+            {sum !== totalCents && totalCents > 0 && (
+              <button type="button" className="btn ghost small" onClick={fillRest}>
+                Completar diferença
+              </button>
+            )}
+          </div>
+          <div className={`alloc-total ${ok ? "" : "bad"}`}>
+            <div>
+              <b>Total distribuído</b>
+              <div style={{ fontSize: 12, color: ok ? "#4f7d58" : "#a24b44" }}>
+                {ok ? "✓ Valores conferidos" : `${totalCents - sum > 0 ? "Faltam" : "Sobram"} ${formatMoney(Math.abs(totalCents - sum))}`}
+              </div>
+            </div>
+            <b className="num" style={{ fontSize: 16 }}>
+              {formatMoney(sum)}
+            </b>
+          </div>
+        </>
+      )}
+
+      <div className="modal-actions" style={{ justifyContent: "space-between" }}>
+        {t.ignored ? (
+          <button type="button" className="btn ghost" onClick={restore} disabled={saving}>
+            Voltar para os totais
+          </button>
+        ) : (
+          <button type="button" className="btn danger" onClick={remove} disabled={saving}>
+            <Trash2 size={15} /> {manual ? "Excluir" : "Ignorar"}
+          </button>
+        )}
+        <div style={{ display: "flex", gap: 8, flex: 1, justifyContent: "flex-end" }}>
+          <button type="button" className="btn ghost" onClick={() => closeModal()}>
+            Cancelar
+          </button>
+          <button type="button" className="btn dark" disabled={!ok || saving} onClick={() => save()}>
+            {saving ? <Spinner /> : null} Salvar
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}

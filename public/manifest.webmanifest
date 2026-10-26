@@ -1,0 +1,22 @@
+{
+  "name": "ninho. — Finanças da família",
+  "short_name": "ninho.",
+  "description": "Finanças inteligentes da família: cada um com seus detalhes privados, a casa com os totais compartilhados.",
+  "lang": "pt-BR",
+  "start_url": "/?origem=app",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d2922",
+  "theme_color": "#0d2922",
+  "categories": ["finance", "productivity"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Nova despesa", "url": "/#/transacoes", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Falar com a Nia", "url": "/#/nia", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

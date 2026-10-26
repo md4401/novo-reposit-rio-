@@ -1,0 +1,152 @@
+// Registrar despesa ou receita à mão (ou confirmar uma proposta da Nia / nota fiscal).
+import { useState } from "react";
+import { categoriesFor } from "../../shared/categories";
+import type { Allocation, Direction, Proposal, Scope, Transaction } from "../../shared/types";
+import { ModalHeader, Spinner } from "../components/ui";
+import { api } from "../lib/api";
+import { category, centsToInput, formatMoney, parseMoney } from "../lib/format";
+import { useApp } from "../state";
+
+export function NewTransactionModal({ proposal, source = "manual" }: { proposal?: Proposal; source?: "manual" | "voice" | "receipt" }) {
+  const { me, closeModal, toast, refreshMe } = useApp();
+  const [direction, setDirection] = useState<Direction>(proposal?.direction ?? "expense");
+  const [description, setDescription] = useState(proposal?.description ?? "");
+  const [amount, setAmount] = useState(proposal ? centsToInput(proposal.amountCents) : "");
+  const [date, setDate] = useState(proposal?.occurredOn ?? me?.today ?? "");
+  const [categoryId, setCategoryId] = useState<string>(proposal?.allocations[0]?.categoryId ?? "auto");
+  const [scope, setScope] = useState<Scope>(proposal?.allocations[0]?.scope ?? "personal");
+  const [accountId, setAccountId] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const split = proposal && proposal.allocations.length > 1 ? proposal.allocations : null;
+  const cents = parseMoney(amount);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!cents || cents <= 0) return setError("Informe um valor maior que zero.");
+    setSaving(true);
+    setError(null);
+    try {
+      let allocations: Allocation[] | undefined;
+      if (split && cents === proposal!.amountCents) allocations = split;
+      else if (categoryId !== "auto") allocations = [{ categoryId, amountCents: cents, scope }];
+      const created = await api<Transaction>("transactions", {
+        body: {
+          description: description.trim(),
+          amountCents: cents,
+          direction,
+          occurredOn: date,
+          accountId: accountId || null,
+          allocations,
+          source,
+        },
+      });
+      await refreshMe();
+      closeModal();
+      toast(
+        created.status === "pending"
+          ? "Lançamento salvo. Ele ficou nas pendências para você classificar."
+          : `${direction === "income" ? "Receita" : "Despesa"} registrada: ${created.allocations.length > 1 ? "várias categorias" : category(created.allocations[0]?.categoryId).name}.`,
+      );
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const options = categoriesFor(direction === "income" ? "income" : "expense");
+  return (
+    <form onSubmit={submit}>
+      <ModalHeader
+        title={proposal ? "Conferir lançamento" : direction === "income" ? "Registrar receita" : "Registrar despesa"}
+        subtitle={proposal ? "A Nia preparou este lançamento. Confira antes de salvar." : "Um lançamento privado: só você vê os detalhes."}
+      />
+      {error && <div className="form-error">{error}</div>}
+      <div className="segmented" style={{ marginBottom: 14 }}>
+        {(
+          [
+            ["expense", "Despesa"],
+            ["income", "Receita"],
+          ] as [Direction, string][]
+        ).map(([d, label]) => (
+          <button
+            key={d}
+            type="button"
+            className={direction === d ? "on" : ""}
+            onClick={() => {
+              setDirection(d);
+              setCategoryId("auto");
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="field">
+        <label htmlFor="nt-desc">{direction === "income" ? "Descrição" : "Estabelecimento ou descrição"}</label>
+        <input id="nt-desc" required maxLength={120} autoFocus={!proposal} placeholder={direction === "income" ? "Ex.: Salário" : "Ex.: Mercado da esquina"} value={description} onChange={(e) => setDescription(e.target.value)} />
+      </div>
+      <div className="form-row">
+        <div className="field">
+          <label htmlFor="nt-amount">Valor em reais</label>
+          <input id="nt-amount" required inputMode="decimal" placeholder="0,00" value={amount} onChange={(e) => setAmount(e.target.value)} />
+        </div>
+        <div className="field">
+          <label htmlFor="nt-date">Data</label>
+          <input id="nt-date" type="date" required value={date} max={me?.today} onChange={(e) => setDate(e.target.value)} />
+        </div>
+      </div>
+      {split && cents === proposal!.amountCents ? (
+        <div className="modal-note" style={{ marginBottom: 14 }}>
+          <b>Divisão proposta:</b>{" "}
+          {split.map((a) => `${category(a.categoryId).name} ${formatMoney(a.amountCents)} (${a.scope === "family" ? "familiar" : "pessoal"})`).join(" · ")}
+          . Para mudar, salve e toque no lançamento.
+        </div>
+      ) : (
+        <div className="form-row">
+          <div className="field">
+            <label htmlFor="nt-cat">Categoria</label>
+            <select id="nt-cat" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+              <option value="auto">✨ Deixar o ninho sugerir</option>
+              {options.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.icon} {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label htmlFor="nt-scope">Visibilidade</label>
+            <select id="nt-scope" value={scope} onChange={(e) => setScope(e.target.value as Scope)} disabled={categoryId === "auto"}>
+              <option value="personal">🔒 Pessoal — só eu</option>
+              <option value="family">🏠 Familiar — entra nos totais da casa</option>
+            </select>
+          </div>
+        </div>
+      )}
+      {me && me.accounts.length > 0 && (
+        <div className="field">
+          <label htmlFor="nt-acc">Conta ou cartão (opcional)</label>
+          <select id="nt-acc" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+            <option value="">Sem conta</option>
+            {me.accounts.filter((a) => a.active).map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+                {a.last4 ? ` •••• ${a.last4}` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      <div className="modal-actions">
+        <button type="button" className="btn ghost" onClick={() => closeModal()}>
+          Cancelar
+        </button>
+        <button className="btn dark" type="submit" disabled={saving}>
+          {saving && <Spinner />} {proposal ? "Confirmar e salvar" : "Registrar"}
+        </button>
+      </div>
+    </form>
+  );
+}

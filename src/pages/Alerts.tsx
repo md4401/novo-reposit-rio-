@@ -1,0 +1,140 @@
+import { Bot, Check, Repeat, ShieldCheck, TriangleAlert } from "lucide-react";
+import type { AlertsPayload, Recurring } from "../../shared/types";
+import { DemoFlag, Empty, ErrorBox, Heading, Metric, Money, Panel, Skeleton } from "../components/ui";
+import { api } from "../lib/api";
+import { category, dayLabel } from "../lib/format";
+import { navigate } from "../lib/router";
+import { useData } from "../lib/useData";
+import { useApp } from "../state";
+
+function intervalText(r: Recurring) {
+  if (r.installment) return `Parcela ${r.installment.n} de ${r.installment.of}`;
+  if (r.intervalDays > 300) return `Anual · última em ${dayLabel(r.lastOn)}`;
+  return `Todo dia ${Number(r.lastOn.slice(8, 10))}${r.nextExpectedOn ? ` · próxima ${dayLabel(r.nextExpectedOn)}` : ""}`;
+}
+
+function RecurringCard({ r }: { r: Recurring }) {
+  const increase = r.previousAmountCents !== null && r.lastAmountCents - r.previousAmountCents >= 100 ? r.lastAmountCents - r.previousAmountCents : 0;
+  return (
+    <div className="sub-card">
+      <div className="sub-icon">{r.kind === "parcela" ? "🧾" : category(r.categoryId).icon}</div>
+      <div>
+        <h4>{r.label}</h4>
+        <p>
+          {r.kind === "conta" ? "Conta recorrente · " : ""}
+          {intervalText(r)}
+        </p>
+      </div>
+      <div style={{ textAlign: "right" }}>
+        <b>
+          <Money cents={r.lastAmountCents} />
+        </b>
+        <div style={{ marginTop: 4 }}>
+          {increase ? (
+            <span className="chip amber">
+              Aumento de <Money cents={increase} />
+            </span>
+          ) : (
+            <span className="chip green">{r.kind === "parcela" ? "Parcela" : "Estável"}</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function AlertsPage() {
+  const { toast } = useApp();
+  const { data, error, reload } = useData<AlertsPayload>("alerts");
+
+  async function dismiss(key: string) {
+    await api("alerts/dismiss", { body: { key } });
+    toast("Certo! Não vou mais avisar sobre isso.");
+  }
+
+  const duplicates = data?.alerts.filter((a) => a.type === "duplicate").length ?? 0;
+  return (
+    <>
+      <Heading
+        title="Assinaturas e alertas"
+        subtitle="Acompanhe gastos que se repetem e revise mudanças inesperadas."
+        actions={
+          <button type="button" className="btn ghost" onClick={() => navigate("nia")}>
+            <Bot size={15} /> Perguntar à Nia
+          </button>
+        }
+      />
+      <DemoFlag />
+      {error && <ErrorBox message={error} onRetry={reload} />}
+      {!data ? (
+        <Skeleton height={300} />
+      ) : (
+        <>
+          <div className="cards">
+            <Metric label="Custos recorrentes" dark icon={<Repeat size={17} />} value={<Money cents={data.monthlyRecurringCents} />} foot="Estimativa por mês" />
+            <Metric label="Assinaturas detectadas" icon={<Check size={17} />} value={String(data.recurring.length).padStart(2, "0")} foot="Cobranças sob acompanhamento" />
+            <Metric label="Alertas importantes" icon={<TriangleAlert size={17} />} value={String(data.alerts.length - duplicates).padStart(2, "0")} foot="Aumentos e gastos fora do padrão" />
+            <Metric label="Possíveis duplicidades" icon={<ShieldCheck size={17} />} value={String(duplicates).padStart(2, "0")} foot={duplicates ? "Confira no extrato" : "Nenhum caso recente"} />
+          </div>
+          <div className="grid-2">
+            <div className="stack">
+              <Panel title="Assinaturas e contas recorrentes">
+                {data.recurring.length === 0 ? (
+                  <Empty icon="🔄" title="Nada recorrente ainda" text="Cobranças que se repetem (streaming, academia, internet) aparecem depois de 2 ou 3 meses de extrato." />
+                ) : (
+                  data.recurring.map((r) => <RecurringCard key={r.merchant} r={r} />)
+                )}
+              </Panel>
+              {data.installments.length > 0 && (
+                <Panel title="Parcelas em andamento">
+                  {data.installments.map((r) => (
+                    <RecurringCard key={r.merchant} r={r} />
+                  ))}
+                  <p className="muted small">Parcelas não são assinaturas: terminam sozinhas.</p>
+                </Panel>
+              )}
+            </div>
+            <div className="stack">
+              <Panel title="O que observar">
+                {data.alerts.length === 0 ? (
+                  <Empty icon="🎉" title="Nenhum alerta" text="Sem aumentos, duplicidades ou gastos muito fora do seu padrão." />
+                ) : (
+                  <div className="insights">
+                    {data.alerts.map((a) => (
+                      <div className="insight" key={a.key}>
+                        <span className="insight-ic">{a.type === "increase" ? "📈" : a.type === "duplicate" ? "🔁" : "⚠️"}</span>
+                        <div style={{ flex: 1 }}>
+                          <h4>{a.title}</h4>
+                          <p>{a.text}</p>
+                          <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+                            <button type="button" className="btn ghost small" onClick={() => dismiss(a.key)}>
+                              <Check size={12} /> Está tudo certo
+                            </button>
+                            {a.transactionIds.length > 0 && (
+                              <button type="button" className="btn ghost small" onClick={() => navigate(`transacoes?q=${encodeURIComponent(a.text.split(":")[0])}`)}>
+                                Ver transações
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="muted" style={{ fontSize: 11, marginTop: 12 }}>
+                  Duplicidade é só uma suspeita: o ninho nunca apaga compras sozinho e não garante detectar fraudes.
+                </p>
+              </Panel>
+              <div className="privacy-line" style={{ margin: 0 }}>
+                <ShieldCheck size={18} />
+                <div>
+                  <strong>Alertas somente do seu perfil</strong>Ninguém da família consegue consultar suas assinaturas pessoais.
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </>
+  );
+}

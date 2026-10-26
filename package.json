@@ -1,0 +1,41 @@
+{
+  "name": "ninho",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:api": "NODE_USE_ENV_PROXY=1 tsx --env-file-if-exists=.env scripts/dev-api.ts",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:migrate": "NODE_USE_ENV_PROXY=1 tsx --env-file-if-exists=.env scripts/migrate.ts",
+    "icons": "node scripts/icons.mjs",
+    "android:sync": "cap sync android",
+    "db:reset": "NODE_USE_ENV_PROXY=1 tsx --env-file-if-exists=.env scripts/reset-dev-db.ts"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "^5.2.8",
+    "@neondatabase/serverless": "^1.2.0",
+    "lucide-react": "^1.56.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
+    "@types/node": "^22.20.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9.3",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.2"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

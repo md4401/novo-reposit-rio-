@@ -1,0 +1,22 @@
+node_modules
+dist
+.env
+.env.*
+!.env.example
+.vercel
+*.log
+test-results
+playwright-report
+# Android (Capacitor)
+android/.gradle
+android/build
+android/app/build
+android/local.properties
+android/.idea
+android/capacitor-cordova-android-plugins/build
+android/app/src/main/assets/public
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+android/app/src/main/res/xml/config.xml
+*.apk
+!public/download/*.apk

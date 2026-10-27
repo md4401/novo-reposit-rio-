@@ -1,11 +1,12 @@
 import { Bot, Check, Repeat, ShieldCheck, TriangleAlert } from "lucide-react";
 import type { AlertsPayload, Recurring } from "../../shared/types";
-import { DemoFlag, Empty, ErrorBox, Heading, Metric, Money, Panel, Skeleton } from "../components/ui";
+import { Empty, ErrorBox, Heading, Metric, Money, Panel, Skeleton } from "../components/ui";
 import { api } from "../lib/api";
-import { category, dayLabel, monthLabel } from "../lib/format";
+import { dayLabel, monthLabel } from "../lib/format";
 import { navigate } from "../lib/router";
 import { useData } from "../lib/useData";
 import { useApp } from "../state";
+import { CategoryBadge, Glyph } from "../components/icons";
 
 function intervalText(r: Recurring) {
   if (r.installment) return `Parcela ${r.installment.n} de ${r.installment.of}`;
@@ -17,7 +18,7 @@ function RecurringCard({ r }: { r: Recurring }) {
   const increase = r.previousAmountCents !== null && r.lastAmountCents - r.previousAmountCents >= 100 ? r.lastAmountCents - r.previousAmountCents : 0;
   return (
     <div className="sub-card">
-      <div className="sub-icon">{r.kind === "parcela" ? "🧾" : category(r.categoryId).icon}</div>
+      <CategoryBadge id={r.kind === "parcela" ? "outros" : r.categoryId} size={43} />
       <div>
         <h4>{r.label}</h4>
         <p>
@@ -64,7 +65,6 @@ export function AlertsPage() {
           </button>
         }
       />
-      <DemoFlag />
       {error && <ErrorBox message={error} onRetry={reload} />}
       {!data ? (
         <Skeleton height={300} />
@@ -132,7 +132,9 @@ export function AlertsPage() {
                   <div className="insights">
                     {data.alerts.map((a) => (
                       <div className="insight" key={a.key}>
-                        <span className="insight-ic">{a.type === "increase" ? "📈" : a.type === "duplicate" ? "🔁" : "⚠️"}</span>
+                        <span className="insight-ic">
+                          <Glyph emoji={a.type === "increase" ? "📈" : a.type === "duplicate" ? "🔁" : "⚠️"} />
+                        </span>
                         <div style={{ flex: 1 }}>
                           <h4>{a.title}</h4>
                           <p>{a.text}</p>

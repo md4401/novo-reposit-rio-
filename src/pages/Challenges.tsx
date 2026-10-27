@@ -7,9 +7,10 @@ import { api } from "../lib/api";
 import { dayLabel } from "../lib/format";
 import { useData } from "../lib/useData";
 import { useApp } from "../state";
+import { Glyph } from "../components/icons";
 
 export function ChallengesPage() {
-  const { toast } = useApp();
+  const { toast, confirm } = useApp();
   const { data, error, reload } = useData<Challenge[]>("challenges");
   const active = new Set((data ?? []).filter((c) => c.status === "active").map((c) => c.kind));
   const won = (data ?? []).filter((c) => c.status === "won").length;
@@ -31,7 +32,9 @@ export function ChallengesPage() {
         <div className="insights">
           {(Object.keys(CHALLENGES) as ChallengeKind[]).map((k) => (
             <div className="insight" key={k}>
-              <span className="insight-ic">{CHALLENGES[k].icon}</span>
+              <span className="insight-ic">
+                <Glyph emoji={CHALLENGES[k].icon} />
+              </span>
               <div style={{ flex: 1 }}>
                 <h4>{CHALLENGES[k].title}</h4>
                 <p>{CHALLENGES[k].text}</p>
@@ -47,7 +50,7 @@ export function ChallengesPage() {
         {!data ? (
           <Skeleton />
         ) : data.length === 0 ? (
-          <Empty icon="🏁" title="Nenhum desafio ainda" />
+          <Empty icon="🏁" title="Nenhum desafio ainda" text="Toque em “Aceitar” num dos desafios acima para começar." />
         ) : (
           data.map((c) => (
             <div className="budget-row" key={c.id}>
@@ -68,7 +71,7 @@ export function ChallengesPage() {
               </div>
               {c.status === "active" && (
                 <div className="budget-actions">
-                  <button type="button" className="icon-btn" aria-label="Desistir" onClick={() => window.confirm("Desistir deste desafio?") && void api(`challenges/${c.id}/abandon`, { body: {} })}>
+                  <button type="button" className="icon-btn" aria-label="Desistir" onClick={async () => (await confirm({ title: "Desistir deste desafio?", confirmLabel: "Desistir", danger: true })) && void api(`challenges/${c.id}/abandon`, { body: {} })}>
                     <X size={14} />
                   </button>
                 </div>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectAlerts, detectRecurring, type TxLite, nextMonthCommitments } from "../server/insights";
+import { detectAlerts, detectRecurring, INSIGHT_PRIORITY, nextMonthCommitments, rankInsights, type TxLite } from "../server/insights";
 
 let id = 0;
 const tx = (occurredOn: string, merchant: string, amountCents: number, categoryId: string | null = null, description = merchant): TxLite => ({
@@ -71,5 +71,41 @@ describe("compromissos do mês que vem", () => {
     expect(c.totalCents).toBe(15590);
     expect(c.items.map((i) => i.label)).toEqual(["Netflix", "Loja (parcela 4/10)"]);
     expect(c.items.every((i) => i.on.startsWith("2026-11"))).toBe(true);
+  });
+});
+
+describe("prioridade dos avisos da tela inicial", () => {
+  const P = INSIGHT_PRIORITY;
+
+  it("em novembro, dica do 13º, conta e fatura não escondem orçamento estourado, duplicidade e pendências", () => {
+    const top = rankInsights(
+      [
+        { item: "conta vencendo em 3 dias", priority: P.dueSoon },
+        { item: "fatura do cartão", priority: P.dueSoon },
+        { item: "13º salário", priority: P.info },
+        { item: "orçamento 120%", priority: P.overBudget },
+        { item: "compras para revisar", priority: P.pending },
+        { item: "cobrança duplicada", priority: P.duplicate },
+        { item: "privacidade", priority: P.filler },
+      ],
+      3,
+    );
+    expect(top).toEqual(["orçamento 120%", "cobrança duplicada", "compras para revisar"]);
+  });
+
+  it("conta vencida vem antes de tudo e o empate mantém a ordem", () => {
+    const top = rankInsights(
+      [
+        { item: "a", priority: P.info },
+        { item: "conta venceu", priority: P.urgent },
+        { item: "b", priority: P.info },
+      ],
+      3,
+    );
+    expect(top).toEqual(["conta venceu", "a", "b"]);
+  });
+
+  it("sem alertas, as dicas ocupam o espaço e a de privacidade fica por último", () => {
+    expect(rankInsights([{ item: "privacidade", priority: P.filler }, { item: "tendência", priority: P.info }], 3)).toEqual(["tendência", "privacidade"]);
   });
 });

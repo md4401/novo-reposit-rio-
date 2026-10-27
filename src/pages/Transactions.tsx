@@ -1,14 +1,14 @@
-import { Camera, Download, FileUp, Plus, Search } from "lucide-react";
+import { CalendarRange, Download, FileUp, Lock, Plus, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Tag, Transaction } from "../../shared/types";
+import { ReviewHelp } from "../components/help";
 import { TxList } from "../components/TxRow";
-import { DemoFlag, Empty, ErrorBox, Heading, Money, PeriodControl, Segmented, Skeleton } from "../components/ui";
+import { Empty, ErrorBox, Heading, Money, PeriodControl, Skeleton } from "../components/ui";
 import { scopeLabel, txCategoryLabel, txScope } from "../lib/format";
 import type { Route } from "../lib/router";
 import { useData } from "../lib/useData";
 import { ImportModal } from "../modals/AccountModals";
-import { NewTransactionModal } from "../modals/NewTransactionModal";
-import { ReceiptModal } from "../modals/ReceiptModal";
+import { QuickAddSheet } from "../modals/MenuSheets";
 import { useApp } from "../state";
 
 type Filter = "all" | "pending" | "family" | "personal" | "ignored";
@@ -64,66 +64,69 @@ export function TransactionsPage({ route }: { route: Route }) {
   const out = items.filter((t) => t.direction === "expense" && !t.ignored).reduce((s, t) => s + t.amountCents, 0);
   const inc = items.filter((t) => t.direction === "income" && !t.ignored).reduce((s, t) => s + t.amountCents, 0);
 
+  const narrowed = filter !== "all" || !!q || !!tag;
+  const filters: [Filter, string][] = [
+    ["all", "Todas"],
+    ["pending", `A revisar${me?.pendingCount ? ` · ${me.pendingCount}` : ""}`],
+    ["family", "Família"],
+    ["personal", "Pessoal"],
+    ["ignored", "Ignoradas"],
+  ];
+
   return (
     <>
       <Heading
         title="Transações"
-        subtitle="Acompanhe, categorize e distribua suas próprias movimentações."
+        subtitle="Tudo o que entrou e saiu das suas contas. Toque numa linha para classificar ou dividir."
         actions={
           <>
-            <button
-              type="button"
-              className="btn ghost"
-              onClick={() => {
-                exportCsv(items);
-                toast("CSV exportado só com as suas transações desta lista.");
-              }}
-              disabled={!items.length}
-            >
-              <Download size={15} /> Exportar CSV
+            <button type="button" className="btn dark" onClick={() => openModal(<QuickAddSheet />)}>
+              <Plus size={15} /> Adicionar
             </button>
             <button type="button" className="btn ghost" onClick={() => openModal(<ImportModal />)}>
               <FileUp size={15} /> Importar extrato
             </button>
-            <button type="button" className="btn ghost" onClick={() => openModal(<ReceiptModal />)}>
-              <Camera size={15} /> Nota fiscal
-            </button>
-            <button type="button" className="btn dark hide-mobile" onClick={() => openModal(<NewTransactionModal />)}>
-              <Plus size={15} /> Registrar compra
-            </button>
+            {items.length > 0 && (
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => {
+                  exportCsv(items);
+                  toast("CSV exportado só com as suas transações desta lista.");
+                }}
+              >
+                <Download size={15} /> Exportar CSV
+              </button>
+            )}
           </>
         }
       />
-      <DemoFlag />
-      <div className="filterbar">
+      <div className="tx-toolbar">
         <div className="search-wrap">
           <Search size={17} />
           <input className="search" type="search" placeholder="Buscar estabelecimento ou descrição…" aria-label="Buscar transações" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         {filter !== "pending" && (
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            {!allMonths && <PeriodControl month={month} onChange={setMonth} max={today} />}
-            <button type="button" className={`btn small ${allMonths ? "dark" : "ghost"}`} onClick={() => setAllMonths((v) => !v)}>
-              {allMonths ? "Todos os meses" : "Ver todos"}
+          <div className="tx-period">
+            {allMonths ? <span className="period-all">Todos os meses</span> : <PeriodControl month={month} onChange={setMonth} max={today} />}
+            <button type="button" className="btn ghost small" onClick={() => setAllMonths((v) => !v)}>
+              <CalendarRange size={14} /> {allMonths ? "Por mês" : "Tudo"}
             </button>
           </div>
         )}
       </div>
-      <div className="filterbar">
-        <Segmented<Filter>
-          value={filter}
-          onChange={setFilter}
-          options={[
-            ["all", "Todas"],
-            ["pending", `Pendentes${me?.pendingCount ? ` (${me.pendingCount})` : ""}`],
-            ["family", "Familiares"],
-            ["personal", "Pessoais"],
-            ["ignored", "Ignoradas"],
-          ]}
-        />
+      <div className="chips-row" role="tablist" aria-label="Filtrar transações">
+        {filters.map(([key, label]) => (
+          <button key={key} type="button" role="tab" aria-selected={filter === key} className={`filter-chip ${filter === key ? "on" : ""}`} onClick={() => setFilter(key)}>
+            {label}
+          </button>
+        ))}
+        <span className="chips-help">
+          <ReviewHelp />
+        </span>
         {(tags.data?.length ?? 0) > 0 && (
           <select className="tag-filter" aria-label="Filtrar por etiqueta" value={tag} onChange={(e) => setTag(e.target.value)}>
-            <option value="">🏷️ Todas as etiquetas</option>
+            <option value="">Todas as etiquetas</option>
             {tags.data!.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.name}
@@ -139,25 +142,56 @@ export function TransactionsPage({ route }: { route: Route }) {
         <div className="list-box">
           <Empty
             icon="🧾"
-            title={filter === "pending" ? "Nenhuma pendência" : "Nenhuma transação encontrada"}
-            text={filter === "pending" ? "Tudo classificado. Bom trabalho!" : "Registre uma despesa ou importe o extrato do seu banco (CSV ou OFX)."}
+            title={filter === "pending" ? "Nada para revisar" : "Nenhuma transação encontrada"}
+            text={
+              filter === "pending" ? "Tudo classificado. Bom trabalho!" : narrowed ? "Nada com esse filtro ou busca." : "Registre uma despesa ou importe o extrato do seu banco (CSV ou OFX)."
+            }
             action={
-              <button type="button" className="btn dark small" onClick={() => openModal(<ImportModal />)}>
-                <FileUp size={14} /> Importar extrato
-              </button>
+              !narrowed ? (
+                <button type="button" className="btn dark small" onClick={() => openModal(<QuickAddSheet />)}>
+                  <Plus size={14} /> Adicionar
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn ghost small"
+                  onClick={() => {
+                    setFilter("all");
+                    setSearch("");
+                    setTag("");
+                  }}
+                >
+                  Ver todas
+                </button>
+              )
             }
           />
         </div>
       ) : (
         <>
-          <p className="muted small" style={{ marginBottom: 8 }}>
-            {items.length} movimentaç{items.length === 1 ? "ão" : "ões"} · saídas <Money cents={out} /> · entradas <Money cents={inc} />
-          </p>
+          <div className="tx-summary">
+            <div>
+              <span>Saídas</span>
+              <b className="down">
+                <Money cents={out} sign="-" />
+              </b>
+            </div>
+            <div>
+              <span>Entradas</span>
+              <b className="up">
+                <Money cents={inc} sign="+" />
+              </b>
+            </div>
+            <div>
+              <span>Movimentações</span>
+              <b>{items.length}</b>
+            </div>
+          </div>
           <div className="list-box">
             <TxList items={items} />
           </div>
           <p className="muted small" style={{ marginTop: 12 }}>
-            Toque numa transação para editar categorias, dividir valores ou marcar como pessoal/familiar. Só os seus dados aparecem aqui.
+            <Lock size={12} style={{ verticalAlign: -1 }} /> Só as suas transações aparecem aqui.
           </p>
         </>
       )}

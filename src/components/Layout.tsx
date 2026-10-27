@@ -1,121 +1,104 @@
-// Estrutura: menu lateral (computador) e barra inferior + gaveta (celular), como no protótipo.
-import { Activity, ArrowLeftRight, Banknote, Bell, Bot, Briefcase, Calculator, CalendarClock, Eye, EyeOff, FileText, FolderLock, Gift, HandCoins, Handshake, HeartHandshake, House, Landmark, LifeBuoy, ListChecks, Lock, Menu, MessagesSquare, Milestone, PiggyBank, Plus, Receipt, Repeat, Scale, Settings, ShieldAlert, ShoppingBasket, Sparkles, Tags, Target, Ticket, TrendingUp, Trophy, Users, Wallet } from "lucide-react";
+// Estrutura: menu lateral com as seções (computador) e barra inferior com "+" no centro (celular).
+// As telas de cada seção aparecem como abas no topo da página. Nos modos simples e criança, um menu curto.
+import { Bell, Bot, Eye, EyeOff, Lock, Plus, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
+import { BOTTOM_KEYS, BOTTOM_REDUCED, KID_NAV, NAV, PAGE_TITLES, sectionOf, SIMPLE_NAV, type NavItem, type NavLink } from "../lib/nav";
 import { navigate } from "../lib/router";
 import { DigestModal } from "../modals/DigestModal";
-import { NewTransactionModal } from "../modals/NewTransactionModal";
+import { MoreSheet, QuickAddSheet } from "../modals/MenuSheets";
+import { markWelcomeSeen, welcomeSeen, WelcomeModal } from "../modals/WelcomeModal";
 import { useApp } from "../state";
 import { Avatar } from "./ui";
 
-type NavItem = { key: string; label: string; icon: ReactNode };
+const BOTTOM = BOTTOM_KEYS.map((key) => NAV.find((n) => n.key === key)!);
+const BOTTOM_LABEL: Record<string, string> = { inicio: "Início", transacoes: "Transações", orcamento: "Planejar", familia: "Casa" };
 
-const PLAN: NavItem[] = [
-  { key: "orcamento", label: "Orçamento", icon: <PiggyBank size={17} /> },
-  { key: "pagar", label: "Contas a pagar", icon: <CalendarClock size={17} /> },
-  { key: "previsao", label: "Saldo previsto", icon: <TrendingUp size={17} /> },
-  { key: "patrimonio", label: "Patrimônio e dívidas", icon: <Scale size={17} /> },
-  { key: "ir", label: "Imposto de Renda", icon: <FileText size={17} /> },
-  { key: "renda", label: "Renda variável", icon: <Briefcase size={17} /> },
-  { key: "parcelar", label: "Parcelar ou à vista?", icon: <Calculator size={17} /> },
-  { key: "momentos", label: "Grandes momentos", icon: <Milestone size={17} /> },
-];
-const MAIN: NavItem[] = [
-  { key: "inicio", label: "Visão geral", icon: <House size={17} /> },
-  { key: "meu", label: "Meu financeiro", icon: <Wallet size={17} /> },
-  { key: "familia", label: "Nossa família", icon: <Users size={17} /> },
-  { key: "transacoes", label: "Transações", icon: <ArrowLeftRight size={17} /> },
-  { key: "casa", label: "Contas da casa", icon: <Receipt size={17} /> },
-  { key: "metas", label: "Metas e objetivos", icon: <Target size={17} /> },
-  { key: "desejos", label: "Lista de desejos", icon: <Gift size={17} /> },
-];
-const TOGETHER: NavItem[] = [
-  { key: "acertos", label: "Quem deve a quem", icon: <Handshake size={17} /> },
-  { key: "reuniao", label: "Reunião do mês", icon: <MessagesSquare size={17} /> },
-  { key: "compras", label: "Lista de compras", icon: <ListChecks size={17} /> },
-];
-const CARE: NavItem[] = [
-  { key: "receber", label: "Valores a receber", icon: <HandCoins size={17} /> },
-  { key: "bancos", label: "Custo dos bancos", icon: <Banknote size={17} /> },
-  { key: "pontos", label: "Benefícios e pontos", icon: <Ticket size={17} /> },
-  { key: "reserva", label: "Reserva de emergência", icon: <LifeBuoy size={17} /> },
-  { key: "documentos", label: "Documentos e garantias", icon: <FolderLock size={17} /> },
-  { key: "seguranca", label: "Golpes e segurança", icon: <ShieldAlert size={17} /> },
-  { key: "legado", label: "E se eu faltar?", icon: <HeartHandshake size={17} /> },
-];
-const SMART: NavItem[] = [
-  { key: "nia", label: "Assistente Nia", icon: <Bot size={17} /> },
-  { key: "alertas", label: "Assinaturas e alertas", icon: <Repeat size={17} /> },
-  { key: "desafios", label: "Desafios", icon: <Trophy size={17} /> },
-  { key: "cesta", label: "Cesta da família", icon: <ShoppingBasket size={17} /> },
-  { key: "saude", label: "Saúde dos dados", icon: <Activity size={17} /> },
-];
-const MORE: NavItem[] = [
-  { key: "etiquetas", label: "Etiquetas", icon: <Tags size={17} /> },
-  { key: "contas", label: "Contas e extratos", icon: <Landmark size={17} /> },
-  { key: "ajustes", label: "Configurações", icon: <Settings size={17} /> },
-];
-
-export const PAGE_TITLES: Record<string, string> = {
-  ...Object.fromEntries([...MAIN, ...TOGETHER, ...PLAN, ...CARE, ...SMART, ...MORE].map((n) => [n.key, n.label])),
-  acompanhar: "Acompanhar",
-};
-
-// Modo simples (letras maiores, poucas telas) e modo criança
-const SIMPLE: NavItem[] = [
-  { key: "inicio", label: "Início", icon: <House size={17} /> },
-  { key: "transacoes", label: "Meus lançamentos", icon: <ArrowLeftRight size={17} /> },
-  { key: "pagar", label: "Contas a pagar", icon: <CalendarClock size={17} /> },
-  { key: "seguranca", label: "Golpes e segurança", icon: <ShieldAlert size={17} /> },
-  { key: "nia", label: "Falar com a Nia", icon: <Bot size={17} /> },
-  { key: "ajustes", label: "Configurações", icon: <Settings size={17} /> },
-];
-const KID: NavItem[] = [
-  { key: "inicio", label: "Meu dinheiro", icon: <House size={17} /> },
-  { key: "metas", label: "Cofrinhos", icon: <PiggyBank size={17} /> },
-  { key: "desafios", label: "Desafios", icon: <Trophy size={17} /> },
-  { key: "transacoes", label: "O que gastei", icon: <ArrowLeftRight size={17} /> },
-  { key: "nia", label: "Nia", icon: <Bot size={17} /> },
-  { key: "ajustes", label: "Configurações", icon: <Settings size={17} /> },
-];
-
-const BOTTOM: NavItem[] = [
-  { key: "inicio", label: "Início", icon: <House size={20} /> },
-  { key: "transacoes", label: "Transações", icon: <ArrowLeftRight size={20} /> },
-  { key: "nia", label: "Nia", icon: <Bot size={20} /> },
-  { key: "familia", label: "Família", icon: <Users size={20} /> },
-];
+// Aviso de uma vez só para quem já usava o app antes do menu novo (quem está testando com exemplo não conhecia o antigo)
+const NEWS_KEY = "ninho.novidades.menu8";
+function readSeen() {
+  try {
+    return localStorage.getItem(NEWS_KEY) === "1";
+  } catch {
+    return true;
+  }
+}
 
 export function Layout({ page, children }: { page: string; children: ReactNode }) {
   const { me, hidden, toggleHidden, openModal, toast } = useApp();
-  const [drawer, setDrawer] = useState(false);
-  const [showAll, setShowAll] = useState(false);
   const pending = me?.pendingCount ?? 0;
+  const section = sectionOf(page);
+  const [seenNews, setSeenNews] = useState(readSeen);
+  const [showAll, setShowAll] = useState(false);
   const mode = me?.profile.uiMode ?? "full";
   const reduced = mode !== "full" && !showAll;
 
-  useEffect(() => setDrawer(false), [page]);
+  // Primeira vez numa conta sem lançamentos: boas-vindas (marcadas como vistas ao abrir, mesmo se fechar no X)
+  const profileId = me?.profile.id;
+  // No modo criança não: a tela inicial dela já explica o básico
+  const fresh = me ? !me.setup.hasTransactions && me.profile.uiMode !== "kid" : false;
+  useEffect(() => {
+    if (!profileId || !fresh || welcomeSeen(profileId)) return;
+    markWelcomeSeen(profileId);
+    openModal(<WelcomeModal />);
+  }, [profileId, fresh, openModal]);
 
-  const go = (key: string) => {
-    setDrawer(false);
-    navigate(key === "inicio" ? "" : key);
+  const go = (key: string) => navigate(key === "inicio" ? "" : key);
+  const quickAdd = () => openModal(<QuickAddSheet />);
+  const openMenu = () => openModal(<MoreSheet page={page} reduced={reduced} onShowAll={() => setShowAll(true)} />);
+  const shortNav = mode === "kid" ? KID_NAV : SIMPLE_NAV;
+
+  const hideNews = () => {
+    try {
+      localStorage.setItem(NEWS_KEY, "1");
+    } catch {
+      // sem armazenamento: some só nesta visita
+    }
+    setSeenNews(true);
   };
 
   const navButton = (n: NavItem) => (
-    <button key={n.key} type="button" className={`nav-btn ${page === n.key ? "active" : ""}`} onClick={() => go(n.key)} aria-current={page === n.key ? "page" : undefined}>
-      {n.icon}
+    <button key={n.key} type="button" className={`nav-btn ${section.key === n.key ? "active" : ""}`} onClick={() => go(n.key)} aria-current={section.key === n.key ? "page" : undefined}>
+      {n.icon(17)}
       <span>{n.label}</span>
-      {n.key === "nia" && pending > 0 && <span className="count">{pending}</span>}
+      {n.key === "transacoes" && pending > 0 && (
+        <span className="count" title="Compras a revisar">
+          {pending}
+        </span>
+      )}
     </button>
   );
 
-  // Na criança, o "Gastei" já fica na tela inicial
-  const showFab = ["inicio", "meu", "transacoes"].includes(page) && !(mode === "kid" && page === "inicio");
-  const bottom = mode === "kid" ? BOTTOM.map((n) => (n.key === "familia" ? { key: "metas", label: "Cofrinhos", icon: <PiggyBank size={20} /> } : n)) : BOTTOM;
+  // Menu curto: cada item é uma tela (sem abas)
+  const linkButton = (n: NavLink) => (
+    <button key={n.key} type="button" className={`nav-btn ${page === n.key ? "active" : ""}`} onClick={() => go(n.key)} aria-current={page === n.key ? "page" : undefined}>
+      {n.icon(17)}
+      <span>{n.label}</span>
+      {n.key === "transacoes" && pending > 0 && <span className="count">{pending}</span>}
+    </button>
+  );
+  const reducedBottom = (key: string, label: string) => {
+    const link = [...SIMPLE_NAV, ...KID_NAV].find((n) => n.key === key)!;
+    return (
+      <button key={key} type="button" className={page === key ? "active" : ""} onClick={() => go(key)} aria-current={page === key ? "page" : undefined}>
+        <span className="ic">{link.icon(20)}</span>
+        {label}
+        {key === "transacoes" && pending > 0 && <span className="badge">{pending}</span>}
+      </button>
+    );
+  };
+
+  const bottomButton = (n: NavItem) => (
+    <button key={n.key} type="button" className={section.key === n.key ? "active" : ""} onClick={() => go(n.key)} aria-current={section.key === n.key ? "page" : undefined}>
+      <span className="ic">{n.icon(20)}</span>
+      {BOTTOM_LABEL[n.key] ?? n.label}
+      {n.key === "transacoes" && pending > 0 && <span className="badge">{pending}</span>}
+    </button>
+  );
+  const bottomItems = mode === "full" ? BOTTOM.map(bottomButton) : BOTTOM_REDUCED[mode].map(([key, label]) => reducedBottom(key, label));
 
   return (
     <div className={`app ${mode}`}>
-      <div className={`drawer-overlay ${drawer ? "open" : ""}`} onClick={() => setDrawer(false)} />
-      <aside className={`sidebar ${drawer ? "open" : ""}`} aria-label="Menu">
+      <aside className="sidebar" aria-label="Menu">
         <div className="brand">
           <div className="brand-mark">n</div>
           <div>
@@ -125,63 +108,30 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
             <div className="brand-sub">FINANÇAS EM FAMÍLIA</div>
           </div>
         </div>
-        {reduced ? (
-          <nav className="nav">{(mode === "kid" ? KID : SIMPLE).map(navButton)}</nav>
-        ) : (
-          <>
-          <div className="group-label">PAINEL</div>
-          <nav className="nav">{MAIN.map(navButton)}</nav>
-          <div className="group-label" style={{ marginTop: 24 }}>
-            ENTRE NÓS
-          </div>
-          <nav className="nav">{TOGETHER.map(navButton)}</nav>
-          <div className="group-label" style={{ marginTop: 24 }}>
-            PLANEJAMENTO
-          </div>
-          <nav className="nav">{PLAN.map(navButton)}</nav>
-          <div className="group-label" style={{ marginTop: 24 }}>
-            PROTEÇÃO
-          </div>
-          <nav className="nav">{CARE.map(navButton)}</nav>
-          <div className="group-label" style={{ marginTop: 24 }}>
-            INTELIGÊNCIA
-          </div>
-          <nav className="nav">{SMART.map(navButton)}</nav>
-          <div className="group-label" style={{ marginTop: 24 }}>
-            CONTA
-          </div>
-          <nav className="nav">{MORE.map(navButton)}</nav>
-          </>
-        )}
+        <button type="button" className="btn primary block sidebar-add" onClick={quickAdd}>
+          <Plus size={16} /> Adicionar
+        </button>
+        <nav className="nav">{reduced ? shortNav.map(linkButton) : NAV.map(navButton)}</nav>
         {mode !== "full" && (
-          <button type="button" className="link" style={{ marginTop: 14 }} onClick={() => setShowAll((v) => !v)}>
+          <button type="button" className="link sidebar-all" onClick={() => setShowAll((v) => !v)}>
             {showAll ? "Mostrar menos" : "Ver todas as telas"}
           </button>
         )}
-        <div className="sidebar-bottom">
-          <div className="sidebar-tip hide-mobile">
-            <div className="tip-star">
-              <Sparkles size={17} />
+        {me && (
+          <button type="button" className="sidebar-footer" onClick={() => go("ajustes")}>
+            <Avatar name={me.profile.name} color={me.profile.avatarColor} />
+            <div style={{ minWidth: 0 }}>
+              <div className="name">{me.profile.name}</div>
+              <div className="role">{me.household.name}</div>
             </div>
-            <h3>Mais clareza, menos trabalho.</h3>
-            <p>Um lugar para organizar seu dinheiro, proteger sua privacidade e planejar o futuro.</p>
-          </div>
-          {me && (
-            <button type="button" className="sidebar-footer" onClick={() => go("ajustes")}>
-              <Avatar name={me.profile.name} color={me.profile.avatarColor} />
-              <div style={{ minWidth: 0 }}>
-                <div className="name">{me.profile.name}</div>
-                <div className="role">Espaço privado</div>
-              </div>
-              <Lock size={15} style={{ marginLeft: "auto", color: "#779788" }} />
-            </button>
-          )}
-        </div>
+            <Lock size={14} style={{ marginLeft: "auto", color: "#779788" }} aria-label="Espaço privado" />
+          </button>
+        )}
       </aside>
 
       <main className="main">
         <header className="topbar">
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
             <div className="mobile-brand">
               <div className="brand-mark">n</div>
               <span>
@@ -193,7 +143,11 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
             </span>
           </div>
           <div className="top-right">
-            {me?.hasDemoData && <span className="demo-pill">● DADOS DE EXEMPLO</span>}
+            {me?.hasDemoData && (
+              <button type="button" className="demo-pill" onClick={() => go("ajustes?aba=privacidade")} title="Dados fictícios para testar. Remova em Configurações.">
+                <span className="hide-mobile">● DADOS DE </span>EXEMPLO
+              </button>
+            )}
             <button
               type="button"
               className="icon-btn"
@@ -206,39 +160,54 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
             >
               {hidden ? <EyeOff size={17} /> : <Eye size={17} />}
             </button>
-            <button type="button" className="icon-btn" onClick={() => openModal(<DigestModal />)} aria-label="Resumo diário" title="Resumo diário">
+            <button type="button" className="icon-btn hide-mobile" onClick={() => openModal(<DigestModal />)} aria-label="Revisar compras" title="Revisar compras">
               <Bell size={17} />
               {pending > 0 && <span className="dot-badge">{pending}</span>}
             </button>
+            <button type="button" className="icon-btn show-mobile" onClick={() => go("nia")} aria-label="Assistente Nia" title="Assistente Nia">
+              <Bot size={17} />
+            </button>
+            {me && (
+              <button type="button" className="avatar-btn show-mobile" onClick={openMenu} aria-label="Menu e configurações" title="Menu">
+                <Avatar name={me.profile.name} color={me.profile.avatarColor} />
+              </button>
+            )}
           </div>
         </header>
         <div className="content">
+          {!seenNews && me?.setup.hasTransactions && !me.hasDemoData && (
+            <div className="news-bar" role="status">
+              <span>
+                <b>O menu ficou mais simples:</b> poucas seções, e as telas de cada uma viram abas no topo. No celular, o menu completo abre pela sua foto, no canto de cima.
+              </span>
+              <button type="button" className="icon-btn" onClick={hideNews} aria-label="Entendi">
+                <X size={15} />
+              </button>
+            </div>
+          )}
+          {!reduced && section.tabs.length > 1 && (
+            <div className="chips-row section-tabs" role="tablist" aria-label={section.label}>
+              {section.tabs.map((t) => (
+                <button key={t.key} type="button" role="tab" aria-selected={page === t.key} className={`filter-chip ${page === t.key ? "on" : ""}`} onClick={() => go(t.key)}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="page" key={page}>
             {children}
           </div>
         </div>
       </main>
 
-      {showFab && (
-        <button type="button" className="fab" onClick={() => openModal(<NewTransactionModal />)}>
-          <Plus size={20} /> Nova despesa
-        </button>
-      )}
-
       <nav className="bottom-nav" aria-label="Navegação principal">
-        {bottom.map((n) => (
-          <button key={n.key} type="button" className={page === n.key ? "active" : ""} onClick={() => go(n.key)} aria-current={page === n.key ? "page" : undefined}>
-            <span className="ic">{n.icon}</span>
-            {n.label}
-            {n.key === "nia" && pending > 0 && <span className="badge">{pending}</span>}
-          </button>
-        ))}
-        <button type="button" className={!BOTTOM.some((b) => b.key === page) ? "active" : ""} onClick={() => setDrawer(true)}>
+        {bottomItems.slice(0, 2)}
+        <button type="button" className="bottom-add" onClick={quickAdd} aria-label="Adicionar">
           <span className="ic">
-            <Menu size={20} />
+            <Plus size={24} />
           </span>
-          Mais
         </button>
+        {bottomItems.slice(2)}
       </nav>
     </div>
   );

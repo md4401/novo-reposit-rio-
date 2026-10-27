@@ -1,8 +1,9 @@
 import type { Transaction } from "../../shared/types";
-import { dayLabel, scopeLabel, txCategoryLabel, txIcon, txScope } from "../lib/format";
+import { dayLabel, scopeLabel, txCategoryLabel, txScope } from "../lib/format";
 import { OrganizeModal } from "../modals/OrganizeModal";
 import { useApp } from "../state";
 import { Money, StatusChip } from "./ui";
+import { CategoryBadge, txCategoryId } from "./icons";
 
 export function TxRow({ t, showDate = true }: { t: Transaction; showDate?: boolean }) {
   const { openModal } = useApp();
@@ -11,9 +12,7 @@ export function TxRow({ t, showDate = true }: { t: Transaction; showDate?: boole
     .join(" · ");
   return (
     <button type="button" className={`tx-row ${t.ignored ? "ignored" : ""}`} onClick={() => openModal(<OrganizeModal transaction={t} />)}>
-      <span className="tx-icon" aria-hidden="true">
-        {t.direction === "income" ? "💰" : t.direction === "transfer" ? "🔁" : txIcon(t)}
-      </span>
+      <CategoryBadge id={txCategoryId(t)} />
       <span className="tx-main">
         <span className="tx-name" style={{ display: "block" }}>
           {t.description}

@@ -343,7 +343,7 @@ export function ruleReply(question: string, ctx: Context): string | null {
   if (has(/gast|despes|quanto|compr|extrato|saiu|resumo/)) {
     const t = ctx.meus_totais_mes;
     const top = ctx.minhas_categorias_mes
-      .filter((c) => c.categoria !== "A confirmar")
+      .filter((c) => c.categoria !== "Sem categoria")
       .slice(0, 3)
       .map((c) => `${c.categoria} (${money(c.centavos)})`);
     const prev = ctx.meus_gastos_mes_passado;

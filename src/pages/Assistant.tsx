@@ -13,6 +13,7 @@ import { DigestModal } from "../modals/DigestModal";
 import { NewTransactionModal } from "../modals/NewTransactionModal";
 import { ReceiptModal } from "../modals/ReceiptModal";
 import { useApp } from "../state";
+import { CategoryIcon, Glyph } from "../components/icons";
 
 const QUICK = ["Quanto gastei este mês?", "O que falta classificar?", "Quais assinaturas estão ativas?", "Como está a família?", "Gastei 45 na farmácia"];
 const SAVED_KEY = "ninho.savedProposals";
@@ -61,7 +62,7 @@ function ProposalCard({ message, onSaved, saved }: { message: NiaMessage; saved:
       {p.allocations.map((a, i) => (
         <div className="proposal-row" key={i}>
           <span>
-            {category(a.categoryId).icon} {category(a.categoryId).name} · {a.scope === "family" ? "🏠 familiar" : "🔒 pessoal"}
+            <CategoryIcon id={a.categoryId} size={14} /> {category(a.categoryId).name} · {a.scope === "family" ? "familiar" : "pessoal"}
           </span>
           <span className="num">{formatMoney(a.amountCents)}</span>
         </div>
@@ -89,7 +90,7 @@ function ProposalCard({ message, onSaved, saved }: { message: NiaMessage; saved:
 }
 
 export function AssistantPage() {
-  const { me, openModal, toast } = useApp();
+  const { me, openModal, toast, confirm } = useApp();
   const { data, error, reload } = useData<NiaMessage[]>("nia");
   const [messages, setMessages] = useState<NiaMessage[]>([]);
   const [text, setText] = useState("");
@@ -200,11 +201,12 @@ export function AssistantPage() {
   }
 
   async function clear() {
-    if (!window.confirm("Apagar toda a conversa com a Nia?")) return;
+    if (!(await confirm({ title: "Apagar toda a conversa com a Nia?", text: "As compras que você já lançou continuam.", confirmLabel: "Apagar", danger: true }))) return;
     setMessages(await api<NiaMessage[]>("nia/clear", { body: {} }));
   }
 
   const pending = me?.pendingCount ?? 0;
+  const talking = messages.some((m) => m.role === "user");
   return (
     <>
       <Heading
@@ -212,7 +214,7 @@ export function AssistantPage() {
         subtitle="Um jeito natural de entender e organizar suas finanças."
         actions={
           <button type="button" className="btn ghost" onClick={() => openModal(<DigestModal />)}>
-            <Bell size={15} /> Pendências do dia {pending > 0 && <span className="chip lime">{pending}</span>}
+            <Bell size={15} /> A revisar {pending > 0 && <span className="chip lime">{pending}</span>}
           </button>
         }
       />
@@ -243,6 +245,16 @@ export function AssistantPage() {
               {sending && (
                 <div className="bubble assistant">
                   <Spinner size={14} /> Pensando…
+                </div>
+              )}
+              {data && !talking && !sending && (
+                <div className="chat-suggest">
+                  <span>Experimente:</span>
+                  {QUICK.map((q) => (
+                    <button key={q} type="button" className="quick" onClick={() => send(q)}>
+                      {q}
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
@@ -280,33 +292,36 @@ export function AssistantPage() {
               </button>
             </form>
           </div>
-          <div className="chat-quick">
-            {QUICK.map((q) => (
-              <button key={q} type="button" className="quick" onClick={() => send(q)}>
-                {q}
-              </button>
-            ))}
-          </div>
+          {/* Com a conversa em andamento, as sugestões ficam abaixo do campo (só no computador: no celular sairiam da tela) */}
+          {talking && (
+            <div className="chat-quick hide-mobile">
+              {QUICK.map((q) => (
+                <button key={q} type="button" className="quick" onClick={() => send(q)}>
+                  {q}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="stack">
           <Panel title="O que a Nia pode fazer?">
             <div className="insights">
               <div className="insight">
-                <span className="insight-ic">🎙️</span>
+                <span className="insight-ic"><Glyph emoji="🎙️" /></span>
                 <div>
                   <h4>Entender sua voz</h4>
                   <p>Toque no microfone e fale “comprei 80 de comida e 30 de limpeza no mercado”. Você confere o texto antes de enviar.</p>
                 </div>
               </div>
               <div className="insight">
-                <span className="insight-ic">📸</span>
+                <span className="insight-ic"><Glyph emoji="📸" /></span>
                 <div>
                   <h4>Ler notas fiscais</h4>
                   <p>{me?.aiEnabled ? "Transforma os produtos da foto em categorias." : "Exemplo simulado até configurar a chave de IA."}</p>
                 </div>
               </div>
               <div className="insight">
-                <span className="insight-ic">🧠</span>
+                <span className="insight-ic"><Glyph emoji="🧠" /></span>
                 <div>
                   <h4>Aprender com você</h4>
                   <p>Depois de 2 confirmações iguais, o estabelecimento vira regra automática (desligável).</p>
@@ -321,7 +336,7 @@ export function AssistantPage() {
             </div>
             <p className="muted small">transações precisam da sua atenção.</p>
             <button type="button" className="btn primary block" style={{ marginTop: 16 }} onClick={() => openModal(<DigestModal />)}>
-              Revisar pendências <ChevronRight size={14} />
+              Revisar compras <ChevronRight size={14} />
             </button>
           </Panel>
           <div className="privacy-line" style={{ marginTop: 0 }}>

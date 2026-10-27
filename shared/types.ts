@@ -71,6 +71,8 @@ export type Me = {
   /** Mensagens de voz gravadas e transcritas no servidor (Whisper) */
   voiceEnabled: boolean;
   hasDemoData: boolean;
+  /** Primeiros passos já dados (guia de boas-vindas da tela inicial) */
+  setup: { hasTransactions: boolean; hasBudget: boolean; hasGoal: boolean };
   today: string;
 };
 
@@ -105,17 +107,45 @@ export type MonthTotals = { incomeCents: number; expenseCents: number; balanceCe
 export type CategoryTotal = { categoryId: string; cents: number };
 export type SeriesPoint = { month: string; incomeCents: number; expenseCents: number };
 
-export type Insight = { id: string; icon: string; title: string; text: string; page?: string };
+export type Insight = {
+  id: string;
+  icon: string;
+  title: string;
+  text: string;
+  page?: string;
+  /** Texto do botão quando o aviso pede uma ação ("Revisar", "Pagar"…) */
+  cta?: string;
+};
+
+/** Agenda dos próximos dias na tela inicial (só itens da própria pessoa). */
+export type UpcomingItem = {
+  on: string;
+  label: string;
+  amountCents: number;
+  kind: "bill" | "card" | "subscription" | "house";
+  overdue: boolean;
+  page: string;
+};
 
 export type Overview = {
   month: string;
   family: MonthTotals & { previousExpenseCents: number };
   familyCategories: CategoryTotal[];
   familySeries: SeriesPoint[];
-  mine: MonthTotals;
+  mine: MonthTotals & { previousExpenseCents: number };
+  /** Categorias das suas compras no mês (partes pessoais e familiares) */
+  mineCategories: CategoryTotal[];
   pendingCount: number;
   recent: Transaction[];
   insights: Insight[];
+  /** "Precisa de você": alertas com ação, mais urgentes primeiro (até 4) */
+  actions: Insight[];
+  /** Dicas sem urgência (até 2) */
+  tips: Insight[];
+  /** Próximos 7 dias: contas, fatura, assinaturas e a sua parte nas contas da casa */
+  upcoming: UpcomingItem[];
+  /** Saldo previsto no fim do mês (só com saldo informado em alguma conta) */
+  forecastEndOfMonthCents: number | null;
   dataWarning: boolean;
   budgets: BudgetSummary;
   /** Nos primeiros dias do mês: o mês que acabou de fechar */

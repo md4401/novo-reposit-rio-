@@ -5,10 +5,11 @@ import { categoriesFor } from "../../shared/categories";
 import type { CardInvoice, Payable } from "../../shared/types";
 import { Empty, ErrorBox, Heading, ModalHeader, Money, Panel, Skeleton, Spinner } from "../components/ui";
 import { api } from "../lib/api";
-import { category, centsToInput, dayLabel, parseMoney } from "../lib/format";
+import { centsToInput, dayLabel, parseMoney } from "../lib/format";
 import { navigate } from "../lib/router";
 import { useData } from "../lib/useData";
 import { useApp } from "../state";
+import { CategoryBadge } from "../components/icons";
 
 type Template = { name: string; categoryId: string; recurrence: Payable["recurrence"]; seasonal?: boolean; month?: number; day?: number };
 const TEMPLATES: Template[] = [
@@ -129,7 +130,7 @@ function PayableModal({ payable }: { payable?: Payable }) {
         <select id="pay-cat" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
           {categoriesFor("expense").map((c) => (
             <option key={c.id} value={c.id}>
-              {c.icon} {c.name}
+              {c.name}
             </option>
           ))}
         </select>
@@ -230,7 +231,7 @@ function InvoiceRow({ i }: { i: CardInvoice }) {
 }
 
 export function PayablesPage() {
-  const { me, openModal, toast } = useApp();
+  const { me, openModal, toast, confirm } = useApp();
   const payables = useData<Payable[]>("payables");
   const invoices = useData<CardInvoice[]>("invoices");
   const cards = (me?.accounts ?? []).filter((a) => a.kind === "credit_card" && a.active);
@@ -241,7 +242,7 @@ export function PayablesPage() {
   const seasonal = list.filter((p) => p.monthlySavingCents);
 
   async function remove(p: Payable) {
-    if (!window.confirm(`Apagar “${p.name}”? Os pagamentos já lançados continuam.`)) return;
+    if (!(await confirm({ title: `Apagar “${p.name}”?`, text: "Os pagamentos já lançados continuam.", confirmLabel: "Apagar", danger: true }))) return;
     await api(`payables/${p.id}`, { method: "DELETE" });
     toast("Conta apagada.");
   }
@@ -253,7 +254,7 @@ export function PayablesPage() {
         subtitle="Vencimentos, faturas do cartão e gastos do ano — com aviso antes de vencer."
         actions={
           <button type="button" className="btn dark" onClick={() => openModal(<PayableModal />)}>
-            <Plus size={15} /> Nova conta
+            <Plus size={15} /> Nova conta a pagar
           </button>
         }
       />
@@ -264,11 +265,20 @@ export function PayablesPage() {
             {!payables.data ? (
               <Skeleton />
             ) : list.length === 0 ? (
-              <Empty icon="📅" title="Nenhuma conta cadastrada" text="Cadastre aluguel, luz, internet… e também IPVA, IPTU e material escolar." />
+              <Empty
+                icon="📅"
+                title="Nenhuma conta cadastrada"
+                text="Cadastre aluguel, luz, internet… e também IPVA, IPTU e material escolar."
+                action={
+                  <button type="button" className="btn dark small" onClick={() => openModal(<PayableModal />)}>
+                    <Plus size={14} /> Nova conta a pagar
+                  </button>
+                }
+              />
             ) : (
               list.map((p) => (
                 <div className="payable-row" key={p.id}>
-                  <span className="insight-ic">{category(p.categoryId).icon}</span>
+                  <CategoryBadge id={p.categoryId} size={36} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <h4>{p.name}</h4>
                     <p className="muted small">
@@ -294,12 +304,12 @@ export function PayablesPage() {
         </div>
         <div className="stack">
           <Panel title="Faturas do cartão">
-            {cards.length === 0 && <p className="muted small">Cadastre seu cartão em “Contas e extratos” para acompanhar a fatura.</p>}
+            {cards.length === 0 && <p className="muted small">Cadastre seu cartão em “Bancos e cartões” para acompanhar a fatura.</p>}
             {withoutDays.length > 0 && (
               <button type="button" className="notice info compact" style={{ width: "100%", textAlign: "left", marginBottom: 10 }} onClick={() => navigate("contas")}>
                 <CreditCard size={16} />
                 <span>
-                  Informe o <b>dia de fechamento e de vencimento</b> de {withoutDays.map((c) => c.name).join(", ")} em Contas e extratos.
+                  Informe o <b>dia de fechamento e de vencimento</b> de {withoutDays.map((c) => c.name).join(", ")} em Bancos e cartões.
                 </span>
               </button>
             )}

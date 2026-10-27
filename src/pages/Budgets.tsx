@@ -8,6 +8,7 @@ import { api } from "../lib/api";
 import { category, centsToInput, parseMoney } from "../lib/format";
 import { useData } from "../lib/useData";
 import { useApp } from "../state";
+import { CategoryIcon } from "../components/icons";
 
 function BudgetModal({ scope, budget, month }: { scope: "personal" | "family"; budget?: Budget; month: string }) {
   const { toast, closeModal } = useApp();
@@ -44,7 +45,7 @@ function BudgetModal({ scope, budget, month }: { scope: "personal" | "family"; b
         <select id="b-cat" value={categoryId} disabled={Boolean(budget)} onChange={(e) => setCategoryId(e.target.value)}>
           {categoriesFor("expense").map((c) => (
             <option key={c.id} value={c.id}>
-              {c.icon} {c.name}
+              {c.name}
             </option>
           ))}
         </select>
@@ -69,12 +70,12 @@ function BudgetModal({ scope, budget, month }: { scope: "personal" | "family"; b
 }
 
 function BudgetRow({ b, editable, month }: { b: Budget; editable: boolean; month: string }) {
-  const { openModal, toast } = useApp();
+  const { openModal, toast, confirm } = useApp();
   const c = category(b.categoryId);
   const limit = b.limitCents + b.carryCents;
   const left = limit - b.spentCents;
   async function remove() {
-    if (!window.confirm(`Apagar o limite de ${c.name}?`)) return;
+    if (!(await confirm({ title: `Apagar o limite de ${c.name}?`, confirmLabel: "Apagar", danger: true }))) return;
     try {
       await api(`budgets/${b.id}?month=${month}`, { method: "DELETE" });
       toast("Limite apagado.");
@@ -86,7 +87,7 @@ function BudgetRow({ b, editable, month }: { b: Budget; editable: boolean; month
     <div className="budget-row">
       <div className="budget-top">
         <span className="budget-name">
-          {c.icon} {c.name}
+          <CategoryIcon id={c.id} size={16} /> {c.name}
         </span>
         <span className={`chip ${b.ratio > 1 ? "red" : b.ratio >= 0.8 ? "amber" : "green"}`}>{Math.round(b.ratio * 100)}%</span>
       </div>
@@ -157,6 +158,13 @@ export function BudgetsPage() {
               icon="🎯"
               title="Nenhum limite ainda"
               text={tab === "personal" ? "Comece por uma categoria em que você gasta muito, como Alimentação." : "Ex.: Moradia, Alimentação e Limpeza da casa."}
+              action={
+                editable ? (
+                  <button type="button" className="btn dark small" onClick={() => openModal(<BudgetModal scope={tab} month={month} />)}>
+                    <Plus size={14} /> Criar o primeiro limite
+                  </button>
+                ) : undefined
+              }
             />
           ) : (
             <>

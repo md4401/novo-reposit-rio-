@@ -5,17 +5,17 @@ import { useState } from "react";
 import { monthShort } from "../../shared/time";
 import type { Basket } from "../../shared/types";
 import { Empty, ErrorBox, Heading, Money, Panel, Skeleton } from "../components/ui";
-import { category } from "../lib/format";
 import { useData } from "../lib/useData";
 import { ReceiptModal } from "../modals/ReceiptModal";
 import { useApp } from "../state";
+import { CategoryIcon } from "../components/icons";
 
 function change(bp: number | null) {
   if (bp === null) return <span className="muted small">sem comparação</span>;
   const pct = (bp / 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
   if (bp === 0) return <span className="muted small">mesmo preço</span>;
   return (
-    <b className="small" style={{ color: bp > 0 ? "#8e3f3b" : "#2f6b4f" }}>
+    <b className="small" style={{ color: bp > 0 ? "var(--red)" : "var(--green-ink)" }}>
       {bp > 0 ? `▲ ${pct}%` : `▼ ${pct.replace("-", "")}%`}
     </b>
   );
@@ -49,6 +49,11 @@ export function BasketPage() {
             icon="🧺"
             title="A cesta ainda está vazia"
             text="Leia as notas fiscais das compras da casa (marcadas como da família). Quando um produto aparecer em duas notas, o ninho mostra se ficou mais caro ou mais barato."
+            action={
+              <button type="button" className="btn dark small" onClick={() => openModal(<ReceiptModal />)}>
+                <Camera size={14} /> Ler uma nota fiscal
+              </button>
+            }
           />
         </Panel>
       ) : (
@@ -73,7 +78,7 @@ export function BasketPage() {
               <div key={p.key} className="setting-row">
                 <div style={{ minWidth: 0 }}>
                   <h4>
-                    {category(p.categoryId).icon} {p.name}
+                    <CategoryIcon id={p.categoryId} size={14} /> {p.name}
                   </h4>
                   <p className="small">
                     {p.points.map((pt) => `${monthShort(pt.month)} ${(pt.avgCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`).join(" · ")}

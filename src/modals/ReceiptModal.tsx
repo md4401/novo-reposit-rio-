@@ -7,6 +7,7 @@ import { ModalHeader, Spinner } from "../components/ui";
 import { api } from "../lib/api";
 import { category, dayLabel, formatMoney } from "../lib/format";
 import { useApp } from "../state";
+import { ScopeToggle } from "../components/ScopeToggle";
 import { NewTransactionModal } from "./NewTransactionModal";
 
 const EXAMPLE: ReceiptItem[] = [
@@ -133,7 +134,7 @@ export function ReceiptModal({ initialImage }: { initialImage?: string } = {}) {
         </div>
       )}
       {items.length > 0 && (
-        <div style={{ marginTop: 16, background: "#eaf7e9", border: "1px solid #d6edd6", padding: 14, borderRadius: 12 }}>
+        <div style={{ marginTop: 16, background: "var(--tint)", border: "1px solid var(--line-strong)", padding: 14, borderRadius: 12 }}>
           <strong>
             <Sparkles size={14} style={{ verticalAlign: -2 }} /> {example ? "Exemplo de resultado (não foi lido da sua foto)" : `Itens lidos${reading?.merchant ? ` · ${reading.merchant}` : ""}`}
           </strong>
@@ -149,18 +150,15 @@ export function ReceiptModal({ initialImage }: { initialImage?: string } = {}) {
             </tbody>
           </table>
           <div style={{ fontWeight: 800, marginTop: 10 }}>Total: {formatMoney(total)}</div>
-          {itemsSum !== total && <div className="small" style={{ color: "#8e3f3b" }}>A soma dos itens ({formatMoney(itemsSum)}) não bate com o total da nota: confira antes de salvar.</div>}
+          {itemsSum !== total && <div className="small" style={{ color: "var(--red)" }}>A soma dos itens ({formatMoney(itemsSum)}) não bate com o total da nota: confira antes de salvar.</div>}
           {reading?.match && (
             <div className="small" style={{ marginTop: 8 }}>
               Encontrei a compra <b>{reading.match.description}</b> de {dayLabel(reading.match.occurredOn)} com o mesmo valor. Vincular só detalha as categorias — não cria outra despesa.
             </div>
           )}
           <div className="field" style={{ marginTop: 12, marginBottom: 0 }}>
-            <label htmlFor="r-scope">Visibilidade dos itens</label>
-            <select id="r-scope" value={scope} onChange={(e) => setScope(e.target.value as "personal" | "family")}>
-              <option value="family">🏠 Familiar</option>
-              <option value="personal">🔒 Pessoal</option>
-            </select>
+            <span className="field-label">Quem vê os itens</span>
+            <ScopeToggle value={scope} onChange={setScope} label="Quem vê os itens" />
           </div>
           {file && !example && (
             <label className="check-line" style={{ marginTop: 10, marginBottom: 0 }}>

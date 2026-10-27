@@ -65,6 +65,7 @@ marcar como *familiar*. Feito a partir do *Caderno de produto v0.3* (PDF do proj
 | **Grandes momentos** | Simulador de bebê, mudança, casamento, carro, faculdade, viagem e aposentadoria; vira meta da família. |
 | **Lista de compras** | Uma lista para a casa toda, com preço previsto pelas notas da cesta. |
 | **Privacidade** | Botão para ocultar valores, todas as consultas filtradas pelo dono, testes de isolamento. |
+| **Primeiros passos e tema** | Guia na tela inicial para quem acabou de chegar (conta, movimentações, família, orçamento, meta). Tema claro, escuro ou automático (Configurações → App). |
 
 ## Regras de dinheiro (garantidas no banco)
 
@@ -84,7 +85,7 @@ marcar como *familiar*. Feito a partir do *Caderno de produto v0.3* (PDF do proj
 | Banco | Neon Postgres (São Paulo) + migrations SQL | Plano grátis, `@neondatabase/serverless` (HTTP). |
 | Login | Próprio (scrypt + token Bearer) | Funciona igual no navegador, PWA e APK. O Neon Auth usa cookies de outro domínio, que o WebView do Android pode bloquear; a troca fica isolada em `server/auth.ts`. |
 | IA | Groq (grátis) ou qualquer API compatível com a da OpenAI | Texto, imagem e voz (Whisper). Sem chave a Nia funciona por regras. O AI Gateway do Neon exige plano pago e não está na região de São Paulo. |
-| Testes | Vitest | Centavos, importadores, regras, alertas e frases faladas. |
+| Testes | Vitest + Playwright | Vitest: centavos, importadores, regras, alertas e frases faladas. Playwright (`npm run test:e2e`, fora do CI): cadastro, lançar despesa, revisar compras e importar extrato, no celular e no computador, com a API simulada em `e2e/fake-api.ts`. |
 
 Diferenças em relação ao caderno de produto (de propósito, para um protótipo grátis e testável no celular):
 Expo → React + Capacitor; Neon Auth → login próprio; Drizzle → SQL direto; Neon Functions → função na Vercel;
@@ -113,13 +114,14 @@ npm run db:migrate          # cria as tabelas
 npm run dev:api             # API em http://localhost:8787
 npm run dev                 # app em http://localhost:5173
 npm test                    # testes
+npm run test:e2e            # testes de tela (Chromium do Playwright; não precisa de banco)
 ```
 
 ## Publicação
 
 - **Vercel** (projeto `novo-reposit-rio` → https://ninho-financas-familia.vercel.app): importado deste repositório; cada `git push` na `main` publica. Variáveis: `DATABASE_URL` (obrigatória) e, se quiser IA, `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL` (ver `.env.example`).
 - **Banco**: projeto `ninho` no Neon (região São Paulo). `npm run db:migrate` aplica as migrations.
-- **APK**: `public/download/ninho.apk` (baixável em `/download/ninho.apk` e em Configurações → App Android). O GitHub Actions (`.github/workflows/android.yml`) compila o app a cada mudança; o APK de produção é gerado manualmente (*Run workflow*), assinado com a chave guardada nos secrets, e vira um rascunho de *Release*. O APK abre o site publicado, então atualizações do site chegam sem reinstalar; só é preciso gerar outro APK se mudar algo do Android (ícone, permissões, endereço).
+- **APK**: `public/download/ninho.apk` (baixável em `/download/ninho.apk` e em Configurações → App). O GitHub Actions (`.github/workflows/android.yml`) compila o app a cada mudança; o APK de produção é gerado manualmente (*Run workflow*), assinado com a chave guardada nos secrets, e vira um rascunho de *Release*. O APK abre o site publicado, então atualizações do site chegam sem reinstalar; só é preciso gerar outro APK se mudar algo do Android (ícone, permissões, endereço).
 
 ### Gerar o APK no computador
 

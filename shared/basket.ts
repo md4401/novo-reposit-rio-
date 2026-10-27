@@ -34,3 +34,11 @@ export function priceChangeBp(points: PricePoint[]) {
   if (first <= 0) return null;
   return Math.round(((last - first) * 10000) / first);
 }
+
+/**
+ * Só a compra inteira da família entra na cesta. Se alguma parte for pessoal, os itens da nota
+ * poderiam mostrar à família o que é só de uma pessoa; compra ignorada também fica de fora.
+ */
+export function basketEligible(scopes: string[], ignored: boolean) {
+  return !ignored && scopes.length > 0 && scopes.every((scope) => scope === "family");
+}

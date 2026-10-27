@@ -28,7 +28,7 @@ export const CATEGORIES: Category[] = [
 export const CATEGORY_BY_ID = new Map(CATEGORIES.map((c) => [c.id, c]));
 
 export function categoryName(id: string | null | undefined) {
-  return (id && CATEGORY_BY_ID.get(id)?.name) || "A confirmar";
+  return (id && CATEGORY_BY_ID.get(id)?.name) || "Sem categoria";
 }
 
 export function categoriesFor(kind: CategoryKind) {

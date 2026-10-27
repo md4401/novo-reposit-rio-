@@ -41,7 +41,7 @@ export function ForecastPage() {
             <button type="button" className="notice info compact" style={{ width: "100%", textAlign: "left", margin: "12px 0" }} onClick={() => navigate("contas")}>
               <TriangleAlert size={16} />
               <span>
-                A previsão começa em R$ 0: <b>informe o saldo da sua conta</b> em Contas e extratos para ficar exata.
+                A previsão começa em R$ 0: <b>informe o saldo da sua conta</b> em Bancos e cartões para ficar exata.
               </span>
             </button>
           )}

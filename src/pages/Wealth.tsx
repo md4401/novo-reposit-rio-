@@ -184,11 +184,11 @@ function DebtPlanner({ hasDebts }: { hasDebts: boolean }) {
 }
 
 export function WealthPage() {
-  const { openModal, toast } = useApp();
+  const { openModal, toast, confirm } = useApp();
   const { data, error, reload } = useData<Wealth>("wealth");
 
   async function remove(kind: "assets" | "debts", id: string, name: string) {
-    if (!window.confirm(`Apagar “${name}”?`)) return;
+    if (!(await confirm({ title: `Apagar “${name}”?`, confirmLabel: "Apagar", danger: true }))) return;
     await api(`${kind}/${id}`, { method: "DELETE" });
     toast("Apagado.");
   }
@@ -247,7 +247,7 @@ export function WealthPage() {
               <div className="setting-row">
                 <div>
                   <h4>🏦 Saldo das contas</h4>
-                  <p>Contas com saldo informado em “Contas e extratos”</p>
+                  <p>Contas com saldo informado em “Bancos e cartões”</p>
                 </div>
                 <b className="num">
                   <Money cents={data.accountsCents} />

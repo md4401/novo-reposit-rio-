@@ -1,17 +1,17 @@
 import { Lock, Plus, Trash2 } from "lucide-react";
 import type { Goal } from "../../shared/types";
-import { DemoFlag, Empty, ErrorBox, Heading, Money, Progress, Skeleton } from "../components/ui";
+import { Empty, ErrorBox, Heading, Money, Progress, Skeleton } from "../components/ui";
 import { api } from "../lib/api";
 import { useData } from "../lib/useData";
 import { ContributeModal, NewGoalModal } from "../modals/GoalModals";
 import { useApp } from "../state";
 
 export function GoalsPage() {
-  const { openModal, toast } = useApp();
+  const { openModal, toast, confirm } = useApp();
   const { data, error, reload } = useData<Goal[]>("goals");
 
   async function remove(g: Goal) {
-    if (!window.confirm(`Apagar a meta “${g.name}”?`)) return;
+    if (!(await confirm({ title: `Apagar a meta “${g.name}”?`, text: "As contribuições já feitas deixam de contar para ela.", confirmLabel: "Apagar", danger: true }))) return;
     try {
       await api(`goals/${g.id}`, { method: "DELETE" });
       toast("Meta apagada.");
@@ -31,13 +31,21 @@ export function GoalsPage() {
           </button>
         }
       />
-      <DemoFlag />
       {error && <ErrorBox message={error} onRetry={reload} />}
       {!data ? (
         <Skeleton height={220} />
       ) : data.length === 0 ? (
         <div className="list-box">
-          <Empty icon="🎯" title="Nenhuma meta ainda" text="Crie uma meta pessoal ou da família, como uma reserva de emergência ou uma viagem." />
+          <Empty
+            icon="🎯"
+            title="Nenhuma meta ainda"
+            text="Crie uma meta pessoal ou da família, como uma reserva de emergência ou uma viagem."
+            action={
+              <button type="button" className="btn dark small" onClick={() => openModal(<NewGoalModal />)}>
+                <Plus size={14} /> Criar a primeira meta
+              </button>
+            }
+          />
         </div>
       ) : (
         <div className="goals">

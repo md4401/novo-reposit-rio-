@@ -228,3 +228,27 @@ export function nextMonthCommitments(recurring: Recurring[], installments: Recur
   items.sort((a, b) => a.on.localeCompare(b.on));
   return { month, totalCents: items.reduce((s, i) => s + i.amountCents, 0), items };
 }
+
+/** Urgência dos avisos da tela inicial: menor número aparece primeiro. */
+export const INSIGHT_PRIORITY = {
+  urgent: 0, // conta vencida ou vencendo hoje
+  overBudget: 1, // orçamento acima de 100%
+  duplicate: 2, // possível cobrança duplicada
+  pending: 3, // compras para revisar
+  dueSoon: 4, // conta ou fatura vencendo nos próximos dias
+  nearBudget: 5, // orçamento acima de 80%
+  stale: 6, // conta bancária sem atualização recente
+  attention: 7, // aumento de preço, gasto fora do padrão
+  closing: 8, // o mês fechou: relatório disponível
+  info: 9, // dicas (13º, tendência, recorrências, compromissos)
+  filler: 10, // só aparece se sobrar espaço
+} as const;
+
+/** Mais urgente primeiro; no empate vale a ordem em que foram montados. */
+export function rankInsights<T>(items: { item: T; priority: number }[], limit: number): T[] {
+  return items
+    .map((entry, index) => ({ ...entry, index }))
+    .sort((a, b) => a.priority - b.priority || a.index - b.index)
+    .slice(0, limit)
+    .map((entry) => entry.item);
+}

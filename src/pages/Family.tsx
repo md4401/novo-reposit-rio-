@@ -2,7 +2,7 @@ import { Activity, ArrowLeftRight, Copy, Gift, PiggyBank, Receipt, Share2, Shiel
 import { useState } from "react";
 import type { Allowance, Family } from "../../shared/types";
 import { CategoryBars, IncomeExpenseBars } from "../components/charts";
-import { Avatar, DemoFlag, ErrorBox, Heading, LinkButton, Metric, Money, Panel, PeriodControl, Progress, Skeleton } from "../components/ui";
+import { Avatar, ErrorBox, Heading, LinkButton, Metric, Money, Panel, PeriodControl, Progress, Skeleton } from "../components/ui";
 import { navigate } from "../lib/router";
 import { useData } from "../lib/useData";
 import { AllowanceModal } from "../modals/AllowanceModal";
@@ -41,7 +41,6 @@ export function FamilyPage() {
           </>
         }
       />
-      <DemoFlag />
       <div className="filterbar">
         <PeriodControl month={month} onChange={setMonth} max={today} />
       </div>

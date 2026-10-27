@@ -59,7 +59,7 @@ export function MonthReportModal({ month }: { month: string }) {
           </div>
           <div>
             <span>Maior categoria</span>
-            <b>{top ? `${category(top.categoryId).icon} ${category(top.categoryId).name}` : "—"}</b>
+            <b>{top ? category(top.categoryId).name : "—"}</b>
             {top && (
               <small>
                 <Money cents={top.cents} />

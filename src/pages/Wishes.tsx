@@ -8,6 +8,7 @@ import { parseMoney } from "../lib/format";
 import { navigate } from "../lib/router";
 import { useData } from "../lib/useData";
 import { useApp } from "../state";
+import { Glyph } from "../components/icons";
 
 function WishModal() {
   const { toast, closeModal } = useApp();
@@ -54,7 +55,7 @@ function WishModal() {
 }
 
 export function WishesPage() {
-  const { me, openModal, toast } = useApp();
+  const { me, openModal, toast, confirm } = useApp();
   const { data, error, reload } = useData<Wish[]>("wishes");
   const members = (me?.household.members ?? []).filter((m) => !m.isDemo).length;
 
@@ -83,14 +84,23 @@ export function WishesPage() {
         <Skeleton />
       ) : data.length === 0 ? (
         <Panel>
-          <Empty icon="🎁" title="Nenhum desejo ainda" text="Adicione algo que a família quer comprar e votem juntos." />
+          <Empty
+            icon="🎁"
+            title="Nenhum desejo ainda"
+            text="Adicione algo que a família quer comprar e votem juntos."
+            action={
+              <button type="button" className="btn dark small" onClick={() => openModal(<WishModal />)}>
+                <Plus size={14} /> Novo desejo
+              </button>
+            }
+          />
         </Panel>
       ) : (
         <div className="stack">
           {data.map((w) => (
             <Panel key={w.id}>
               <div className="bill-head" style={{ marginBottom: 6 }}>
-                <span className="insight-ic">{w.status === "bought" ? "✅" : w.status === "goal" ? "🎯" : "🎁"}</span>
+                <span className="insight-ic"><Glyph emoji={w.status === "bought" ? "✅" : w.status === "goal" ? "🎯" : "🎁"} /></span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <h3>{w.name}</h3>
                   <p className="muted small">
@@ -124,7 +134,7 @@ export function WishesPage() {
                   </button>
                 )}
                 {w.canDelete && (
-                  <button type="button" className="btn ghost small danger-text" onClick={() => window.confirm(`Apagar “${w.name}”?`) && void run(`wishes/${w.id}`, "Desejo apagado.", "DELETE")}>
+                  <button type="button" className="btn ghost small danger-text" onClick={async () => (await confirm({ title: `Apagar “${w.name}”?`, confirmLabel: "Apagar", danger: true })) && void run(`wishes/${w.id}`, "Desejo apagado.", "DELETE")}>
                     <Trash2 size={13} /> Apagar
                   </button>
                 )}

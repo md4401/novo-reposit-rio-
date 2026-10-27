@@ -1,6 +1,6 @@
 // Cesta da família: preço dos produtos das notas fiscais ao longo do tempo.
 // Só entram notas lançadas como compra da família; o agregado nunca mostra quem comprou nem onde.
-import { priceChangeBp, productKey } from "../shared/basket.js";
+import { basketEligible, priceChangeBp, productKey } from "../shared/basket.js";
 import { CATEGORY_BY_ID } from "../shared/categories.js";
 import type { Basket, BasketProduct } from "../shared/types.js";
 import { addMonths, monthOf, todayKey } from "../shared/time.js";
@@ -8,24 +8,30 @@ import type { SessionUser } from "./auth.js";
 import { batch, num, one, q, query } from "./db.js";
 import { HttpError } from "./http.js";
 
+/** Mesma regra de basketEligible, em SQL, para a transação `t` (vale também para itens antigos). */
+const BASKET_TX_OK = `NOT t.ignored
+  AND EXISTS (SELECT 1 FROM transaction_allocations a WHERE a.transaction_id = t.id)
+  AND NOT EXISTS (SELECT 1 FROM transaction_allocations a WHERE a.transaction_id = t.id AND a.scope <> 'family')`;
+
 export type BasketItemInput = { name: string; amountCents: number; categoryId: string };
 
 /** Guarda (ou troca) os itens da nota de um lançamento da própria pessoa. */
 export async function saveReceiptItems(user: SessionUser, transactionId: string, items: BasketItemInput[]) {
-  const tx = await one<{ occurred_on: string; family: boolean }>(
-    `SELECT t.occurred_on::text AS occurred_on,
-            EXISTS (SELECT 1 FROM transaction_allocations a WHERE a.transaction_id = t.id AND a.scope = 'family') AS family
+  const tx = await one<{ occurred_on: string; ignored: boolean; scopes: string[] }>(
+    `SELECT t.occurred_on::text AS occurred_on, t.ignored,
+            coalesce((SELECT array_agg(a.scope) FROM transaction_allocations a WHERE a.transaction_id = t.id), '{}') AS scopes
        FROM transactions t WHERE t.id = $1 AND t.profile_id = $2`,
     [transactionId, user.id],
   );
   if (!tx) throw new HttpError(404, "Lançamento não encontrado");
+  const family = basketEligible(tx.scopes, tx.ignored);
   const valid = items
     .filter((i) => i && typeof i.name === "string" && i.name.trim() && Number.isInteger(i.amountCents) && i.amountCents > 0)
     .slice(0, 60)
     .map((i) => ({ name: i.name.trim().slice(0, 80), key: productKey(i.name), amountCents: i.amountCents, categoryId: CATEGORY_BY_ID.has(i.categoryId) ? i.categoryId : "outros" }))
     .filter((i) => i.key.length >= 3);
-  // Compra pessoal não entra na cesta: os itens ficam de fora de propósito
-  const keep = tx.family ? valid : [];
+  // Compra pessoal (ou com alguma parte pessoal) não entra na cesta: os itens ficam de fora de propósito
+  const keep = family ? valid : [];
   await batch([
     q(`DELETE FROM receipt_items WHERE transaction_id = $1 AND profile_id = $2`, [transactionId, user.id]),
     ...keep.map((i) =>
@@ -36,7 +42,19 @@ export async function saveReceiptItems(user: SessionUser, transactionId: string,
       ),
     ),
   ]);
-  return { saved: keep.length, family: tx.family };
+  return { saved: keep.length, family };
+}
+
+/**
+ * Tira da cesta os itens de uma compra que deixou de ser toda da família (mudou a divisão)
+ * ou foi ignorada. Chamado depois de editar ou apagar um lançamento.
+ */
+export async function pruneBasketItems(user: SessionUser, transactionId: string) {
+  await query(
+    `DELETE FROM receipt_items i USING transactions t
+      WHERE i.transaction_id = t.id AND t.id = $1 AND t.profile_id = $2 AND NOT (${BASKET_TX_OK})`,
+    [transactionId, user.id],
+  );
 }
 
 export async function loadBasket(user: SessionUser, months = 6): Promise<Basket> {
@@ -47,15 +65,16 @@ export async function loadBasket(user: SessionUser, months = 6): Promise<Basket>
             round(avg(i.amount_cents))::bigint AS avg_cents, count(*)::int AS n,
             mode() WITHIN GROUP (ORDER BY i.name) AS name,
             mode() WITHIN GROUP (ORDER BY i.category_id) AS category_id
-       FROM receipt_items i JOIN profiles p ON p.id = i.profile_id
-      WHERE p.household_id = $1 AND i.occurred_on >= $2::date
+       FROM receipt_items i JOIN profiles p ON p.id = i.profile_id JOIN transactions t ON t.id = i.transaction_id
+      WHERE p.household_id = $1 AND i.occurred_on >= $2::date AND ${BASKET_TX_OK}
       GROUP BY i.product_key, month
       ORDER BY i.product_key, month`,
     [user.household_id, from],
   );
   const receipts = await one<{ n: number }>(
-    `SELECT count(DISTINCT i.transaction_id)::int AS n FROM receipt_items i JOIN profiles p ON p.id = i.profile_id
-      WHERE p.household_id = $1 AND i.occurred_on >= $2::date`,
+    `SELECT count(DISTINCT i.transaction_id)::int AS n
+       FROM receipt_items i JOIN profiles p ON p.id = i.profile_id JOIN transactions t ON t.id = i.transaction_id
+      WHERE p.household_id = $1 AND i.occurred_on >= $2::date AND ${BASKET_TX_OK}`,
     [user.household_id, from],
   );
   const byKey = new Map<string, BasketProduct>();

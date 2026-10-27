@@ -230,7 +230,7 @@ export function ImportModal({ accountId: initial }: { accountId?: string }) {
                       {r.description}
                       {r.direction === "transfer" && <span className="chip gray" style={{ marginLeft: 6 }}>Não é gasto</span>}
                     </td>
-                    <td className="num" style={{ color: r.direction === "income" ? "#227d53" : undefined }}>
+                    <td className="num" style={{ color: r.direction === "income" ? "var(--green-ink)" : undefined }}>
                       {r.direction === "income" ? "+" : r.direction === "expense" ? "−" : ""} {formatMoney(r.amountCents)}
                     </td>
                   </tr>

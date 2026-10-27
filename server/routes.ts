@@ -3,7 +3,7 @@
 import { CATEGORY_BY_ID } from "../shared/categories.js";
 import { formatMoney } from "../shared/money.js";
 import { normalizeMerchant } from "../shared/merchant.js";
-import { addMonths, daysBetween as daysBetweenKeys, isDateKey, monthLabel, monthOf, todayKey } from "../shared/time.js";
+import { addMonths, daysBetween as daysBetweenKeys, daysInMonth, isDateKey, monthLabel, monthOf, todayKey } from "../shared/time.js";
 import type {
   Account,
   Allocation,
@@ -24,6 +24,8 @@ import { parseExpenseStatement } from "../shared/parse-expense.js";
 import { aiEnabled, readPixWithAi, readReceiptWithAi, transcribe, transcriptionEnabled } from "./ai.js";
 import { captureNotifications } from "./capture.js";
 import { loadAlerts } from "./alerts.js";
+import { buildUpcoming, splitInsights } from "./home.js";
+import { INSIGHT_PRIORITY, rankInsights } from "./insights.js";
 import {
   audit,
   createSession,
@@ -91,7 +93,7 @@ import {
   setTransactionTags,
   taxReport,
 } from "./wealth.js";
-import { cardInvoices, deletePayable, listPayables, loadForecast, payablesDue, payPayable, savePayable, type PayableInput } from "./planning.js";
+import { cardInvoices, deletePayable, listPayables, loadForecast, payPayable, savePayable, type PayableInput } from "./planning.js";
 import { importStatement } from "./statement-import.js";
 import {
   abandonChallenge,
@@ -108,7 +110,7 @@ import {
   toggleVote,
   wishToGoal,
 } from "./together.js";
-import { loadBasket, saveReceiptItems } from "./basket.js";
+import { loadBasket, pruneBasketItems, saveReceiptItems } from "./basket.js";
 import {
   createAgreement,
   createIou,
@@ -262,7 +264,7 @@ route("POST", "auth/logout", async ({ request }) => {
 });
 
 async function loadMe(user: SessionUser): Promise<Me> {
-  const [household, members, accounts, pending, demo, notify, agreement] = await batch(
+  const [household, members, accounts, pending, demo, notify, agreement, setup] = await batch(
     [
       q(`SELECT id, name, invite_code FROM households WHERE id = $1`, [user.household_id]),
       q(
@@ -282,6 +284,13 @@ async function loadMe(user: SessionUser): Promise<Me> {
       ),
       q(`SELECT notify_digest, income_mode, self_salary_cents, ui_mode, split_income_cents FROM profiles WHERE id = $1`, [user.id]),
       q(`SELECT min(limit_cents) AS limit_cents FROM agreements WHERE household_id = $1`, [user.household_id]),
+      // Primeiros passos: só o que já existe (nada de valores)
+      q(
+        `SELECT EXISTS (SELECT 1 FROM transactions WHERE profile_id = $1) AS has_tx,
+                EXISTS (SELECT 1 FROM budgets WHERE owner_id = $1 OR (household_id = $2 AND scope = 'family')) AS has_budget,
+                EXISTS (SELECT 1 FROM financial_goals WHERE owner_id = $1 OR (household_id = $2 AND scope = 'family')) AS has_goal`,
+        [user.id, user.household_id],
+      ),
     ],
     { readOnly: true },
   );
@@ -320,6 +329,11 @@ async function loadMe(user: SessionUser): Promise<Me> {
     aiEnabled: aiEnabled(),
     voiceEnabled: transcriptionEnabled(),
     hasDemoData: Boolean(demo[0].has_demo),
+    setup: {
+      hasTransactions: Boolean(setup[0]?.has_tx),
+      hasBudget: Boolean(setup[0]?.has_budget),
+      hasGoal: Boolean(setup[0]?.has_goal),
+    },
     today: todayKey(user.timezone),
   };
 }
@@ -411,43 +425,55 @@ route("GET", "overview", async ({ request, url }) => {
   const user = await requireUser(request);
   const month = monthParam(url, currentMonth(user));
   const today = todayKey(user.timezone);
-  const [family, mine, recent, alerts, budgets, due, invoices, extra, protection, plans] = await Promise.all([
+  const thisMonth = month === currentMonth(user);
+  // Até o fim do mês (mínimo 1 dia): de onde sai a "sobra prevista"
+  const daysLeft = Math.max(1, daysBetweenKeys(today, `${monthOf(today)}-${String(daysInMonth(monthOf(today))).padStart(2, "0")}`));
+  const [family, mine, recent, alerts, budgets, payables, invoices, bills, forecast, extra, protection, plans] = await Promise.all([
     familyNumbers(user, month, 7),
     personalNumbers(user, month, 2),
-    listTransactions(user, { limit: 6 }),
+    listTransactions(user, { limit: 5 }),
     loadAlerts(user),
     listBudgets(user, month),
-    payablesDue(user, today),
+    listPayables(user, today),
     cardInvoices(user, today),
+    // Contas da casa deste mês e do próximo (a semana pode virar o mês)
+    Promise.all([listBills(user, monthOf(today)), listBills(user, addMonths(monthOf(today), 1))]).then(([a, b]) => [...a, ...b]),
+    thisMonth ? loadForecast(user, today, daysLeft) : null,
     moneyInsights(user, today),
     protectionInsights(user, today),
     planInsights(user, today),
   ]);
+  const due = payables.filter((p) => p.status !== "ok");
   const budgetSummary = summarize([...budgets.personal, ...budgets.family]);
-  const insights: Insight[] = [];
+  // Cada aviso entra com a sua urgência; só os 3 mais urgentes aparecem (dica nunca esconde alerta)
+  const ranked: { item: Insight; priority: number }[] = [];
+  const add = (priority: number, item: Insight) => ranked.push({ item, priority });
   if (due.length) {
     const first = due[0];
-    insights.push({
+    add(due.some((p) => p.status === "overdue" || p.daysLeft === 0) ? INSIGHT_PRIORITY.urgent : INSIGHT_PRIORITY.dueSoon, {
       id: "payables",
       icon: first.status === "overdue" ? "🚨" : "📅",
       title: due.length === 1 ? `${first.name}: ${first.status === "overdue" ? "venceu" : first.daysLeft === 0 ? "vence hoje" : `vence em ${first.daysLeft} dia(s)`}` : `${due.length} contas vencendo`,
       text: `${formatMoney(due.reduce((sum, p) => sum + p.amountCents, 0))} para pagar. Toque em “Paguei” quando quitar.`,
       page: "pagar",
+      cta: "Pagar",
     });
   }
-  // Golpe suspeito vem primeiro; depois o resto da proteção e do dinheiro esquecido
-  insights.push(...protection.filter((i) => i.page === "seguranca"), ...extra, ...protection.filter((i) => i.page !== "seguranca"), ...plans);
+  // Golpe suspeito é urgente; o resto da proteção, o dinheiro esquecido e os planos pedem atenção
+  for (const item of protection.filter((i) => i.page === "seguranca")) add(INSIGHT_PRIORITY.urgent, item);
+  for (const item of [...extra, ...protection.filter((i) => i.page !== "seguranca"), ...plans]) add(INSIGHT_PRIORITY.attention, item);
   const invoiceDue = invoices.find((i) => i.status !== "future" && i.totalCents > 0 && daysBetweenKeys(today, i.dueOn) <= 5);
   if (invoiceDue)
-    insights.push({
+    add(INSIGHT_PRIORITY.dueSoon, {
       id: `invoice-${invoiceDue.accountId}`,
       icon: "💳",
       title: `Fatura ${invoiceDue.accountName}: ${formatMoney(invoiceDue.totalCents)}`,
       text: `Vence ${invoiceDue.dueOn.slice(8, 10)}/${invoiceDue.dueOn.slice(5, 7)}${invoiceDue.status === "open" ? " (ainda aberta)" : ""}.`,
       page: "pagar",
+      cta: "Ver fatura",
     });
-  if (["11", "12"].includes(today.slice(5, 7)) && insights.length < 3)
-    insights.push({
+  if (["11", "12"].includes(today.slice(5, 7)))
+    add(INSIGHT_PRIORITY.info, {
       id: "decimo-terceiro",
       icon: "🎁",
       title: "13º salário chegando",
@@ -456,25 +482,29 @@ route("GET", "overview", async ({ request, url }) => {
     });
   const overBudget = [...budgets.personal, ...budgets.family].sort((a, b) => b.ratio - a.ratio)[0];
   if (overBudget && overBudget.ratio >= 0.8)
-    insights.push({
+    add(overBudget.ratio > 1 ? INSIGHT_PRIORITY.overBudget : INSIGHT_PRIORITY.nearBudget, {
       id: `budget-${overBudget.id}`,
       icon: overBudget.ratio > 1 ? "🚨" : "⚠️",
       title: `${CATEGORY_BY_ID.get(overBudget.categoryId)?.name ?? "Categoria"}: ${Math.round(overBudget.ratio * 100)}% do orçamento${overBudget.scope === "family" ? " da casa" : ""}`,
       text: `${formatMoney(overBudget.spentCents)} de ${formatMoney(overBudget.limitCents)} neste mês.`,
       page: "orcamento",
+      cta: "Ver",
     });
   if (mine.counts.pending > 0)
-    insights.push({
+    add(INSIGHT_PRIORITY.pending, {
       id: "pending",
       icon: "📌",
       title: `${mine.counts.pending} compra${mine.counts.pending > 1 ? "s" : ""} para revisar`,
-      text: "Classifique tudo de uma vez no resumo diário. Dá para dividir uma compra em várias categorias.",
+      text: "Escolha a categoria de cada uma. Dá para dividir uma compra em várias.",
       page: "transacoes?filtro=pendentes",
+      cta: "Revisar",
     });
-  const alert = alerts.alerts[0];
-  if (alert) insights.push({ id: alert.key, icon: alert.type === "increase" ? "📈" : alert.type === "duplicate" ? "🔁" : "⚠️", title: alert.title, text: alert.text, page: "alertas" });
-  if (alerts.commitments.totalCents > 0 && insights.length < 2)
-    insights.push({
+  // Cobrança duplicada é mais urgente que aumento de preço ou gasto fora do padrão
+  const alert = alerts.alerts.find((x) => x.type === "duplicate") ?? alerts.alerts[0];
+  if (alert)
+    add(alert.type === "duplicate" ? INSIGHT_PRIORITY.duplicate : INSIGHT_PRIORITY.attention, { id: alert.key, icon: alert.type === "increase" ? "📈" : alert.type === "duplicate" ? "🔁" : "⚠️", title: alert.title, text: alert.text, page: "alertas", cta: "Ver" });
+  if (alerts.commitments.totalCents > 0)
+    add(INSIGHT_PRIORITY.info, {
       id: "commitments",
       icon: "🗓️",
       title: `${formatMoney(alerts.commitments.totalCents)} já comprometidos em ${monthLabel(alerts.commitments.month).split(" ")[0]}`,
@@ -482,7 +512,7 @@ route("GET", "overview", async ({ request, url }) => {
       page: "alertas",
     });
   if (alerts.recurring.length)
-    insights.push({
+    add(INSIGHT_PRIORITY.info, {
       id: "recurring",
       icon: "🔄",
       title: `${alerts.recurring.length} cobranças recorrentes`,
@@ -490,9 +520,9 @@ route("GET", "overview", async ({ request, url }) => {
       page: "alertas",
     });
   const previous = mine.series[0]?.expenseCents ?? 0;
-  if (previous > 0 && insights.length < 3) {
+  if (previous > 0) {
     const diff = Math.round(((mine.totals.expenseCents - previous) / previous) * 100);
-    insights.push({
+    add(INSIGHT_PRIORITY.info, {
       id: "trend",
       icon: diff <= 0 ? "🌱" : "🧭",
       title: diff <= 0 ? "Gastos sob controle" : "Gastos acima do mês passado",
@@ -500,7 +530,25 @@ route("GET", "overview", async ({ request, url }) => {
       page: "meu",
     });
   }
-  insights.push({
+  if (family.dataWarning)
+    add(INSIGHT_PRIORITY.stale, {
+      id: "stale",
+      icon: "⚠️",
+      title: "Alguns dados podem estar incompletos",
+      text: "Há conta da família sem atualização há mais de 7 dias.",
+      page: "saude",
+      cta: "Ver",
+    });
+  const closingMonth = thisMonth && Number(today.slice(8, 10)) <= 7 ? addMonths(month, -1) : null;
+  if (closingMonth)
+    add(INSIGHT_PRIORITY.closing, {
+      id: "closing",
+      icon: "🗓️",
+      title: `${monthLabel(closingMonth).split(" ")[0].replace(/^./, (c) => c.toUpperCase())} fechou`,
+      text: "Veja seu mês em 5 números e baixe o relatório.",
+      cta: "Ver relatório",
+    });
+  add(INSIGHT_PRIORITY.filler, {
     id: "privacy",
     icon: "🔒",
     title: "Sua privacidade está protegida",
@@ -511,14 +559,19 @@ route("GET", "overview", async ({ request, url }) => {
     family: { ...family.totals, previousExpenseCents: family.previousExpenseCents },
     familyCategories: family.categories,
     familySeries: family.series,
-    mine: mine.totals,
+    // personalNumbers(…, 2): série com o mês anterior e o atual
+    mine: { ...mine.totals, previousExpenseCents: mine.series[0]?.expenseCents ?? 0 },
+    mineCategories: mine.categories,
     pendingCount: mine.counts.pending,
     recent,
-    insights: insights.slice(0, 3),
+    insights: rankInsights(ranked, 3),
+    ...splitInsights(ranked),
+    upcoming: buildUpcoming({ today, payables, invoices, recurring: alerts.recurring, bills }),
+    forecastEndOfMonthCents: forecast?.knownBalance ? forecast.endCents : null,
     dataWarning: family.dataWarning,
     budgets: budgetSummary,
     // Nos 7 primeiros dias do mês atual, oferece o fechamento do mês anterior
-    closingMonth: month === currentMonth(user) && Number(todayKey(user.timezone).slice(8, 10)) <= 7 ? addMonths(month, -1) : null,
+    closingMonth,
   };
   return json(result);
 });
@@ -669,6 +722,7 @@ route("PATCH", "transactions/:id", async ({ request, params }) => {
     throw error;
   }
   await audit(user.id, "transaction.updated", "transaction", tx.id, { allocations: allocations?.length ?? null, ignored });
+  if (allocations || ignored !== tx.ignored) await pruneBasketItems(user, tx.id);
 
   if (body.taxDeductible !== undefined)
     await query(`UPDATE transactions SET tax_deductible = $3 WHERE id = $1 AND profile_id = $2`, [
@@ -704,6 +758,7 @@ route("DELETE", "transactions/:id", async ({ request, params }) => {
   if (tx.source === "csv" || tx.source === "ofx") {
     // Importadas nunca somem: ficam ignoradas (e não voltam ao reimportar o extrato)
     await query(`UPDATE transactions SET ignored = true, updated_at = now() WHERE id = $1 AND profile_id = $2`, [tx.id, user.id]);
+    await pruneBasketItems(user, tx.id);
   } else {
     await query(`DELETE FROM transactions WHERE id = $1 AND profile_id = $2`, [tx.id, user.id]);
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { priceChangeBp, productKey } from "../shared/basket";
+import { basketEligible, priceChangeBp, productKey } from "../shared/basket";
 
 describe("cesta da família", () => {
   it("junta o mesmo produto escrito de jeitos diferentes", () => {
@@ -16,5 +16,16 @@ describe("cesta da família", () => {
         { month: "2026-03", avgCents: 2250, count: 2 },
       ]),
     ).toBe(1250);
+  });
+
+  it("só aceita compra inteira da família (privacidade)", () => {
+    expect(basketEligible(["family"], false)).toBe(true);
+    expect(basketEligible(["family", "family"], false)).toBe(true);
+    // Compra dividida: a parte pessoal não pode aparecer para a família
+    expect(basketEligible(["family", "personal"], false)).toBe(false);
+    expect(basketEligible(["personal"], false)).toBe(false);
+    // Sem categoria ainda, ou ignorada
+    expect(basketEligible([], false)).toBe(false);
+    expect(basketEligible(["family"], true)).toBe(false);
   });
 });

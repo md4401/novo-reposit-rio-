@@ -1,9 +1,11 @@
 // Componentes básicos reaproveitados pelas telas.
-import { ChevronLeft, ChevronRight, Info, LoaderCircle, X } from "lucide-react";
-import type { ReactNode } from "react";
+import { ChevronLeft, ChevronRight, CircleHelp, Info, LoaderCircle, X } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import type { Transaction } from "../../shared/types";
 import { formatMoney, initials, monthLabel } from "../lib/format";
 import { useApp } from "../state";
+import { Glyph } from "./icons";
 
 /** Valor em reais que respeita o botão "ocultar valores". */
 export function Money({ cents, sign, className }: { cents: number; sign?: "-" | "+"; className?: string }) {
@@ -16,11 +18,11 @@ export function Money({ cents, sign, className }: { cents: number; sign?: "-" | 
   );
 }
 
-export function Heading({ title, subtitle, actions }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode }) {
+export function Heading({ title, subtitle, actions, eyebrow }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode; eyebrow?: ReactNode }) {
   return (
     <div className="heading">
       <div>
-        <div className="eyebrow">Seu espaço financeiro</div>
+        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
         <h1>{title}</h1>
         {subtitle && <p className="subtitle">{subtitle}</p>}
       </div>
@@ -75,6 +77,62 @@ export function Panel({ title, action, children, className }: { title?: ReactNod
   );
 }
 
+/** "?" ao lado de um termo: abre uma explicação curta; fecha ao tocar fora, rolar ou apertar Esc. */
+export function Help({ title, children }: { title: string; children: ReactNode }) {
+  const [pos, setPos] = useState<{ left: number; top: number; up: boolean } | null>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  const pop = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!pos) return;
+    const openedAt = Date.now();
+    const close = (e: Event) => {
+      if (e.type === "keydown" && (e as KeyboardEvent).key !== "Escape") return;
+      // O toque no "?" pode rolar a faixa onde ele está: essa rolagem não fecha
+      if (e.type === "scroll" && Date.now() - openedAt < 400) return;
+      if (e.type === "pointerdown" && (pop.current?.contains(e.target as Node) || button.current?.contains(e.target as Node))) return;
+      setPos(null);
+    };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", close);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", close);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [pos]);
+
+  const toggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (pos) return setPos(null);
+    const r = button.current!.getBoundingClientRect();
+    const width = Math.min(280, window.innerWidth - 24);
+    const left = Math.max(12, Math.min(r.left + r.width / 2 - width / 2, window.innerWidth - width - 12));
+    // Abre para cima quando não cabe embaixo
+    const up = r.bottom + 180 > window.innerHeight && r.top > 200;
+    setPos({ left, top: up ? r.top - 8 : r.bottom + 8, up });
+  };
+
+  return (
+    <>
+      <button ref={button} type="button" className="help-btn" onClick={toggle} aria-label={`O que é “${title}”?`} aria-expanded={!!pos}>
+        <CircleHelp size={14} />
+      </button>
+      {pos &&
+        createPortal(
+          <div ref={pop} className={`help-pop ${pos.up ? "up" : ""}`} role="tooltip" style={{ left: pos.left, top: pos.top }}>
+            <b>{title}</b>
+            <div>{children}</div>
+          </div>,
+          document.body,
+        )}
+    </>
+  );
+}
+
 export function LinkButton({ children, onClick }: { children: ReactNode; onClick: () => void }) {
   return (
     <button type="button" className="link" onClick={onClick}>
@@ -83,15 +141,26 @@ export function LinkButton({ children, onClick }: { children: ReactNode; onClick
   );
 }
 
+/** Na lista só aparece o que pede atenção; de onde veio a categoria fica no detalhe (classificationNote). */
 export function StatusChip({ t }: { t: Transaction }) {
   if (t.ignored) return <span className="chip gray">Ignorada</span>;
-  if (t.status === "pending") return <span className="chip amber">Revisar</span>;
-  if (t.direction === "transfer") return <span className="chip gray">Transferência</span>;
-  if (t.status === "auto") {
-    const label = t.classifiedBy === "rule" ? "Regra" : t.classifiedBy === "history" ? "Histórico" : t.classifiedBy === "ai" ? "IA" : "Sugestão";
-    return <span className="chip green">{label}</span>;
-  }
-  return <span className="chip blue">Confirmada</span>;
+  if (t.status === "pending") return <span className="chip amber">A revisar</span>;
+  return null;
+}
+
+/** De onde veio a categoria, em uma frase (mostrado em "Organizar compra"). */
+export function classificationNote(t: Transaction) {
+  if (t.ignored) return "Ignorada: guardada, mas fora dos totais.";
+  if (t.status === "pending") return "Ainda sem categoria: escolha abaixo.";
+  if (t.status === "confirmed") return "Categoria confirmada por você.";
+  const by = t.classifiedBy;
+  return by === "rule"
+    ? "Classificada pela sua regra automática. Confira e salve se estiver certo."
+    : by === "history"
+      ? "Classificada pelo seu histórico com este estabelecimento."
+      : by === "ai"
+        ? "Sugestão da IA. Confira antes de salvar."
+        : "Sugestão automática pelas palavras da descrição. Confira.";
 }
 
 export function Avatar({ name, color, large }: { name: string; color: string; large?: boolean }) {
@@ -150,7 +219,7 @@ export function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boo
 export function Empty({ icon, title, text, action }: { icon: ReactNode; title: string; text?: string; action?: ReactNode }) {
   return (
     <div className="empty">
-      <div style={{ fontSize: 30 }}>{icon}</div>
+      <div className="empty-ic">{typeof icon === "string" ? <Glyph emoji={icon} size={24} /> : icon}</div>
       <h3>{title}</h3>
       {text && <p>{text}</p>}
       {action}
@@ -180,9 +249,9 @@ export function DemoFlag() {
     <div className="mock-flag">
       <Info size={15} />
       <span>
-        <b>Dados de exemplo:</b> valores fictícios para você testar o app. Quando quiser usar de verdade, remova em{" "}
-        <a href="#/ajustes">Configurações</a>.
+        <b>Dados de exemplo</b> · valores fictícios para testar o app.
       </span>
+      <a href="#/ajustes?aba=privacidade">Remover</a>
     </div>
   );
 }

@@ -10,6 +10,7 @@ import { api } from "../lib/api";
 import { addMonths, category, centsToInput, dayLabel, parseMoney } from "../lib/format";
 import { useData } from "../lib/useData";
 import { useApp } from "../state";
+import { CategoryBadge } from "../components/icons";
 
 function BillModal({ month }: { month: string }) {
   const { me, toast, closeModal } = useApp();
@@ -70,7 +71,7 @@ function BillModal({ month }: { month: string }) {
         <select id="hb-cat" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
           {categoriesFor("expense").map((c) => (
             <option key={c.id} value={c.id}>
-              {c.icon} {c.name}
+              {c.name}
             </option>
           ))}
         </select>
@@ -133,7 +134,7 @@ function BillModal({ month }: { month: string }) {
 }
 
 function BillCard({ bill, month }: { bill: HouseBill; month: string }) {
-  const { toast } = useApp();
+  const { toast, confirm } = useApp();
   const [busy, setBusy] = useState(false);
   const mine = bill.shares.find((s) => s.isMe);
   const paid = bill.shares.filter((s) => s.paid).reduce((s, x) => s + x.amountCents, 0);
@@ -154,7 +155,7 @@ function BillCard({ bill, month }: { bill: HouseBill; month: string }) {
   return (
     <Panel>
       <div className="bill-head">
-        <span className="insight-ic">{c.icon}</span>
+        <CategoryBadge id={c.id} size={36} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <h3>{bill.name}</h3>
           <p className="muted small">Vence {dayLabel(bill.dueOn)} · {c.name}</p>
@@ -196,7 +197,7 @@ function BillCard({ bill, month }: { bill: HouseBill; month: string }) {
             type="button"
             className="btn ghost small danger-text"
             disabled={busy}
-            onClick={() => window.confirm(`Apagar “${bill.name}”? Os lançamentos já feitos continuam no financeiro de cada um.`) && run(`bills/${bill.id}`, "Conta apagada.", undefined, "DELETE")}
+            onClick={async () => (await confirm({ title: `Apagar “${bill.name}”?`, text: "Os lançamentos já feitos continuam no financeiro de cada um.", confirmLabel: "Apagar", danger: true })) && run(`bills/${bill.id}`, "Conta apagada.", undefined, "DELETE")}
           >
             <Trash2 size={13} /> Apagar
           </button>
@@ -224,7 +225,7 @@ export function HouseBillsPage() {
           <>
             <PeriodControl month={month} onChange={setMonth} max={next} />
             <button type="button" className="btn dark" onClick={() => openModal(<BillModal month={month} />)}>
-              <Plus size={15} /> Nova conta
+              <Plus size={15} /> Nova conta da casa
             </button>
           </>
         }
@@ -234,7 +235,16 @@ export function HouseBillsPage() {
         <Skeleton />
       ) : data.length === 0 ? (
         <Panel>
-          <Empty icon="🧾" title="Nenhuma conta neste mês" text="Crie a conta de luz, água ou internet e escolha quem divide." />
+          <Empty
+            icon="🧾"
+            title="Nenhuma conta neste mês"
+            text="Crie a conta de luz, água ou internet e escolha quem divide."
+            action={
+              <button type="button" className="btn dark small" onClick={() => openModal(<BillModal month={month} />)}>
+                <Plus size={14} /> Nova conta da casa
+              </button>
+            }
+          />
         </Panel>
       ) : (
         <>

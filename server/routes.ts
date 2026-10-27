@@ -121,6 +121,17 @@ import {
   setSplitIncome,
   settleIous,
 } from "./between.js";
+import {
+  bankCosts,
+  createReceivable,
+  deleteLoyalty,
+  deleteReceivable,
+  listLoyalty,
+  listReceivables,
+  moneyInsights,
+  receive,
+  saveLoyalty,
+} from "./receivables.js";
 
 type Ctx = { request: Request; url: URL; params: string[] };
 type Handler = (ctx: Ctx) => Promise<Response>;
@@ -377,7 +388,7 @@ route("GET", "overview", async ({ request, url }) => {
   const user = await requireUser(request);
   const month = monthParam(url, currentMonth(user));
   const today = todayKey(user.timezone);
-  const [family, mine, recent, alerts, budgets, due, invoices] = await Promise.all([
+  const [family, mine, recent, alerts, budgets, due, invoices, extra] = await Promise.all([
     familyNumbers(user, month, 7),
     personalNumbers(user, month, 2),
     listTransactions(user, { limit: 6 }),
@@ -385,6 +396,7 @@ route("GET", "overview", async ({ request, url }) => {
     listBudgets(user, month),
     payablesDue(user, today),
     cardInvoices(user, today),
+    moneyInsights(user, today),
   ]);
   const budgetSummary = summarize([...budgets.personal, ...budgets.family]);
   const insights: Insight[] = [];
@@ -398,6 +410,7 @@ route("GET", "overview", async ({ request, url }) => {
       page: "pagar",
     });
   }
+  insights.push(...extra);
   const invoiceDue = invoices.find((i) => i.status !== "future" && i.totalCents > 0 && daysBetweenKeys(today, i.dueOn) <= 5);
   if (invoiceDue)
     insights.push({
@@ -1280,6 +1293,87 @@ route("PUT", "meeting", async ({ request, url }) => {
   const month = monthParam(url, currentMonth(user));
   await saveMeeting(user, month, str(body, "notes", { max: 4000, optional: true, label: "anotações" }) ?? "", body.held === true);
   return json(await meetingAgenda(user, month));
+});
+
+// ===========================================================================
+// Valores a receber, custo dos bancos e pontos
+
+route("GET", "receivables", async ({ request }) => {
+  const user = await requireUser(request);
+  return json(await listReceivables(user, todayKey(user.timezone)));
+});
+
+route("POST", "receivables", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  await createReceivable(user, {
+    name: str(body, "name", { max: 80, label: "descrição" })!,
+    kind: oneOf(body.kind ?? "outro", ["saude", "empresa", "restituicao", "emprestimo", "outro"] as const, "tipo"),
+    amountCents: cents(body.amountCents),
+    expectedOn: body.expectedOn ? dateKey(body.expectedOn, "data prevista") : null,
+  });
+  return json(await listReceivables(user, todayKey(user.timezone)), 201);
+});
+
+route("POST", "receivables/:id/receive", async ({ request, params }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  const today = todayKey(user.timezone);
+  await receive(
+    user,
+    uuid(params[0]),
+    body.amountCents === undefined ? null : cents(body.amountCents),
+    body.receivedOn ? dateKey(body.receivedOn) : today,
+    body.createTransaction !== false,
+  );
+  return json(await listReceivables(user, today));
+});
+
+route("DELETE", "receivables/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await deleteReceivable(user, uuid(params[0]));
+  return json(await listReceivables(user, todayKey(user.timezone)));
+});
+
+route("GET", "bank-costs", async ({ request, url }) => {
+  const user = await requireUser(request);
+  const year = Number(url.searchParams.get("year")) || Number(todayKey(user.timezone).slice(0, 4));
+  if (year < 2000 || year > 2100) throw new HttpError(400, "Ano inválido");
+  return json(await bankCosts(user, year));
+});
+
+function loyaltyInput(body: Body, user: SessionUser) {
+  return {
+    program: str(body, "program", { max: 60, label: "programa" })!,
+    kind: oneOf(body.kind ?? "pontos", ["pontos", "milhas", "cashback"] as const, "tipo"),
+    balance: int(body, "balance", 0, 1_000_000_000, "saldo"),
+    valueCents: body.valueCents === undefined || body.valueCents === null ? null : int(body, "valueCents", 0, 100_000_000_00, "valor"),
+    expiresOn: body.expiresOn ? dateKey(body.expiresOn, "vencimento") : null,
+    updatedOn: todayKey(user.timezone),
+  };
+}
+
+route("GET", "loyalty", async ({ request }) => {
+  const user = await requireUser(request);
+  return json(await listLoyalty(user, todayKey(user.timezone)));
+});
+
+route("POST", "loyalty", async ({ request }) => {
+  const user = await requireUser(request);
+  await saveLoyalty(user, loyaltyInput(await readJson(request), user));
+  return json(await listLoyalty(user, todayKey(user.timezone)), 201);
+});
+
+route("PATCH", "loyalty/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await saveLoyalty(user, loyaltyInput(await readJson(request), user), uuid(params[0]));
+  return json(await listLoyalty(user, todayKey(user.timezone)));
+});
+
+route("DELETE", "loyalty/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await deleteLoyalty(user, uuid(params[0]));
+  return json(await listLoyalty(user, todayKey(user.timezone)));
 });
 
 // ===========================================================================

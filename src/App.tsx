@@ -20,6 +20,9 @@ import { WishesPage } from "./pages/Wishes";
 import { BasketPage } from "./pages/Basket";
 import { BetweenPage } from "./pages/Between";
 import { MeetingPage } from "./pages/Meeting";
+import { ReceivablesPage } from "./pages/Receivables";
+import { BankCostsPage } from "./pages/BankCosts";
+import { LoyaltyPage } from "./pages/Loyalty";
 import { SettingsPage } from "./pages/Settings";
 import { SharePage } from "./pages/Share";
 import { TagsPage } from "./pages/Tags";
@@ -61,6 +64,9 @@ export function App() {
     cesta: <BasketPage />,
     acertos: <BetweenPage />,
     reuniao: <MeetingPage />,
+    receber: <ReceivablesPage />,
+    bancos: <BankCostsPage />,
+    pontos: <LoyaltyPage />,
     compartilhar: <SharePage />,
     casa: <HouseBillsPage />,
     metas: <GoalsPage />,

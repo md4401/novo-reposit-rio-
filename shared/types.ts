@@ -480,3 +480,33 @@ export type MeetingAgenda = {
   notes: string;
   heldAt: string | null;
 };
+
+export type Receivable = {
+  id: string;
+  name: string;
+  kind: "saude" | "empresa" | "restituicao" | "emprestimo" | "outro";
+  amountCents: number;
+  expectedOn: string | null;
+  received: boolean;
+  receivedAt: string | null;
+  overdue: boolean;
+};
+
+export type BankCosts = {
+  year: number;
+  totalCents: number;
+  byKind: { kind: "tarifa" | "juros" | "iof" | "anuidade" | "multa"; cents: number; count: number }[];
+  byAccount: { name: string; cents: number }[];
+  items: { occurredOn: string; description: string; amountCents: number; kind: string; accountName: string | null }[];
+};
+
+export type Loyalty = {
+  id: string;
+  program: string;
+  kind: "pontos" | "milhas" | "cashback";
+  balance: number;
+  valueCents: number | null;
+  expiresOn: string | null;
+  updatedOn: string;
+  daysLeft: number | null;
+};

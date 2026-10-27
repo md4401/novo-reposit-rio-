@@ -1,5 +1,5 @@
 // Estrutura: menu lateral (computador) e barra inferior + gaveta (celular), como no protótipo.
-import { Activity, ArrowLeftRight, Bell, Bot, CalendarClock, Eye, EyeOff, FileText, Gift, Handshake, House, Landmark, Lock, Menu, MessagesSquare, PiggyBank, Plus, Receipt, Repeat, Scale, Settings, ShoppingBasket, Sparkles, Tags, Target, TrendingUp, Trophy, Users, Wallet } from "lucide-react";
+import { Activity, ArrowLeftRight, Banknote, Bell, Bot, CalendarClock, Eye, EyeOff, FileText, Gift, HandCoins, Handshake, House, Landmark, Lock, Menu, MessagesSquare, PiggyBank, Plus, Receipt, Repeat, Scale, Settings, ShoppingBasket, Sparkles, Tags, Target, Ticket, TrendingUp, Trophy, Users, Wallet } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { navigate } from "../lib/router";
 import { DigestModal } from "../modals/DigestModal";
@@ -29,6 +29,11 @@ const TOGETHER: NavItem[] = [
   { key: "acertos", label: "Quem deve a quem", icon: <Handshake size={17} /> },
   { key: "reuniao", label: "Reunião do mês", icon: <MessagesSquare size={17} /> },
 ];
+const CARE: NavItem[] = [
+  { key: "receber", label: "Valores a receber", icon: <HandCoins size={17} /> },
+  { key: "bancos", label: "Custo dos bancos", icon: <Banknote size={17} /> },
+  { key: "pontos", label: "Benefícios e pontos", icon: <Ticket size={17} /> },
+];
 const SMART: NavItem[] = [
   { key: "nia", label: "Assistente Nia", icon: <Bot size={17} /> },
   { key: "alertas", label: "Assinaturas e alertas", icon: <Repeat size={17} /> },
@@ -42,7 +47,7 @@ const MORE: NavItem[] = [
   { key: "ajustes", label: "Configurações", icon: <Settings size={17} /> },
 ];
 
-export const PAGE_TITLES: Record<string, string> = Object.fromEntries([...MAIN, ...TOGETHER, ...PLAN, ...SMART, ...MORE].map((n) => [n.key, n.label]));
+export const PAGE_TITLES: Record<string, string> = Object.fromEntries([...MAIN, ...TOGETHER, ...PLAN, ...CARE, ...SMART, ...MORE].map((n) => [n.key, n.label]));
 
 const BOTTOM: NavItem[] = [
   { key: "inicio", label: "Início", icon: <House size={20} /> },
@@ -96,6 +101,10 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
           PLANEJAMENTO
         </div>
         <nav className="nav">{PLAN.map(navButton)}</nav>
+        <div className="group-label" style={{ marginTop: 24 }}>
+          PROTEÇÃO
+        </div>
+        <nav className="nav">{CARE.map(navButton)}</nav>
         <div className="group-label" style={{ marginTop: 24 }}>
           INTELIGÊNCIA
         </div>

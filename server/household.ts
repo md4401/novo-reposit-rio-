@@ -22,7 +22,7 @@ function requireAdmin(user: SessionUser) {
 /** Antes de alguém sair: garante outro administrador e passa as metas da família que essa pessoa criou. */
 async function handOver(householdId: string, leavingId: string) {
   const others = await query<{ id: string; role: string }>(
-    `SELECT id, role FROM profiles WHERE household_id = $1 AND id <> $2 AND NOT is_demo ORDER BY created_at`,
+    `SELECT id, role FROM profiles WHERE household_id = $1 AND id <> $2 AND NOT is_demo ORDER BY created_at, id`,
     [householdId, leavingId],
   );
   if (!others.length) return null;

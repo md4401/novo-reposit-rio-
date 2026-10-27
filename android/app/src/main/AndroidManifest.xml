@@ -48,4 +48,6 @@
     <!-- Microfone: mensagens de voz para a Nia (só grava quando você toca no botão) -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- Atualização do app: abre o instalador do Android com a versão nova (a pessoa confirma) -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 </manifest>

@@ -4,9 +4,10 @@ import type { Me, Rule } from "../../shared/types";
 import { Avatar, Heading, Panel, Spinner, Toggle } from "../components/ui";
 import { api } from "../lib/api";
 import { category } from "../lib/format";
-import { checkUpdate, isNative, type UpdateInfo } from "../lib/native";
+import { checkUpdate, hasNativeUpdater, isNative, type UpdateInfo } from "../lib/native";
 import { disableNotifications, enableNotifications, notificationsSupported, syncNativeReminder } from "../lib/notifications";
 import { ChangePasswordModal, DeleteAccountModal, ResetCodeModal } from "../modals/SecurityModals";
+import { UpdateModal } from "../modals/UpdateModal";
 import { canInstall, isInstalled, onInstallChange, promptInstall } from "../lib/pwa";
 import { useData } from "../lib/useData";
 import { useApp } from "../state";
@@ -26,7 +27,9 @@ export function SettingsPage() {
   const [, force] = useState(0);
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
   useEffect(() => onInstallChange(() => force((n) => n + 1)), []);
+  const [nativeUpdater, setNativeUpdater] = useState(false);
   useEffect(() => void checkUpdate(true).then(setUpdate), []);
+  useEffect(() => void hasNativeUpdater().then(setNativeUpdater), []);
   if (!me) return null;
   const admin = me.profile.role === "admin";
   const realMembers = me.household.members.filter((m) => !m.isDemo).length;
@@ -323,10 +326,16 @@ export function SettingsPage() {
                   <p>Versão instalável sem a Play Store. O Android pede para permitir “instalar apps desta fonte”.</p>
                 )}
               </div>
-              {(!isNative() || update?.latest) && (
-                <a className={`btn small ${update?.latest ? "primary" : "ghost"}`} href={APK_URL} download>
-                  <Download size={13} /> {update?.latest ? "Atualizar" : "Baixar"}
-                </a>
+              {update?.latest && !update.reinstall && nativeUpdater ? (
+                <button type="button" className="btn small primary" onClick={() => openModal(<UpdateModal latest={update.latest!} current={update.current.name} />)}>
+                  <Download size={13} /> Atualizar
+                </button>
+              ) : (
+                (!isNative() || update?.latest) && (
+                  <a className={`btn small ${update?.latest ? "primary" : "ghost"}`} href={APK_URL} download>
+                    <Download size={13} /> {update?.latest ? "Atualizar" : "Baixar"}
+                  </a>
+                )
               )}
             </div>
           </Panel>

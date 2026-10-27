@@ -1,4 +1,5 @@
 import { execSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
@@ -15,6 +16,13 @@ describe("versão do app Android", () => {
   it("a partir da chave nova (build 6), quem tem a antiga é avisado para reinstalar", () => {
     const published = JSON.parse(readFileSync("public/download/version.json", "utf8"));
     if (published.build >= 6) expect(published.reinstallBelow).toBe(6);
+  });
+
+  it("o SHA-256 publicado confere com o APK (o atualizador do app recusa arquivo diferente)", () => {
+    const published = JSON.parse(readFileSync("public/download/version.json", "utf8"));
+    const apk = readFileSync("public/download/ninho.apk");
+    expect(published.sha256).toBe(createHash("sha256").update(apk).digest("hex"));
+    expect(published.url).toBe("/download/ninho.apk");
   });
 
   it("nenhum keystore/certificado versionado", () => {

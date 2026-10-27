@@ -64,9 +64,11 @@ Depois apague `ninho-release.keystore.b64` do computador.
    certificado é o de `ANDROID_CERT_SHA256` (e não o comprometido), apaga o keystore temporário
    mesmo se algo falhar e cria um **rascunho** de release.
 2. Baixe o `ninho.apk` do rascunho, teste num celular e publique a release.
-3. Copie o APK para `public/download/ninho.apk` e atualize `public/download/version.json`:
-   `{ "name": "0.4.0", "build": 6, "reinstallBelow": 6 }`. Faça o commit.
-4. Avise a família: desinstalar o ninho antigo, instalar o novo e entrar de novo.
+3. Rode `node scripts/publish-apk.mjs caminho/do/ninho.apk` (copia para `public/download/ninho.apk` e grava
+   `version.json` com versão, build, SHA-256 e `reinstallBelow`). Faça o commit.
+4. Avise a família: desinstalar o ninho antigo, instalar o novo e entrar de novo. **Só desta vez**: daqui para
+   frente o app (0.4.0+) avisa sozinho quando houver versão nova, baixa, confere o SHA-256 e a assinatura e abre
+   o instalador — a pessoa só toca em “Instalar”.
 
 ## Local
 

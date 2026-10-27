@@ -8,6 +8,7 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(ApkUpdaterPlugin.class);
         super.onCreate(savedInstanceState);
         // O WebView não baixa arquivos: entrega o download (ex.: APK novo) ao navegador.
         getBridge().getWebView().setDownloadListener((url, userAgent, contentDisposition, mimetype, length) -> {

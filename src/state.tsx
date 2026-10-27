@@ -1,9 +1,10 @@
 // Estado global: pessoa logada, valores ocultos, avisos (toast) e janelas (modal).
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Me } from "../shared/types";
-import { checkUpdate } from "./lib/native";
+import { checkUpdate, hasNativeUpdater } from "./lib/native";
 import { syncNativeReminder } from "./lib/notifications";
 import { flushOutbox } from "./lib/offline";
+import { UpdateModal } from "./modals/UpdateModal";
 import { api, getToken, onLogout, setToken } from "./lib/api";
 import { clearCache } from "./lib/useData";
 
@@ -46,6 +47,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [modal, setModal] = useState<ReactNode>(null);
   const afterClose = useRef<(() => void) | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
+  const offered = useRef<number | null>(null);
 
   const refreshMe = useCallback(async () => {
     if (!getToken()) {
@@ -168,10 +170,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [signedIn, toast, refreshMe]);
   useEffect(() => {
     if (!signedIn) return;
-    void checkUpdate().then(
-      (u) => u?.latest && toast(u.reinstall ? `Nova versão do app (${u.latest.name}): veja em Configurações como reinstalar.` : `Nova versão do app (${u.latest.name}). Atualize em Configurações.`),
-    );
-  }, [signedIn, toast]);
+    // Confere ao abrir e sempre que o app volta para a tela; oferece cada versão uma vez por uso
+    const offer = (force: boolean) =>
+      void checkUpdate(force).then(async (u) => {
+        if (!u?.latest || offered.current === u.latest.build) return;
+        offered.current = u.latest.build;
+        if (u.reinstall) return toast(`Nova versão do app (${u.latest.name}): veja em Configurações como reinstalar.`);
+        // Com o atualizador no APK, oferece a atualização na hora; nas versões antigas, avisa
+        if (await hasNativeUpdater()) openModal(<UpdateModal latest={u.latest} current={u.current.name} />);
+        else toast(`Nova versão do app (${u.latest.name}). Atualize em Configurações.`);
+      });
+    offer(false);
+    const onVisible = () => document.visibilityState === "visible" && offer(true);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [signedIn, toast, openModal]);
 
   return (
     <Ctx.Provider value={{ me, loadingMe, refreshMe, signIn, signOut, hidden, toggleHidden, toast, openModal, closeModal }}>

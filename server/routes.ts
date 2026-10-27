@@ -192,12 +192,12 @@ async function loadMe(user: SessionUser): Promise<Me> {
     [
       q(`SELECT id, name, invite_code FROM households WHERE id = $1`, [user.household_id]),
       q(
-        `SELECT id, name, avatar_color, is_demo, role FROM profiles WHERE household_id = $1 ORDER BY is_demo, created_at`,
+        `SELECT id, name, avatar_color, is_demo, role FROM profiles WHERE household_id = $1 ORDER BY is_demo, created_at, name, id`,
         [user.household_id],
       ),
       q(
         `SELECT id, name, kind, institution, last4, active, last_synced_at FROM financial_accounts
-          WHERE profile_id = $1 ORDER BY active DESC, created_at`,
+          WHERE profile_id = $1 ORDER BY active DESC, created_at, name, id`,
         [user.id],
       ),
       q(`SELECT count(*)::int AS n FROM transactions WHERE profile_id = $1 AND status = 'pending' AND NOT ignored`, [user.id]),
@@ -405,7 +405,7 @@ route("GET", "family", async ({ request, url }) => {
   const [numbers, goals, members] = await Promise.all([
     familyNumbers(user, month, 6),
     listGoals(user),
-    query(`SELECT name, avatar_color, is_demo FROM profiles WHERE household_id = $1 ORDER BY is_demo, created_at`, [user.household_id]),
+    query(`SELECT name, avatar_color, is_demo FROM profiles WHERE household_id = $1 ORDER BY is_demo, created_at, name, id`, [user.household_id]),
   ]);
   const { incomeCents, balanceCents } = numbers.totals;
   const result: Family = {
@@ -714,7 +714,7 @@ route("GET", "health", async ({ request }) => {
   const month = currentMonth(user);
   const [accounts, counts, imports] = await batch(
     [
-      q(`SELECT id, name, kind, last_synced_at FROM financial_accounts WHERE profile_id = $1 AND active ORDER BY created_at`, [user.id]),
+      q(`SELECT id, name, kind, last_synced_at FROM financial_accounts WHERE profile_id = $1 AND active ORDER BY created_at, name, id`, [user.id]),
       q(
         `SELECT count(*) FILTER (WHERE status <> 'pending')::int AS classified, count(*)::int AS total,
                 count(*) FILTER (WHERE status = 'pending')::int AS pending

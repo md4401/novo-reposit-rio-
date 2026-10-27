@@ -162,6 +162,10 @@ export async function deletePayable(user: SessionUser, id: string) {
 }
 
 /** Contas que pedem atenção hoje (vencidas ou dentro do prazo do lembrete). */
+export async function payablesDue(user: SessionUser, today: string) {
+  return (await listPayables(user, today)).filter((p) => p.status !== "ok");
+}
+
 // ---------------------------------------------------------------------------
 // Saldo previsto
 

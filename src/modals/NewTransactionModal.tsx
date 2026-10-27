@@ -67,6 +67,13 @@ export function NewTransactionModal({
         await api(`transactions/${created.id}/items`, { method: "PUT", body: { items: receiptItems }, silent: true }).catch(() => undefined);
       await refreshMe();
       closeModal();
+      const familyPart = created.allocations.filter((a) => a.scope === "family").reduce((s, a) => s + a.amountCents, 0);
+      const limit = me?.household.agreementLimitCents;
+      // Lembrete gentil do combinado da família (não bloqueia nada)
+      if (direction === "expense" && limit && familyPart >= limit) {
+        toast(`Despesa registrada. Lembrete do combinado: compras da casa acima de ${formatMoney(limit)} vocês conversam antes. 💬`);
+        return;
+      }
       toast(
         created.status === "pending"
           ? "Lançamento salvo. Ele ficou em “A revisar” para você escolher a categoria."

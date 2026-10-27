@@ -1,8 +1,8 @@
-// "Adicionar" (botão + da barra) e "Menu" (as 8 seções, pela foto no topo) — abrem como painel de baixo no celular.
+// "Adicionar" (botão + da barra) e "Menu" (as seções, pela foto no topo) — abrem como painel de baixo no celular.
 import { Camera, ChevronRight, FileUp, Lock, MessageCircle, Minus, Plus } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Avatar, ModalHeader } from "../components/ui";
-import { NAV, sectionOf } from "../lib/nav";
+import { KID_NAV, NAV, sectionOf, SIMPLE_NAV } from "../lib/nav";
 import { navigate } from "../lib/router";
 import { useApp } from "../state";
 import { ImportModal } from "./AccountModals";
@@ -39,10 +39,13 @@ export function QuickAddSheet() {
   );
 }
 
-export function MoreSheet({ page }: { page: string }) {
+export function MoreSheet({ page, reduced, onShowAll }: { page: string; reduced?: boolean; onShowAll?: () => void }) {
   const { me, closeModal } = useApp();
+  const [all, setAll] = useState(!reduced);
   const go = (key: string) => closeModal(() => navigate(key === "inicio" ? "" : key));
   const current = sectionOf(page).key;
+  // Modo simples ou criança: o menu curto primeiro, com a opção de ver tudo
+  const short = me?.profile.uiMode === "kid" ? KID_NAV : SIMPLE_NAV;
   return (
     <div>
       <ModalHeader title="Menu" />
@@ -58,15 +61,39 @@ export function MoreSheet({ page }: { page: string }) {
           </span>
         </button>
       )}
-      <div className="sheet-grid">
-        {NAV.map((n) => (
-          <button key={n.key} type="button" className={`sheet-tile ${current === n.key ? "on" : ""}`} onClick={() => go(n.key)} aria-current={current === n.key ? "page" : undefined}>
-            <span className="sheet-ic">{n.icon(18)}</span>
-            <b>{n.label}</b>
-            <small>{n.hint}</small>
+      {all ? (
+        <div className="sheet-grid">
+          {NAV.map((n) => (
+            <button key={n.key} type="button" className={`sheet-tile ${current === n.key ? "on" : ""}`} onClick={() => go(n.key)} aria-current={current === n.key ? "page" : undefined}>
+              <span className="sheet-ic">{n.icon(18)}</span>
+              <b>{n.label}</b>
+              <small>{n.hint}</small>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <>
+          <div className="sheet-grid">
+            {short.map((n) => (
+              <button key={n.key} type="button" className={`sheet-tile ${page === n.key ? "on" : ""}`} onClick={() => go(n.key)} aria-current={page === n.key ? "page" : undefined}>
+                <span className="sheet-ic">{n.icon(18)}</span>
+                <b>{n.label}</b>
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="btn ghost block"
+            style={{ marginTop: 12 }}
+            onClick={() => {
+              setAll(true);
+              onShowAll?.();
+            }}
+          >
+            Ver todas as telas
           </button>
-        ))}
-      </div>
+        </>
+      )}
     </div>
   );
 }

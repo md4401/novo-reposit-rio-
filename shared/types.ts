@@ -4,9 +4,18 @@ export type Scope = "personal" | "family";
 export type Direction = "expense" | "income" | "transfer";
 export type TxStatus = "pending" | "auto" | "confirmed";
 export type ClassifiedBy = "user" | "rule" | "history" | "keyword" | "ai";
-export type AccountKind = "checking" | "credit_card" | "savings" | "cash" | "other";
+export type AccountKind = "checking" | "credit_card" | "savings" | "cash" | "other" | "benefit";
 
-export type Member = { id: string; name: string; avatarColor: string; isDemo: boolean; role: "admin" | "member"; isMe: boolean };
+export type Member = {
+  id: string;
+  name: string;
+  avatarColor: string;
+  isDemo: boolean;
+  role: "admin" | "member";
+  isMe: boolean;
+  /** Parte na divisão proporcional à renda, em pontos-base (só a porcentagem; a renda nunca é mostrada) */
+  splitBp: number | null;
+};
 
 export type Account = {
   id: string;
@@ -27,11 +36,33 @@ export type Account = {
   /** Cartão: dia de fechamento e de vencimento da fatura */
   closingDay: number | null;
   dueDay: number | null;
+  /** Conta faz parte da reserva de emergência */
+  isReserve: boolean;
 };
 
 export type Me = {
-  profile: { id: string; name: string; email: string; role: "admin" | "member"; avatarColor: string; digestHour: number; timezone: string };
-  household: { id: string; name: string; inviteCode: string; members: Member[] };
+  profile: {
+    id: string;
+    name: string;
+    email: string;
+    role: "admin" | "member";
+    avatarColor: string;
+    digestHour: number;
+    timezone: string;
+    incomeMode: "fixed" | "variable";
+    selfSalaryCents: number | null;
+    uiMode: "full" | "simple" | "kid";
+    /** Informou a renda para a divisão proporcional */
+    hasSplitIncome: boolean;
+  };
+  household: {
+    id: string;
+    name: string;
+    inviteCode: string;
+    members: Member[];
+    /** Menor limite dos combinados ("acima disso, conversamos antes") */
+    agreementLimitCents: number | null;
+  };
   accounts: Account[];
   pendingCount: number;
   /** Quer receber a notificação do resumo diário */
@@ -372,7 +403,7 @@ export type TaxReport = {
   educationLimitCents: number;
 };
 
-export type Asset = { id: string; name: string; kind: "investment" | "property" | "vehicle" | "other"; valueCents: number; updatedOn: string };
+export type Asset = { id: string; name: string; kind: "investment" | "property" | "vehicle" | "other"; valueCents: number; updatedOn: string; isReserve?: boolean };
 export type Debt = { id: string; name: string; balanceCents: number; monthlyRatePercent: number; minPaymentCents: number };
 export type Wealth = {
   accountsCents: number;
@@ -446,3 +477,142 @@ export type Basket = {
   /** Quantas notas da família alimentam a cesta (sem dizer de quem) */
   receipts: number;
 };
+
+export type Iou = {
+  id: string;
+  description: string;
+  amountCents: number;
+  occurredOn: string;
+  /** true: a outra pessoa me deve; false: eu devo a ela */
+  owedToMe: boolean;
+  otherId: string;
+  otherName: string;
+  settled: boolean;
+  canDelete: boolean;
+};
+export type IouPayload = {
+  items: Iou[];
+  /** Saldo com cada pessoa: positivo = ela me deve */
+  balances: { otherId: string; name: string; netCents: number }[];
+};
+
+export type Agreement = { id: string; text: string; limitCents: number | null; createdBy: string | null; canDelete: boolean };
+
+export type MeetingAgenda = {
+  month: string;
+  family: { incomeCents: number; expenseCents: number; previousExpenseCents: number; topCategories: { categoryId: string; cents: number }[] };
+  budgets: { categoryId: string; spentCents: number; limitCents: number }[];
+  goals: { name: string; icon: string; savedCents: number; targetCents: number }[];
+  bills: { name: string; amountCents: number; dueOn: string; unpaidCents: number }[];
+  wishes: { name: string; priceCents: number; votes: number }[];
+  ious: { name: string; netCents: number }[];
+  agreements: Agreement[];
+  notes: string;
+  heldAt: string | null;
+};
+
+export type Receivable = {
+  id: string;
+  name: string;
+  kind: "saude" | "empresa" | "restituicao" | "emprestimo" | "outro";
+  amountCents: number;
+  expectedOn: string | null;
+  received: boolean;
+  receivedAt: string | null;
+  overdue: boolean;
+};
+
+export type BankCosts = {
+  year: number;
+  totalCents: number;
+  byKind: { kind: "tarifa" | "juros" | "iof" | "anuidade" | "multa"; cents: number; count: number }[];
+  byAccount: { name: string; cents: number }[];
+  items: { occurredOn: string; description: string; amountCents: number; kind: string; accountName: string | null }[];
+};
+
+export type Loyalty = {
+  id: string;
+  program: string;
+  kind: "pontos" | "milhas" | "cashback";
+  balance: number;
+  valueCents: number | null;
+  expiresOn: string | null;
+  updatedOn: string;
+  daysLeft: number | null;
+};
+
+export type ReserveStatus = {
+  /** Custo essencial por mês (moradia, mercado, saúde, transporte, educação, limpeza, higiene) */
+  essentialCents: number;
+  reserveCents: number;
+  months: number;
+  targetMonths: number;
+  targetCents: number;
+  items: { kind: "account" | "asset"; id: string; name: string; cents: number; isReserve: boolean }[];
+};
+
+export type DocumentItem = {
+  id: string;
+  name: string;
+  kind: "garantia" | "seguro" | "contrato" | "documento" | "outro";
+  expiresOn: string | null;
+  remindDays: number;
+  notes: string | null;
+  shared: boolean;
+  hasImage: boolean;
+  owner: string;
+  isMine: boolean;
+  daysLeft: number | null;
+};
+
+export type LegacyMine = { content: string; trustedId: string | null; releaseMode: "now" | "inactive"; inactiveDays: number; updatedAt: string } | null;
+export type LegacyShared = { ownerName: string; available: boolean; content: string | null; releaseMode: "now" | "inactive"; inactiveDays: number }[];
+
+export type ScamAlert = { id: string; occurredOn: string; description: string; amountCents: number; reason: string };
+
+export type IncomeOverview = {
+  mode: "fixed" | "variable";
+  selfSalaryCents: number | null;
+  suggestedCents: number | null;
+  averageCents: number;
+  months: { month: string; incomeCents: number; diffCents: number; bufferCents: number }[];
+};
+
+export type GuardianInfo = {
+  /** Quem me acompanha (eu autorizei) */
+  guardians: { id: string; name: string }[];
+  /** Quem eu acompanho (me autorizaram) */
+  watching: { id: string; name: string }[];
+};
+
+export type GuardianSummary = {
+  name: string;
+  month: string;
+  incomeCents: number;
+  expenseCents: number;
+  previousExpenseCents: number;
+  pendingCount: number;
+  bills: { name: string; amountCents: number; dueOn: string; status: "overdue" | "soon" | "ok" }[];
+  alerts: { reason: string; amountCents: number; occurredOn: string }[];
+};
+
+export type KidSummary = {
+  month: string;
+  allowanceCents: number;
+  spentCents: number;
+  leftCents: number;
+  goals: { id: string; name: string; icon: string; savedCents: number; targetCents: number }[];
+};
+
+export type PlanBase = {
+  /** Médias mensais dos últimos 3 meses completos (só da pessoa) */
+  incomeCents: number;
+  expenseCents: number;
+  /** Parcelas já previstas para o mês que vem */
+  installmentsCents: number;
+  /** Parcelas ÷ renda média (0,3 = 30%) */
+  installmentsRatio: number;
+};
+
+export type ShoppingItem = { id: string; name: string; quantity: number; checked: boolean; addedBy: string | null; estimateCents: number | null };
+export type ShoppingList = { items: ShoppingItem[]; estimateCents: number; unknownCount: number };

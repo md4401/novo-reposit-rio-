@@ -28,7 +28,7 @@ async function resize(file: File, maxSide = 1400, quality = 0.8): Promise<string
 }
 
 /** Versão leve para guardar (cerca de 100–300 KB). */
-async function forStorage(file: File) {
+export async function forStorage(file: File) {
   for (const [side, q] of [[1280, 0.6], [1000, 0.5], [800, 0.45]] as const) {
     const url = await resize(file, side, q);
     if (url.length * 0.75 < 650 * 1024) return url;

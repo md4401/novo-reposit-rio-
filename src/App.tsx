@@ -18,6 +18,21 @@ import { PersonalPage } from "./pages/Personal";
 import { WealthPage } from "./pages/Wealth";
 import { WishesPage } from "./pages/Wishes";
 import { BasketPage } from "./pages/Basket";
+import { BetweenPage } from "./pages/Between";
+import { MeetingPage } from "./pages/Meeting";
+import { ReceivablesPage } from "./pages/Receivables";
+import { BankCostsPage } from "./pages/BankCosts";
+import { LoyaltyPage } from "./pages/Loyalty";
+import { ReservePage } from "./pages/Reserve";
+import { DocumentsPage } from "./pages/Documents";
+import { LegacyPage } from "./pages/Legacy";
+import { SecurityPage } from "./pages/Security";
+import { IncomePage } from "./pages/Income";
+import { GuardianPage } from "./pages/Guardian";
+import { KidHomePage } from "./pages/KidHome";
+import { InstallmentsPage } from "./pages/Installments";
+import { SimulatorPage } from "./pages/Simulator";
+import { ShoppingPage } from "./pages/Shopping";
 import { SettingsPage } from "./pages/Settings";
 import { SharePage } from "./pages/Share";
 import { TagsPage } from "./pages/Tags";
@@ -44,7 +59,7 @@ export function App() {
   if (!me) return <AuthPage />;
 
   const pages: Record<string, React.ReactNode> = {
-    inicio: <HomePage />,
+    inicio: me.profile.uiMode === "kid" ? <KidHomePage /> : <HomePage />,
     meu: <PersonalPage />,
     familia: <FamilyPage />,
     transacoes: <TransactionsPage route={route} key={route.query.toString()} />,
@@ -57,6 +72,20 @@ export function App() {
     desejos: <WishesPage />,
     desafios: <ChallengesPage />,
     cesta: <BasketPage />,
+    acertos: <BetweenPage />,
+    reuniao: <MeetingPage />,
+    receber: <ReceivablesPage />,
+    bancos: <BankCostsPage />,
+    pontos: <LoyaltyPage />,
+    reserva: <ReservePage />,
+    documentos: <DocumentsPage />,
+    legado: <LegacyPage />,
+    seguranca: <SecurityPage />,
+    renda: <IncomePage />,
+    parcelar: <InstallmentsPage />,
+    momentos: <SimulatorPage />,
+    compras: <ShoppingPage />,
+    acompanhar: <GuardianPage id={route.query.get("id") ?? ""} key={route.query.get("id")} />,
     compartilhar: <SharePage />,
     casa: <HouseBillsPage />,
     metas: <GoalsPage />,

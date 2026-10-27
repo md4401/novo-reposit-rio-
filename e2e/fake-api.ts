@@ -17,6 +17,7 @@ type Options = {
   welcomeSeen?: boolean;
   accounts?: Partial<Account>[];
   pending?: { description: string; amountCents: number }[];
+  uiMode?: Me["profile"]["uiMode"];
 };
 
 let seq = 0;
@@ -38,6 +39,7 @@ function account(data: Partial<Account>): Account {
     history: [],
     closingDay: null,
     dueDay: null,
+    isReserve: false,
     ...data,
   };
 }
@@ -94,11 +96,13 @@ export class FakeApi {
   signedIn: boolean;
   name = "Ana Ribeiro";
   householdName = "Família de Ana";
+  uiMode: Me["profile"]["uiMode"];
   accounts: Account[];
   transactions: Transaction[];
 
   constructor(private options: Options = {}) {
     this.signedIn = options.signedIn ?? false;
+    this.uiMode = options.uiMode ?? "full";
     this.accounts = (options.accounts ?? []).map(account);
     this.transactions = (options.pending ?? []).map((p, i) =>
       transaction({ ...p, source: "csv", occurredOn: `2026-10-${String(20 + i).padStart(2, "0")}`, accountId: this.accounts[0]?.id ?? null }),
@@ -129,12 +133,13 @@ export class FakeApi {
 
   private me(): Me {
     return {
-      profile: { id: PROFILE_ID, name: this.name, email: "ana@exemplo.com", role: "admin", avatarColor: "#1e6650", digestHour: 20, timezone: "America/Sao_Paulo" },
+      profile: { id: PROFILE_ID, name: this.name, email: "ana@exemplo.com", role: "admin", avatarColor: "#1e6650", digestHour: 20, timezone: "America/Sao_Paulo", incomeMode: "fixed", selfSalaryCents: null, uiMode: this.uiMode, hasSplitIncome: false },
       household: {
         id: "h-1",
         name: this.householdName,
         inviteCode: "ABC123",
-        members: [{ id: PROFILE_ID, name: this.name, avatarColor: "#1e6650", isDemo: false, role: "admin", isMe: true }],
+        members: [{ id: PROFILE_ID, name: this.name, avatarColor: "#1e6650", isDemo: false, role: "admin", isMe: true, splitBp: null }],
+        agreementLimitCents: null,
       },
       accounts: this.accounts,
       pendingCount: this.pending().length,

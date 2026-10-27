@@ -6,6 +6,7 @@ import { api } from "../lib/api";
 import { category } from "../lib/format";
 import { captureAvailable, captureStatus, checkUpdate, hasNativeUpdater, isNative, openCaptureSettings, type UpdateInfo } from "../lib/native";
 import { disableNotifications, enableNotifications, notificationsSupported, syncNativeReminder } from "../lib/notifications";
+import { GuardianPanel, ModePanel } from "../components/CarePanels";
 import { ChangePasswordModal, DeleteAccountModal, ResetCodeModal } from "../modals/SecurityModals";
 import { UpdateModal } from "../modals/UpdateModal";
 import { canInstall, isInstalled, onInstallChange, promptInstall } from "../lib/pwa";
@@ -287,6 +288,25 @@ export function SettingsPage() {
                                 <button type="button" className="btn ghost small" onClick={() => openModal(<ResetCodeModal memberId={m.id} name={m.name} />)}>
                                   <KeyRound size={13} /> Código de senha
                                 </button>
+                                <select
+                                  aria-label={`Modo de ${m.name}`}
+                                  className="btn ghost small"
+                                  defaultValue=""
+                                  onChange={(e) => {
+                                    const mode = e.target.value;
+                                    e.target.value = "";
+                                    if (mode)
+                                      void api(`household/members/${m.id}/mode`, { method: "PUT", body: { mode } }).then(
+                                        () => toast(`Modo de ${m.name} alterado.`),
+                                        (err: Error) => toast(err.message),
+                                      );
+                                  }}
+                                >
+                                  <option value="">Modo de uso…</option>
+                                  <option value="full">Completo</option>
+                                  <option value="simple">Simples</option>
+                                  <option value="kid">Criança</option>
+                                </select>
                               </>
                             )}
                             <button type="button" className="btn ghost small danger-text" disabled={busy === m.id} onClick={() => memberAction(m.id, "remove")}>
@@ -378,10 +398,12 @@ export function SettingsPage() {
                   </>
                 )}
               </Panel>
+              <GuardianPanel />
           </div>
         )}
         {tab === "app" && (
           <div className="stack">
+              <ModePanel />
               <Panel title="Aparência">
                 <div className="setting-row">
                   <div>

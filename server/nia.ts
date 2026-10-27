@@ -17,6 +17,10 @@ import { logError } from "./http.js";
 import { cardInvoices, listPayables, loadForecast } from "./planning.js";
 import { listChallenges } from "./together.js";
 import { loadWealth } from "./wealth.js";
+import { listIous } from "./between.js";
+import { shoppingList } from "./plans.js";
+import { listDocuments, reserveStatus, scamAlerts } from "./protection.js";
+import { bankCosts, listReceivables } from "./receivables.js";
 
 export const WELCOME =
   "Oi! 👋 Sou a Nia, sua assistente financeira. Posso explicar seus gastos, revisar o que ficou pendente e " +
@@ -57,6 +61,15 @@ async function buildContext(user: SessionUser) {
     safe(loadForecast(user, today, 30)),
     safe(loadWealth(user, today)),
     safe(listChallenges(user, today)),
+  ]);
+  const [ious, receivables, reserve, banks, scams, shopping, documents] = await Promise.all([
+    safe(listIous(user)),
+    safe(listReceivables(user, today)),
+    safe(reserveStatus(user, today)),
+    safe(bankCosts(user, Number(today.slice(0, 4)))),
+    safe(scamAlerts(user, today)),
+    safe(shoppingList(user)),
+    safe(listDocuments(user, today)),
   ]);
   const [mine, family, alerts, goals, budgets, extra] = await Promise.all([
     personalNumbers(user, month, 2),
@@ -131,6 +144,19 @@ async function buildContext(user: SessionUser) {
       ? { bens_centavos: wealth.assetsCents, dividas_centavos: wealth.debtsCents, liquido_centavos: wealth.netWorthCents }
       : null,
     desafios: (challenges ?? []).filter((c) => c.status === "active").map((c) => ({ desafio: c.title, progresso: `${c.progress}%`, detalhe: c.detail, termina: c.endsOn })),
+    acertos: (ious?.balances ?? []).map((b) => ({ pessoa: b.name, quem_deve: b.netCents > 0 ? "a pessoa me deve" : "eu devo", centavos: Math.abs(b.netCents) })),
+    a_receber: (receivables ?? []).filter((r) => !r.received).map((r) => ({ nome: r.name, centavos: r.amountCents, previsto: r.expectedOn, atrasado: r.overdue })),
+    reserva: reserve
+      ? { meses: reserve.months, meta_meses: reserve.targetMonths, guardado_centavos: reserve.reserveCents, essencial_por_mes_centavos: reserve.essentialCents }
+      : null,
+    custo_bancos_ano: banks ? { total_centavos: banks.totalCents, tipos: banks.byKind.map((k) => ({ tipo: k.kind, centavos: k.cents })) } : null,
+    golpes_suspeitos: (scams ?? []).map((a) => ({ motivo: a.reason, centavos: a.amountCents, data: a.occurredOn })),
+    lista_de_compras: shopping
+      ? { itens: shopping.items.filter((i) => !i.checked).map((i) => `${i.quantity > 1 ? `${i.quantity}x ` : ""}${i.name}`), previsto_centavos: shopping.estimateCents }
+      : null,
+    documentos_vencendo: (documents ?? [])
+      .filter((d) => d.isMine && d.daysLeft !== null && d.daysLeft >= 0 && d.daysLeft <= 60)
+      .map((d) => ({ nome: d.name, tipo: d.kind, vence: d.expiresOn, dias: d.daysLeft })),
     compromissos_mes_que_vem: {
       mes: monthLabel(alerts.commitments.month),
       total: alerts.commitments.totalCents,
@@ -161,7 +187,7 @@ function list(items: string[]) {
 
 export const NIA_HELP =
   "Posso ajudar com: seus gastos do mês, gastos por categoria, pendências, assinaturas, alertas, metas, orçamento, " +
-  "contas do próximo mês, fatura do cartão, contas a pagar, saldo previsto, patrimônio, desafios e o resumo da família. Para registrar uma compra, é só dizer, por exemplo: " +
+  "contas do próximo mês, fatura do cartão, contas a pagar, saldo previsto, patrimônio, desafios, acertos, valores a receber, reserva, custo dos bancos, golpes, lista de compras, garantias e o resumo da família. Para registrar uma compra, é só dizer, por exemplo: " +
   "“comprei R$ 80 de comida e R$ 30 de limpeza no mercado”.";
 
 /** Intenções comuns respondidas direto com os números do banco (sem IA: nunca erra valor).
@@ -173,6 +199,11 @@ export function ruleReply(question: string, ctx: Context): string | null {
   if (has(/^(oi|ola|bom dia|boa tarde|boa noite|e ai|hey)\b/) && text.length < 25) {
     return `Olá! 😊 Em ${ctx.mes} você gastou ${money(ctx.meus_totais_mes.expenseCents)} até agora e tem ${ctx.pendencias.length} compra(s) para revisar. Quer que eu mostre por categoria?`;
   }
+  if (has(/lista de compras|falta comprar|comprar no mercado|o que comprar/)) {
+    const l = ctx.lista_de_compras;
+    if (!l || l.itens.length === 0) return "A lista de compras está vazia.";
+    return `Na lista: ${list(l.itens.slice(0, 8))}${l.itens.length > 8 ? "…" : ""}.` + (l.previsto_centavos ? ` Previsto: ${money(l.previsto_centavos)}.` : "");
+  }
   if (has(/pendenc|pendente|classific|revis|falta|organizar/)) {
     if (ctx.pendencias.length === 0) return "Tudo organizado! ✅ Não há compras esperando classificação.";
     return (
@@ -180,6 +211,36 @@ export function ruleReply(question: string, ctx: Context): string | null {
       list(ctx.pendencias.slice(0, 4).map((p) => `${p.descricao} (${money(p.centavos)})`)) +
       `. Toque em “Resumo diário” para revisar todas de uma vez — você pode dividir uma compra em várias categorias.`
     );
+  }
+  if (has(/golpe|suspeit|fraude|clonad/)) {
+    if (ctx.golpes_suspeitos.length === 0)
+      return "Não vi nada suspeito nos últimos 7 dias. Lembre: o banco nunca pede senha nem código, e desconfie de Pix urgente pedido por mensagem.";
+    return `Atenção: ${ctx.golpes_suspeitos.length} movimento(s) para conferir. ${ctx.golpes_suspeitos[0].motivo} Veja em “Golpes e segurança”.`;
+  }
+  if (has(/me deve|quem deve|acerto|devo (pra|para|a) |devo ao |devo a$/)) {
+    if (ctx.acertos.length === 0) return "Nenhum acerto em aberto entre você e a família. 🤝";
+    return list(ctx.acertos.map((a) => (a.quem_deve === "eu devo" ? `você deve ${money(a.centavos)} a ${a.pessoa}` : `${a.pessoa} te deve ${money(a.centavos)}`))) + ".";
+  }
+  if (has(/a receber|receber de volta|reembolso|restituic|emprestei/)) {
+    if (ctx.a_receber.length === 0) return "Nada anotado para receber. Pediu reembolso ou emprestou dinheiro? Anote em “Valores a receber”.";
+    const late = ctx.a_receber.filter((r) => r.atrasado).length;
+    return (
+      `Para receber: ${list(ctx.a_receber.slice(0, 4).map((r) => `${r.nome} (${money(r.centavos)})`))}.` + (late ? ` ${late} já passou(aram) da data — vale cobrar.` : "")
+    );
+  }
+  if (has(/reserva|emergencia|colchao/)) {
+    const r = ctx.reserva;
+    if (!r || r.essencial_por_mes_centavos === 0) return "Ainda não consigo calcular a reserva: preciso de pelo menos um mês de gastos de moradia, mercado, saúde e transporte.";
+    return `Sua reserva cobre ${String(r.meses).replace(".", ",")} mês(es) do essencial (${money(r.essencial_por_mes_centavos)} por mês). A meta é ${r.meta_meses} meses: ${money(r.essencial_por_mes_centavos * r.meta_meses)}.`;
+  }
+  if (has(/tarifa|anuidade|\biof\b|juros|banco (cobr|cust)|bancos? (me )?cust/)) {
+    const b = ctx.custo_bancos_ano;
+    if (!b || b.total_centavos === 0) return "Não encontrei tarifas, juros, IOF ou anuidade nos seus lançamentos deste ano. 👏";
+    return `Neste ano os bancos já te custaram ${money(b.total_centavos)}. Veja onde cortar em “Custo dos bancos”.`;
+  }
+  if (has(/garantia|documento|apolice|cnh/)) {
+    if (ctx.documentos_vencendo.length === 0) return "Nenhuma garantia ou documento seu vencendo nos próximos 60 dias.";
+    return list(ctx.documentos_vencendo.map((d) => `${d.nome} (${d.tipo}) vence em ${d.dias} dia(s)`)) + ".";
   }
   if (has(/fatura|cartao/)) {
     if (ctx.faturas.length === 0)

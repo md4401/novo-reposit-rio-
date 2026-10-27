@@ -111,6 +111,46 @@ import {
   wishToGoal,
 } from "./together.js";
 import { loadBasket, pruneBasketItems, saveReceiptItems } from "./basket.js";
+import {
+  createAgreement,
+  createIou,
+  deleteAgreement,
+  deleteIou,
+  listAgreements,
+  listIous,
+  meetingAgenda,
+  saveMeeting,
+  setSplitIncome,
+  settleIous,
+} from "./between.js";
+import {
+  bankCosts,
+  createReceivable,
+  deleteLoyalty,
+  deleteReceivable,
+  listLoyalty,
+  listReceivables,
+  moneyInsights,
+  receive,
+  saveLoyalty,
+} from "./receivables.js";
+import {
+  deleteDocument,
+  deleteLegacy,
+  documentImage,
+  listDocuments,
+  myLegacy,
+  protectionInsights,
+  reserveStatus,
+  saveDocument,
+  saveLegacy,
+  scamAlerts,
+  setReserveItems,
+  sharedLegacies,
+  type DocumentInput,
+} from "./protection.js";
+import { addShoppingItem, clearChecked, deleteShoppingItem, planBase, planInsights, shoppingList, updateShoppingItem } from "./plans.js";
+import { addGuardian, guardianInfo, guardianSummary, incomeOverview, kidSummary, removeGuardian, setMemberMode } from "./care.js";
 
 type Ctx = { request: Request; url: URL; params: string[] };
 type Handler = (ctx: Ctx) => Promise<Response>;
@@ -224,15 +264,15 @@ route("POST", "auth/logout", async ({ request }) => {
 });
 
 async function loadMe(user: SessionUser): Promise<Me> {
-  const [household, members, accounts, pending, demo, notify, setup] = await batch(
+  const [household, members, accounts, pending, demo, notify, agreement, setup] = await batch(
     [
       q(`SELECT id, name, invite_code FROM households WHERE id = $1`, [user.household_id]),
       q(
-        `SELECT id, name, avatar_color, is_demo, role FROM profiles WHERE household_id = $1 ORDER BY is_demo, created_at, name, id`,
+        `SELECT id, name, avatar_color, is_demo, role, split_income_cents FROM profiles WHERE household_id = $1 ORDER BY is_demo, created_at, name, id`,
         [user.household_id],
       ),
       q(
-        `SELECT id, name, kind, institution, last4, active, last_synced_at, closing_day, due_day FROM financial_accounts
+        `SELECT id, name, kind, institution, last4, active, last_synced_at, closing_day, due_day, is_reserve FROM financial_accounts
           WHERE profile_id = $1 ORDER BY active DESC, created_at, name, id`,
         [user.id],
       ),
@@ -242,7 +282,8 @@ async function loadMe(user: SessionUser): Promise<Me> {
              OR EXISTS (SELECT 1 FROM profiles WHERE household_id = $2 AND is_demo) AS has_demo`,
         [user.id, user.household_id],
       ),
-      q(`SELECT notify_digest FROM profiles WHERE id = $1`, [user.id]),
+      q(`SELECT notify_digest, income_mode, self_salary_cents, ui_mode, split_income_cents FROM profiles WHERE id = $1`, [user.id]),
+      q(`SELECT min(limit_cents) AS limit_cents FROM agreements WHERE household_id = $1`, [user.household_id]),
       // Primeiros passos: só o que já existe (nada de valores)
       q(
         `SELECT EXISTS (SELECT 1 FROM transactions WHERE profile_id = $1) AS has_tx,
@@ -262,6 +303,10 @@ async function loadMe(user: SessionUser): Promise<Me> {
       avatarColor: user.avatar_color,
       digestHour: user.digest_hour,
       timezone: user.timezone,
+      incomeMode: (notify[0]?.income_mode as "fixed" | "variable") ?? "fixed",
+      selfSalaryCents: notify[0]?.self_salary_cents == null ? null : num(notify[0].self_salary_cents),
+      uiMode: (notify[0]?.ui_mode as "full" | "simple" | "kid") ?? "full",
+      hasSplitIncome: notify[0]?.split_income_cents != null,
     },
     household: {
       id: household[0].id as string,
@@ -274,7 +319,9 @@ async function loadMe(user: SessionUser): Promise<Me> {
         isDemo: Boolean(m.is_demo),
         role: m.role as "admin" | "member",
         isMe: m.id === user.id,
+        splitBp: splitBp(members, m),
       })),
+      agreementLimitCents: agreement[0]?.limit_cents == null ? null : num(agreement[0].limit_cents),
     },
     accounts: await withBalances(user, accounts),
     pendingCount: num(pending[0].n),
@@ -289,6 +336,13 @@ async function loadMe(user: SessionUser): Promise<Me> {
     },
     today: todayKey(user.timezone),
   };
+}
+
+/** Parte de cada pessoa na divisão proporcional (pontos-base). A renda em si nunca sai do servidor. */
+function splitBp(members: Record<string, unknown>[], m: Record<string, unknown>) {
+  if (m.split_income_cents == null) return null;
+  const total = members.reduce((s, x) => s + (x.split_income_cents == null ? 0 : num(x.split_income_cents)), 0);
+  return total > 0 ? Math.round((num(m.split_income_cents) * 10000) / total) : null;
 }
 
 async function withBalances(user: SessionUser, rows: Record<string, unknown>[]) {
@@ -310,6 +364,7 @@ function mapAccount(a: Record<string, unknown>, balance: Pick<Account, "balanceC
     lastSyncedAt: a.last_synced_at ? new Date(a.last_synced_at as string).toISOString() : null,
     closingDay: (a.closing_day as number | null) ?? null,
     dueDay: (a.due_day as number | null) ?? null,
+    isReserve: Boolean(a.is_reserve),
   };
 }
 
@@ -322,6 +377,12 @@ route("PATCH", "me", async ({ request }) => {
   const digestHour = body.digestHour === undefined ? user.digest_hour : int(body, "digestHour", 0, 23, "horário do resumo");
   const queries = [q(`UPDATE profiles SET name = $2, digest_hour = $3 WHERE id = $1`, [user.id, name, digestHour])];
   if (body.notifyDigest !== undefined) queries.push(q(`UPDATE profiles SET notify_digest = $2 WHERE id = $1`, [user.id, bool(body, "notifyDigest")]));
+  if (body.incomeMode !== undefined)
+    queries.push(q(`UPDATE profiles SET income_mode = $2 WHERE id = $1`, [user.id, oneOf(body.incomeMode, ["fixed", "variable"] as const, "tipo de renda")]));
+  if (body.selfSalaryCents !== undefined)
+    queries.push(q(`UPDATE profiles SET self_salary_cents = $2 WHERE id = $1`, [user.id, body.selfSalaryCents === null ? null : cents(body.selfSalaryCents, "salário")]));
+  if (body.uiMode !== undefined)
+    queries.push(q(`UPDATE profiles SET ui_mode = $2 WHERE id = $1`, [user.id, oneOf(body.uiMode, ["full", "simple", "kid"] as const, "modo")]));
   if (body.householdName !== undefined) {
     if (user.role !== "admin") throw new HttpError(403, "Só quem administra a família pode mudar o nome dela");
     queries.push(q(`UPDATE households SET name = $2 WHERE id = $1`, [user.household_id, str(body, "householdName", { max: 60 })]));
@@ -367,7 +428,7 @@ route("GET", "overview", async ({ request, url }) => {
   const thisMonth = month === currentMonth(user);
   // Até o fim do mês (mínimo 1 dia): de onde sai a "sobra prevista"
   const daysLeft = Math.max(1, daysBetweenKeys(today, `${monthOf(today)}-${String(daysInMonth(monthOf(today))).padStart(2, "0")}`));
-  const [family, mine, recent, alerts, budgets, payables, invoices, bills, forecast] = await Promise.all([
+  const [family, mine, recent, alerts, budgets, payables, invoices, bills, forecast, extra, protection, plans] = await Promise.all([
     familyNumbers(user, month, 7),
     personalNumbers(user, month, 2),
     listTransactions(user, { limit: 5 }),
@@ -378,6 +439,9 @@ route("GET", "overview", async ({ request, url }) => {
     // Contas da casa deste mês e do próximo (a semana pode virar o mês)
     Promise.all([listBills(user, monthOf(today)), listBills(user, addMonths(monthOf(today), 1))]).then(([a, b]) => [...a, ...b]),
     thisMonth ? loadForecast(user, today, daysLeft) : null,
+    moneyInsights(user, today),
+    protectionInsights(user, today),
+    planInsights(user, today),
   ]);
   const due = payables.filter((p) => p.status !== "ok");
   const budgetSummary = summarize([...budgets.personal, ...budgets.family]);
@@ -395,6 +459,9 @@ route("GET", "overview", async ({ request, url }) => {
       cta: "Pagar",
     });
   }
+  // Golpe suspeito é urgente; o resto da proteção, o dinheiro esquecido e os planos pedem atenção
+  for (const item of protection.filter((i) => i.page === "seguranca")) add(INSIGHT_PRIORITY.urgent, item);
+  for (const item of [...extra, ...protection.filter((i) => i.page !== "seguranca"), ...plans]) add(INSIGHT_PRIORITY.attention, item);
   const invoiceDue = invoices.find((i) => i.status !== "future" && i.totalCents > 0 && daysBetweenKeys(today, i.dueOn) <= 5);
   if (invoiceDue)
     add(INSIGHT_PRIORITY.dueSoon, {
@@ -714,7 +781,7 @@ route("POST", "accounts", async ({ request }) => {
     [
       user.id,
       str(body, "name", { max: 60, label: "nome da conta" }),
-      oneOf(body.kind, ["checking", "credit_card", "savings", "cash", "other"] as const, "tipo de conta"),
+      oneOf(body.kind, ["checking", "credit_card", "savings", "cash", "other", "benefit"] as const, "tipo de conta"),
       str(body, "institution", { max: 60, optional: true }),
       last4,
     ],
@@ -726,8 +793,8 @@ route("PATCH", "accounts/:id", async ({ request, params }) => {
   const user = await requireUser(request);
   const body = await readJson(request);
   const id = uuid(params[0]);
-  const current = await one<{ name: string; active: boolean; balance_cents: string | null; balance_on: string | null; closing_day: number | null; due_day: number | null }>(
-    `SELECT name, active, balance_cents, balance_on::text AS balance_on, closing_day, due_day FROM financial_accounts WHERE id = $1 AND profile_id = $2`,
+  const current = await one<{ name: string; active: boolean; balance_cents: string | null; balance_on: string | null; closing_day: number | null; due_day: number | null; is_reserve: boolean }>(
+    `SELECT name, active, balance_cents, balance_on::text AS balance_on, closing_day, due_day, is_reserve FROM financial_accounts WHERE id = $1 AND profile_id = $2`,
     [id, user.id],
   );
   if (!current) throw new HttpError(404, "Conta não encontrada");
@@ -746,7 +813,7 @@ route("PATCH", "accounts/:id", async ({ request, params }) => {
   const cardDay = (key: "closingDay" | "dueDay", currentValue: number | null) =>
     body[key] === undefined ? currentValue : body[key] === null ? null : int(body, key, 1, 31, key === "closingDay" ? "dia do fechamento" : "dia do vencimento");
   const row = await one(
-    `UPDATE financial_accounts SET name = $3, active = $4, balance_cents = $5, balance_on = $6, closing_day = $7, due_day = $8
+    `UPDATE financial_accounts SET name = $3, active = $4, balance_cents = $5, balance_on = $6, closing_day = $7, due_day = $8, is_reserve = $9
       WHERE id = $1 AND profile_id = $2 RETURNING *`,
     [
       id,
@@ -757,6 +824,7 @@ route("PATCH", "accounts/:id", async ({ request, params }) => {
       balanceOn,
       cardDay("closingDay", current.closing_day),
       cardDay("dueDay", current.due_day),
+      body.isReserve === undefined ? current.is_reserve : bool(body, "isReserve"),
     ],
   );
   return json((await withBalances(user, [row!]))[0]);
@@ -1238,6 +1306,324 @@ route("POST", "share/pix", async ({ request }) => {
     allocations: [],
   };
   return json({ proposal });
+});
+
+// ===========================================================================
+// Entre as pessoas da casa: acertos, divisão proporcional, combinados e reunião do mês
+
+route("GET", "ious", async ({ request }) => json(await listIous(await requireUser(request))));
+
+route("POST", "ious", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  await rateLimit(`ious:${user.id}`, 60, 60);
+  await createIou(user, {
+    otherId: uuid(body.otherId, "pessoa"),
+    owedToMe: bool(body, "owedToMe"),
+    amountCents: cents(body.amountCents),
+    description: str(body, "description", { max: 80, label: "descrição" })!,
+    occurredOn: body.occurredOn ? dateKey(body.occurredOn) : todayKey(user.timezone),
+  });
+  return json(await listIous(user), 201);
+});
+
+route("POST", "ious/settle", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  const settled = await settleIous(user, body.id ? { id: uuid(body.id) } : { otherId: uuid(body.otherId, "pessoa") });
+  return json({ settled, ...(await listIous(user)) });
+});
+
+route("DELETE", "ious/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await deleteIou(user, uuid(params[0]));
+  return json(await listIous(user));
+});
+
+route("PUT", "me/split-income", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  await setSplitIncome(user, body.amountCents === null ? null : cents(body.amountCents, "renda"));
+  return json(await loadMe(user));
+});
+
+route("GET", "agreements", async ({ request }) => json(await listAgreements(await requireUser(request))));
+
+route("POST", "agreements", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  const limit = body.limitCents === undefined || body.limitCents === null ? null : cents(body.limitCents, "limite");
+  await createAgreement(user, str(body, "text", { max: 200, label: "combinado" })!, limit);
+  return json(await listAgreements(user), 201);
+});
+
+route("DELETE", "agreements/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await deleteAgreement(user, uuid(params[0]));
+  return json(await listAgreements(user));
+});
+
+route("GET", "meeting", async ({ request, url }) => {
+  const user = await requireUser(request);
+  return json(await meetingAgenda(user, monthParam(url, currentMonth(user))));
+});
+
+route("PUT", "meeting", async ({ request, url }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  const month = monthParam(url, currentMonth(user));
+  await saveMeeting(user, month, str(body, "notes", { max: 4000, optional: true, label: "anotações" }) ?? "", body.held === true);
+  return json(await meetingAgenda(user, month));
+});
+
+// ===========================================================================
+// Valores a receber, custo dos bancos e pontos
+
+route("GET", "receivables", async ({ request }) => {
+  const user = await requireUser(request);
+  return json(await listReceivables(user, todayKey(user.timezone)));
+});
+
+route("POST", "receivables", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  await createReceivable(user, {
+    name: str(body, "name", { max: 80, label: "descrição" })!,
+    kind: oneOf(body.kind ?? "outro", ["saude", "empresa", "restituicao", "emprestimo", "outro"] as const, "tipo"),
+    amountCents: cents(body.amountCents),
+    expectedOn: body.expectedOn ? dateKey(body.expectedOn, "data prevista") : null,
+  });
+  return json(await listReceivables(user, todayKey(user.timezone)), 201);
+});
+
+route("POST", "receivables/:id/receive", async ({ request, params }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  const today = todayKey(user.timezone);
+  await receive(
+    user,
+    uuid(params[0]),
+    body.amountCents === undefined ? null : cents(body.amountCents),
+    body.receivedOn ? dateKey(body.receivedOn) : today,
+    body.createTransaction !== false,
+  );
+  return json(await listReceivables(user, today));
+});
+
+route("DELETE", "receivables/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await deleteReceivable(user, uuid(params[0]));
+  return json(await listReceivables(user, todayKey(user.timezone)));
+});
+
+route("GET", "bank-costs", async ({ request, url }) => {
+  const user = await requireUser(request);
+  const year = Number(url.searchParams.get("year")) || Number(todayKey(user.timezone).slice(0, 4));
+  if (year < 2000 || year > 2100) throw new HttpError(400, "Ano inválido");
+  return json(await bankCosts(user, year));
+});
+
+function loyaltyInput(body: Body, user: SessionUser) {
+  return {
+    program: str(body, "program", { max: 60, label: "programa" })!,
+    kind: oneOf(body.kind ?? "pontos", ["pontos", "milhas", "cashback"] as const, "tipo"),
+    balance: int(body, "balance", 0, 1_000_000_000, "saldo"),
+    valueCents: body.valueCents === undefined || body.valueCents === null ? null : int(body, "valueCents", 0, 100_000_000_00, "valor"),
+    expiresOn: body.expiresOn ? dateKey(body.expiresOn, "vencimento") : null,
+    updatedOn: todayKey(user.timezone),
+  };
+}
+
+route("GET", "loyalty", async ({ request }) => {
+  const user = await requireUser(request);
+  return json(await listLoyalty(user, todayKey(user.timezone)));
+});
+
+route("POST", "loyalty", async ({ request }) => {
+  const user = await requireUser(request);
+  await saveLoyalty(user, loyaltyInput(await readJson(request), user));
+  return json(await listLoyalty(user, todayKey(user.timezone)), 201);
+});
+
+route("PATCH", "loyalty/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await saveLoyalty(user, loyaltyInput(await readJson(request), user), uuid(params[0]));
+  return json(await listLoyalty(user, todayKey(user.timezone)));
+});
+
+route("DELETE", "loyalty/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await deleteLoyalty(user, uuid(params[0]));
+  return json(await listLoyalty(user, todayKey(user.timezone)));
+});
+
+// ===========================================================================
+// Proteção: reserva, documentos, "e se eu faltar?" e golpes
+
+route("GET", "reserve", async ({ request }) => {
+  const user = await requireUser(request);
+  return json(await reserveStatus(user, todayKey(user.timezone)));
+});
+
+route("PUT", "reserve", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  const ids = (key: string) => (Array.isArray(body[key]) ? (body[key] as unknown[]).slice(0, 50).map((x) => uuid(x)) : []);
+  await setReserveItems(user, ids("accountIds"), ids("assetIds"));
+  return json(await reserveStatus(user, todayKey(user.timezone)));
+});
+
+function documentInput(body: Body): DocumentInput {
+  return {
+    name: str(body, "name", { max: 80, label: "nome" })!,
+    kind: oneOf(body.kind ?? "garantia", ["garantia", "seguro", "contrato", "documento", "outro"] as const, "tipo"),
+    expiresOn: body.expiresOn ? dateKey(body.expiresOn, "validade") : null,
+    remindDays: body.remindDays === undefined ? 30 : int(body, "remindDays", 0, 365, "aviso"),
+    notes: str(body, "notes", { max: 500, optional: true, label: "observações" }) ?? null,
+    shared: body.shared === true,
+    image: typeof body.image === "string" ? body.image : null,
+  };
+}
+
+route("GET", "documents", async ({ request }) => {
+  const user = await requireUser(request);
+  return json(await listDocuments(user, todayKey(user.timezone)));
+});
+
+route("POST", "documents", async ({ request }) => {
+  const user = await requireUser(request);
+  await rateLimit(`documents:${user.id}`, 30, 60);
+  await saveDocument(user, documentInput(await readJson(request, 1.5 * 1024 * 1024)));
+  return json(await listDocuments(user, todayKey(user.timezone)), 201);
+});
+
+route("PATCH", "documents/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await saveDocument(user, documentInput(await readJson(request, 1.5 * 1024 * 1024)), uuid(params[0]));
+  return json(await listDocuments(user, todayKey(user.timezone)));
+});
+
+route("GET", "documents/:id/image", async ({ request, params }) => {
+  const user = await requireUser(request);
+  const { mime, bytes } = await documentImage(user, uuid(params[0]));
+  return new Response(new Uint8Array(bytes), { headers: { "Content-Type": mime, "Cache-Control": "no-store, private" } });
+});
+
+route("DELETE", "documents/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await deleteDocument(user, uuid(params[0]));
+  return json(await listDocuments(user, todayKey(user.timezone)));
+});
+
+route("GET", "legacy", async ({ request }) => {
+  const user = await requireUser(request);
+  const [mine, shared] = await Promise.all([myLegacy(user), sharedLegacies(user)]);
+  return json({ mine, shared });
+});
+
+route("PUT", "legacy", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  await saveLegacy(user, {
+    content: str(body, "content", { max: 8000, label: "instruções" })!,
+    trustedId: body.trustedId ? uuid(body.trustedId, "pessoa de confiança") : null,
+    releaseMode: oneOf(body.releaseMode ?? "inactive", ["now", "inactive"] as const, "liberação"),
+    inactiveDays: body.inactiveDays === undefined ? 60 : int(body, "inactiveDays", 15, 365, "dias sem acesso"),
+  });
+  return json({ mine: await myLegacy(user), shared: await sharedLegacies(user) });
+});
+
+route("DELETE", "legacy", async ({ request }) => {
+  const user = await requireUser(request);
+  await deleteLegacy(user);
+  return json({ mine: null, shared: await sharedLegacies(user) });
+});
+
+route("GET", "security", async ({ request }) => {
+  const user = await requireUser(request);
+  return json(await scamAlerts(user, todayKey(user.timezone)));
+});
+
+// ===========================================================================
+// Renda variável, acompanhamento consentido e modo criança
+
+route("GET", "income", async ({ request }) => {
+  const user = await requireUser(request);
+  return json(await incomeOverview(user, todayKey(user.timezone)));
+});
+
+route("GET", "guardians", async ({ request }) => json(await guardianInfo(await requireUser(request))));
+
+route("POST", "guardians", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  await addGuardian(user, uuid(body.guardianId, "pessoa"));
+  await audit(user.id, "guardian.added");
+  return json(await guardianInfo(user), 201);
+});
+
+route("DELETE", "guardians/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await removeGuardian(user, uuid(params[0]));
+  await audit(user.id, "guardian.removed");
+  return json(await guardianInfo(user));
+});
+
+route("GET", "guardians/:id/summary", async ({ request, params }) => {
+  const user = await requireUser(request);
+  return json(await guardianSummary(user, uuid(params[0]), todayKey(user.timezone)));
+});
+
+route("PUT", "household/members/:id/mode", async ({ request, params }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  await setMemberMode(user, uuid(params[0]), oneOf(body.mode, ["full", "simple", "kid"] as const, "modo"));
+  return json(await loadMe(user));
+});
+
+route("GET", "kid", async ({ request }) => {
+  const user = await requireUser(request);
+  return json(await kidSummary(user, todayKey(user.timezone)));
+});
+
+// ===========================================================================
+// Planejamento: base do simulador e lista de compras
+
+route("GET", "plan-base", async ({ request }) => {
+  const user = await requireUser(request);
+  return json(await planBase(user, todayKey(user.timezone)));
+});
+
+route("GET", "shopping", async ({ request }) => json(await shoppingList(await requireUser(request))));
+
+route("POST", "shopping", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  await rateLimit(`shopping:${user.id}`, 120, 60);
+  await addShoppingItem(user, str(body, "name", { max: 60, label: "item" })!, body.quantity === undefined ? 1 : int(body, "quantity", 1, 99, "quantidade"));
+  return json(await shoppingList(user), 201);
+});
+
+route("PATCH", "shopping/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  await updateShoppingItem(user, uuid(params[0]), {
+    checked: body.checked === undefined ? undefined : bool(body, "checked"),
+    quantity: body.quantity === undefined ? undefined : int(body, "quantity", 1, 99, "quantidade"),
+  });
+  return json(await shoppingList(user));
+});
+
+route("DELETE", "shopping/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await deleteShoppingItem(user, uuid(params[0]));
+  return json(await shoppingList(user));
+});
+
+route("POST", "shopping/clear", async ({ request }) => {
+  const user = await requireUser(request);
+  await clearChecked(user);
+  return json(await shoppingList(user));
 });
 
 // ===========================================================================

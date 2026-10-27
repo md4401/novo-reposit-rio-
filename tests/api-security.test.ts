@@ -33,6 +33,16 @@ const PROTECTED: [string, string][] = [
   ["POST", `challenges/${ID}/abandon`], ["GET", "allowances"], ["PUT", "allowances"], ["DELETE", `allowances/${ID}`],
   ["POST", "capture/notifications"], ["POST", "share/text"], ["POST", "share/pix"], ["PUT", `transactions/${ID}/items`],
   ["GET", "basket"],
+  // Entre nós, proteção, renda variável e planejamento
+  ["GET", "ious"], ["POST", "ious"], ["POST", "ious/settle"], ["DELETE", `ious/${ID}`], ["PUT", "me/split-income"],
+  ["GET", "agreements"], ["POST", "agreements"], ["DELETE", `agreements/${ID}`], ["GET", "meeting"], ["PUT", "meeting"],
+  ["GET", "receivables"], ["POST", "receivables"], ["POST", `receivables/${ID}/receive`], ["DELETE", `receivables/${ID}`],
+  ["GET", "bank-costs"], ["GET", "loyalty"], ["POST", "loyalty"], ["PATCH", `loyalty/${ID}`], ["DELETE", `loyalty/${ID}`],
+  ["GET", "reserve"], ["PUT", "reserve"], ["GET", "documents"], ["POST", "documents"], ["PATCH", `documents/${ID}`],
+  ["GET", `documents/${ID}/image`], ["DELETE", `documents/${ID}`], ["GET", "legacy"], ["PUT", "legacy"], ["DELETE", "legacy"],
+  ["GET", "security"], ["GET", "income"], ["GET", "guardians"], ["POST", "guardians"], ["DELETE", `guardians/${ID}`],
+  ["GET", `guardians/${ID}/summary`], ["PUT", `household/members/${ID}/mode`], ["GET", "kid"], ["GET", "plan-base"],
+  ["GET", "shopping"], ["POST", "shopping"], ["PATCH", `shopping/${ID}`], ["DELETE", `shopping/${ID}`], ["POST", "shopping/clear"],
 ];
 
 const call = (method: string, path: string, init: RequestInit = {}) =>

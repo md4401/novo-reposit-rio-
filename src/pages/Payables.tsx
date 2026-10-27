@@ -25,6 +25,10 @@ const TEMPLATES: Template[] = [
   { name: "Material escolar", categoryId: "educacao", recurrence: "yearly", seasonal: true, month: 1, day: 25 },
   { name: "Matrícula escolar", categoryId: "educacao", recurrence: "yearly", seasonal: true, month: 1, day: 10 },
   { name: "Seguro do carro", categoryId: "transporte", recurrence: "yearly", seasonal: true },
+  // Quem trabalha por conta própria
+  { name: "DAS do MEI", categoryId: "outros", recurrence: "monthly", day: 20 },
+  { name: "Carnê-leão", categoryId: "outros", recurrence: "monthly", day: 28 },
+  { name: "INSS autônomo (GPS)", categoryId: "outros", recurrence: "monthly", day: 15 },
 ];
 
 function nextDate(today: string, t: Template) {

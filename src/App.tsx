@@ -14,7 +14,10 @@ import { HomePage } from "./pages/Home";
 import { HouseBillsPage } from "./pages/HouseBills";
 import { PayablesPage } from "./pages/Payables";
 import { PersonalPage } from "./pages/Personal";
+import { WealthPage } from "./pages/Wealth";
 import { SettingsPage } from "./pages/Settings";
+import { TagsPage } from "./pages/Tags";
+import { TaxPage } from "./pages/Tax";
 import { TransactionsPage } from "./pages/Transactions";
 import { useApp } from "./state";
 
@@ -44,6 +47,9 @@ export function App() {
     orcamento: <BudgetsPage />,
     pagar: <PayablesPage />,
     previsao: <ForecastPage />,
+    patrimonio: <WealthPage />,
+    ir: <TaxPage />,
+    etiquetas: <TagsPage />,
     casa: <HouseBillsPage />,
     metas: <GoalsPage />,
     nia: <AssistantPage />,

@@ -1,6 +1,6 @@
 import { Camera, Download, FileUp, Plus, Search } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { Transaction } from "../../shared/types";
+import type { Tag, Transaction } from "../../shared/types";
 import { TxList } from "../components/TxRow";
 import { DemoFlag, Empty, ErrorBox, Heading, Money, PeriodControl, Segmented, Skeleton } from "../components/ui";
 import { scopeLabel, txCategoryLabel, txScope } from "../lib/format";
@@ -45,6 +45,8 @@ export function TransactionsPage({ route }: { route: Route }) {
   const [filter, setFilter] = useState<Filter>(route.query.get("filtro") === "pendentes" ? "pending" : "all");
   const [search, setSearch] = useState(route.query.get("q") ?? "");
   const [q, setQ] = useState(search);
+  const [tag, setTag] = useState(route.query.get("etiqueta") ?? "");
+  const tags = useData<Tag[]>("tags");
 
   useEffect(() => {
     const id = window.setTimeout(() => setQ(search.trim()), 300);
@@ -52,7 +54,8 @@ export function TransactionsPage({ route }: { route: Route }) {
   }, [search]);
 
   const params = new URLSearchParams();
-  if (!allMonths && filter !== "pending") params.set("month", month);
+  if (!allMonths && filter !== "pending" && !tag) params.set("month", month);
+  if (tag) params.set("tag", tag);
   if (q) params.set("q", q);
   if (filter === "pending" || filter === "ignored") params.set("status", filter);
   if (filter === "family" || filter === "personal") params.set("scope", filter);
@@ -118,6 +121,16 @@ export function TransactionsPage({ route }: { route: Route }) {
             ["ignored", "Ignoradas"],
           ]}
         />
+        {(tags.data?.length ?? 0) > 0 && (
+          <select className="tag-filter" aria-label="Filtrar por etiqueta" value={tag} onChange={(e) => setTag(e.target.value)}>
+            <option value="">🏷️ Todas as etiquetas</option>
+            {tags.data!.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
       {error && <ErrorBox message={error} onRetry={reload} />}
       {!data ? (

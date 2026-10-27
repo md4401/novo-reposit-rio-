@@ -74,7 +74,19 @@ import { askNia, listMessages } from "./nia.js";
 import { changePassword, createResetCode, requestReset, resetWithCode } from "./password.js";
 import { sendDueDigests, vapidKeys } from "./push.js";
 import { deleteReceipt, receiptImage, saveReceipt } from "./receipts.js";
-import { buildReport, createReportLink, redeemReportLink, reportPdf } from "./report.js";
+import { buildReport, createReportLink, redeemReportLink, reportPdf, taxPdf } from "./report.js";
+import {
+  createTag,
+  debtPlan,
+  deleteTag,
+  deleteWealthItem,
+  listTags,
+  loadWealth,
+  saveAsset,
+  saveDebt,
+  setTransactionTags,
+  taxReport,
+} from "./wealth.js";
 import { cardInvoices, deletePayable, listPayables, loadForecast, payablesDue, payPayable, savePayable, type PayableInput } from "./planning.js";
 import { importStatement } from "./statement-import.js";
 
@@ -469,6 +481,7 @@ route("GET", "transactions", async ({ request, url }) => {
       status: url.searchParams.get("status") ?? undefined,
       scope: url.searchParams.get("scope") ?? undefined,
       accountId: accountId ? uuid(accountId, "conta") : undefined,
+      tagId: url.searchParams.get("tag") ? uuid(url.searchParams.get("tag"), "etiqueta") : undefined,
       limit: 500,
     }),
   );
@@ -571,6 +584,12 @@ route("PATCH", "transactions/:id", async ({ request, params }) => {
   }
   await audit(user.id, "transaction.updated", "transaction", tx.id, { allocations: allocations?.length ?? null, ignored });
 
+  if (body.taxDeductible !== undefined)
+    await query(`UPDATE transactions SET tax_deductible = $3 WHERE id = $1 AND profile_id = $2`, [
+      tx.id,
+      user.id,
+      body.taxDeductible === null ? null : bool(body, "taxDeductible"),
+    ]);
   if (body.goalId === undefined && amountCents !== tx.amountCents && tx.goalId)
     await query(`UPDATE goal_contributions SET amount_cents = $2 WHERE transaction_id = $1 AND profile_id = $3`, [tx.id, amountCents, user.id]);
   if (body.goalId !== undefined) {
@@ -1090,6 +1109,95 @@ route("DELETE", "budgets/:id", async ({ request, params, url }) => {
 });
 
 // ===========================================================================
+// Etiquetas, Imposto de Renda, patrimônio e dívidas
+
+route("GET", "tags", async ({ request }) => json(await listTags(await requireUser(request))));
+
+route("POST", "tags", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  const color = typeof body.color === "string" && /^#[0-9a-f]{6}$/i.test(body.color) ? body.color : "#4a9271";
+  await createTag(user, str(body, "name", { max: 30, label: "nome da etiqueta" })!, color);
+  return json(await listTags(user), 201);
+});
+
+route("DELETE", "tags/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await deleteTag(user, uuid(params[0]));
+  return json(await listTags(user));
+});
+
+route("PUT", "transactions/:id/tags", async ({ request, params }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  const tx = await getTransaction(user, uuid(params[0]));
+  const ids = Array.isArray(body.tagIds) ? body.tagIds.map((t: unknown) => uuid(t, "etiqueta")) : [];
+  await setTransactionTags(user, tx.id, ids);
+  return json(await getTransaction(user, tx.id));
+});
+
+route("GET", "tax", async ({ request, url }) => {
+  const user = await requireUser(request);
+  const year = Number(url.searchParams.get("year") ?? todayKey(user.timezone).slice(0, 4));
+  if (!Number.isInteger(year) || year < 2000 || year > 2100) throw new HttpError(400, "Ano inválido");
+  return json(await taxReport(user, year));
+});
+
+route("GET", "wealth", async ({ request }) => {
+  const user = await requireUser(request);
+  return json(await loadWealth(user, todayKey(user.timezone)));
+});
+
+function assetInput(body: Body, user: SessionUser) {
+  return {
+    name: str(body, "name", { max: 60, label: "nome" })!,
+    kind: oneOf(body.kind ?? "investment", ["investment", "property", "vehicle", "other"] as const, "tipo"),
+    valueCents: int(body, "valueCents", 0, 100_000_000_000, "valor"),
+    updatedOn: body.updatedOn ? dateKey(body.updatedOn) : todayKey(user.timezone),
+  };
+}
+
+function debtInput(body: Body) {
+  const rate = Number(body.monthlyRatePercent ?? 0);
+  if (!Number.isFinite(rate) || rate < 0 || rate > 50) throw new HttpError(400, "Juros ao mês inválidos (0 a 50%)");
+  return {
+    name: str(body, "name", { max: 60, label: "nome" })!,
+    balanceCents: int(body, "balanceCents", 0, 100_000_000_000, "saldo devedor"),
+    monthlyRatePercent: rate,
+    minPaymentCents: body.minPaymentCents === undefined ? 0 : int(body, "minPaymentCents", 0, 100_000_000_000, "parcela mínima"),
+  };
+}
+
+for (const kind of ["assets", "debts"] as const) {
+  route("POST", kind, async ({ request }) => {
+    const user = await requireUser(request);
+    const body = await readJson(request);
+    await rateLimit(`wealth:${user.id}`, 60, 60);
+    if (kind === "assets") await saveAsset(user, assetInput(body, user));
+    else await saveDebt(user, debtInput(body));
+    return json(await loadWealth(user, todayKey(user.timezone)), 201);
+  });
+  route("PATCH", `${kind}/:id`, async ({ request, params }) => {
+    const user = await requireUser(request);
+    const body = await readJson(request);
+    if (kind === "assets") await saveAsset(user, assetInput(body, user), uuid(params[0]));
+    else await saveDebt(user, debtInput(body), uuid(params[0]));
+    return json(await loadWealth(user, todayKey(user.timezone)));
+  });
+  route("DELETE", `${kind}/:id`, async ({ request, params }) => {
+    const user = await requireUser(request);
+    await deleteWealthItem(user, kind, uuid(params[0]));
+    return json(await loadWealth(user, todayKey(user.timezone)));
+  });
+}
+
+route("GET", "debts/plan", async ({ request, url }) => {
+  const user = await requireUser(request);
+  const extra = Math.max(0, Math.min(100_000_000, Math.round(Number(url.searchParams.get("extra") ?? 0)) || 0));
+  return json(await debtPlan(user, extra));
+});
+
+// ===========================================================================
 // Fatura do cartão, contas a pagar e saldo previsto
 
 route("GET", "invoices", async ({ request }) => {
@@ -1209,19 +1317,24 @@ route("GET", "report", async ({ request, url }) => {
 route("POST", "report/link", async ({ request }) => {
   const user = await requireUser(request);
   const body = await readJson(request);
-  const month = typeof body.month === "string" && /^\d{4}-\d{2}$/.test(body.month) ? body.month : addMonths(currentMonth(user), -1);
   await rateLimit(`report:${user.id}`, 20, 60);
-  return json({ url: await createReportLink(user, month) });
+  if (body.type === "tax") {
+    const year = int(body, "year", 2000, 2100, "ano");
+    return json({ url: await createReportLink(user, { type: "tax", year }) });
+  }
+  const month = typeof body.month === "string" && /^\d{4}-\d{2}$/.test(body.month) ? body.month : addMonths(currentMonth(user), -1);
+  return json({ url: await createReportLink(user, { type: "month", month }) });
 });
 
 // Link de uso único (vence em 10 min): funciona fora do app, no navegador do celular
 route("GET", "report/pdf", async ({ url }) => {
-  const { user, month } = await redeemReportLink(url.searchParams.get("t") ?? "");
-  const pdf = await reportPdf(user, await buildReport(user, month));
+  const { user, request } = await redeemReportLink(url.searchParams.get("t") ?? "");
+  const pdf = request.type === "tax" ? await taxPdf(user, await taxReport(user, request.year)) : await reportPdf(user, await buildReport(user, request.month));
+  const name = request.type === "tax" ? `ninho-ir-${request.year}` : `ninho-${request.month}`;
   return new Response(new Blob([new Uint8Array(pdf)]), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="ninho-${month}.pdf"`,
+      "Content-Disposition": `attachment; filename="${name}.pdf"`,
       "Cache-Control": "no-store, private",
     },
   });

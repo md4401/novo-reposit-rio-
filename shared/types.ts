@@ -65,6 +65,9 @@ export type Transaction = {
   goalId: string | null;
   /** Foto da nota fiscal guardada */
   receiptId: string | null;
+  tags: { id: string; name: string; color: string }[];
+  /** IR: null = segue a categoria */
+  taxDeductible: boolean | null;
 };
 
 export type MonthTotals = { incomeCents: number; expenseCents: number; balanceCents: number };
@@ -326,4 +329,33 @@ export type ForecastPayload = {
   lowest: { on: string; balanceCents: number };
   firstNegative: string | null;
   endCents: number;
+};
+
+export type Tag = { id: string; name: string; color: string; count: number; totalCents: number };
+
+export type TaxItem = { transactionId: string; occurredOn: string; description: string; amountCents: number; kind: "saude" | "educacao" | "outros"; overridden: boolean };
+export type TaxReport = {
+  year: number;
+  items: TaxItem[];
+  totals: { saude: number; educacao: number; outros: number };
+  /** Limite anual de dedução com educação por pessoa (referência IRPF) */
+  educationLimitCents: number;
+};
+
+export type Asset = { id: string; name: string; kind: "investment" | "property" | "vehicle" | "other"; valueCents: number; updatedOn: string };
+export type Debt = { id: string; name: string; balanceCents: number; monthlyRatePercent: number; minPaymentCents: number };
+export type Wealth = {
+  accountsCents: number;
+  assets: Asset[];
+  debts: Debt[];
+  cardsCents: number;
+  assetsCents: number;
+  debtsCents: number;
+  netWorthCents: number;
+  history: { month: string; netWorthCents: number }[];
+};
+export type DebtPlan = {
+  extraCents: number;
+  snowball: { months: number; interestCents: number; feasible: boolean; order: { id: string; name: string; paidOffMonth: number }[] };
+  avalanche: { months: number; interestCents: number; feasible: boolean; order: { id: string; name: string; paidOffMonth: number }[] };
 };

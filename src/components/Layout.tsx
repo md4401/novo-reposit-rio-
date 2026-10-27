@@ -6,6 +6,7 @@ import {
   Bot,
   CalendarClock,
   Eye,
+  FileText,
   EyeOff,
   House,
   Landmark,
@@ -15,8 +16,10 @@ import {
   Plus,
   Receipt,
   Repeat,
+  Scale,
   Settings,
   Sparkles,
+  Tags,
   Target,
   TrendingUp,
   Users,
@@ -31,14 +34,18 @@ import { Avatar } from "./ui";
 
 type NavItem = { key: string; label: string; icon: ReactNode };
 
+const PLAN: NavItem[] = [
+  { key: "orcamento", label: "Orçamento", icon: <PiggyBank size={17} /> },
+  { key: "pagar", label: "Contas a pagar", icon: <CalendarClock size={17} /> },
+  { key: "previsao", label: "Saldo previsto", icon: <TrendingUp size={17} /> },
+  { key: "patrimonio", label: "Patrimônio e dívidas", icon: <Scale size={17} /> },
+  { key: "ir", label: "Imposto de Renda", icon: <FileText size={17} /> },
+];
 const MAIN: NavItem[] = [
   { key: "inicio", label: "Visão geral", icon: <House size={17} /> },
   { key: "meu", label: "Meu financeiro", icon: <Wallet size={17} /> },
   { key: "familia", label: "Nossa família", icon: <Users size={17} /> },
   { key: "transacoes", label: "Transações", icon: <ArrowLeftRight size={17} /> },
-  { key: "orcamento", label: "Orçamento", icon: <PiggyBank size={17} /> },
-  { key: "pagar", label: "Contas a pagar", icon: <CalendarClock size={17} /> },
-  { key: "previsao", label: "Saldo previsto", icon: <TrendingUp size={17} /> },
   { key: "casa", label: "Contas da casa", icon: <Receipt size={17} /> },
   { key: "metas", label: "Metas e objetivos", icon: <Target size={17} /> },
 ];
@@ -48,11 +55,12 @@ const SMART: NavItem[] = [
   { key: "saude", label: "Saúde dos dados", icon: <Activity size={17} /> },
 ];
 const MORE: NavItem[] = [
+  { key: "etiquetas", label: "Etiquetas", icon: <Tags size={17} /> },
   { key: "contas", label: "Contas e extratos", icon: <Landmark size={17} /> },
   { key: "ajustes", label: "Configurações", icon: <Settings size={17} /> },
 ];
 
-export const PAGE_TITLES: Record<string, string> = Object.fromEntries([...MAIN, ...SMART, ...MORE].map((n) => [n.key, n.label]));
+export const PAGE_TITLES: Record<string, string> = Object.fromEntries([...MAIN, ...PLAN, ...SMART, ...MORE].map((n) => [n.key, n.label]));
 
 const BOTTOM: NavItem[] = [
   { key: "inicio", label: "Início", icon: <House size={20} /> },
@@ -98,6 +106,10 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
         </div>
         <div className="group-label">PAINEL</div>
         <nav className="nav">{MAIN.map(navButton)}</nav>
+        <div className="group-label" style={{ marginTop: 24 }}>
+          PLANEJAMENTO
+        </div>
+        <nav className="nav">{PLAN.map(navButton)}</nav>
         <div className="group-label" style={{ marginTop: 24 }}>
           INTELIGÊNCIA
         </div>

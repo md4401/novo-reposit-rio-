@@ -24,6 +24,9 @@ export type Account = {
   /** Cartão de crédito: gastos do mês nesta conta */
   monthSpentCents: number;
   history: { month: string; balanceCents: number }[];
+  /** Cartão: dia de fechamento e de vencimento da fatura */
+  closingDay: number | null;
+  dueDay: number | null;
 };
 
 export type Me = {
@@ -53,7 +56,7 @@ export type Transaction = {
   direction: Direction;
   status: TxStatus;
   classifiedBy: ClassifiedBy | null;
-  source: "manual" | "csv" | "ofx" | "voice" | "receipt" | "demo";
+  source: "manual" | "csv" | "ofx" | "voice" | "receipt" | "demo" | "notification" | "allowance";
   accountId: string | null;
   accountName: string | null;
   method: string | null;
@@ -64,6 +67,9 @@ export type Transaction = {
   goalId: string | null;
   /** Foto da nota fiscal guardada */
   receiptId: string | null;
+  tags: { id: string; name: string; color: string }[];
+  /** IR: null = segue a categoria */
+  taxDeductible: boolean | null;
 };
 
 export type MonthTotals = { incomeCents: number; expenseCents: number; balanceCents: number };
@@ -252,8 +258,11 @@ export type Budget = {
   categoryId: string;
   limitCents: number;
   spentCents: number;
-  /** gasto ÷ limite (0 a 1+) */
+  /** gasto ÷ limite do mês (com o acumulado, se houver) */
   ratio: number;
+  rollover: boolean;
+  /** Sobra (+) ou falta (−) dos meses anteriores somada ao limite */
+  carryCents: number;
 };
 export type BudgetsPayload = {
   month: string;
@@ -284,4 +293,128 @@ export type MonthReport = {
   family: MonthTotals;
   goals: { name: string; icon: string; savedCents: number; targetCents: number; scope: Scope }[];
   budgets: BudgetSummary;
+};
+
+export type CardInvoice = {
+  accountId: string;
+  accountName: string;
+  closingOn: string;
+  dueOn: string;
+  totalCents: number;
+  /** closed: fechada, esperando pagamento; open: recebendo compras; future: só parcelas já previstas */
+  status: "closed" | "open" | "future";
+  installmentsCents: number;
+};
+
+export type Payable = {
+  id: string;
+  name: string;
+  categoryId: string;
+  amountCents: number;
+  dueOn: string;
+  recurrence: "once" | "monthly" | "yearly";
+  remindDays: number;
+  accountId: string | null;
+  seasonal: boolean;
+  daysLeft: number;
+  /** Sazonal: quanto guardar por mês até vencer */
+  monthlySavingCents: number | null;
+  status: "overdue" | "soon" | "ok";
+};
+
+export type ForecastPayload = {
+  startCents: number;
+  /** Algum saldo de conta foi informado (sem isso a previsão parte de zero) */
+  knownBalance: boolean;
+  series: { on: string; balanceCents: number }[];
+  events: { on: string; label: string; amountCents: number; kind: "bill" | "card" | "income" | "subscription" }[];
+  lowest: { on: string; balanceCents: number };
+  firstNegative: string | null;
+  endCents: number;
+};
+
+export type Tag = { id: string; name: string; color: string; count: number; totalCents: number };
+
+export type TaxItem = { transactionId: string; occurredOn: string; description: string; amountCents: number; kind: "saude" | "educacao" | "outros"; overridden: boolean };
+export type TaxReport = {
+  year: number;
+  items: TaxItem[];
+  totals: { saude: number; educacao: number; outros: number };
+  /** Limite anual de dedução com educação por pessoa (referência IRPF) */
+  educationLimitCents: number;
+};
+
+export type Asset = { id: string; name: string; kind: "investment" | "property" | "vehicle" | "other"; valueCents: number; updatedOn: string };
+export type Debt = { id: string; name: string; balanceCents: number; monthlyRatePercent: number; minPaymentCents: number };
+export type Wealth = {
+  accountsCents: number;
+  assets: Asset[];
+  debts: Debt[];
+  cardsCents: number;
+  assetsCents: number;
+  debtsCents: number;
+  netWorthCents: number;
+  history: { month: string; netWorthCents: number }[];
+};
+export type DebtPlan = {
+  extraCents: number;
+  snowball: { months: number; interestCents: number; feasible: boolean; order: { id: string; name: string; paidOffMonth: number }[] };
+  avalanche: { months: number; interestCents: number; feasible: boolean; order: { id: string; name: string; paidOffMonth: number }[] };
+};
+
+export type Wish = {
+  id: string;
+  name: string;
+  priceCents: number;
+  note: string | null;
+  status: "open" | "goal" | "bought";
+  goalId: string | null;
+  votes: number;
+  votedByMe: boolean;
+  createdBy: string | null;
+  canDelete: boolean;
+};
+
+export type Challenge = {
+  id: string;
+  kind: "no_delivery" | "organized" | "spend_less" | "no_spend_day";
+  title: string;
+  icon: string;
+  text: string;
+  startsOn: string;
+  endsOn: string;
+  status: "active" | "won" | "lost" | "abandoned";
+  progress: number;
+  detail: string;
+};
+
+export type Allowance = {
+  id: string;
+  memberId: string;
+  memberName: string;
+  amountCents: number;
+  frequency: "weekly" | "monthly";
+  payDay: number;
+  limitCents: number | null;
+  lastPaidOn: string | null;
+  /** Para quem recebe: gastos do mês, para comparar com o limite */
+  spentThisMonthCents: number | null;
+  isMe: boolean;
+};
+
+export type BasketProduct = {
+  key: string;
+  name: string;
+  categoryId: string;
+  lastCents: number;
+  changeBp: number | null;
+  purchases: number;
+  points: { month: string; avgCents: number; count: number }[];
+};
+
+export type Basket = {
+  months: number;
+  products: BasketProduct[];
+  /** Quantas notas da família alimentam a cesta (sem dizer de quem) */
+  receipts: number;
 };

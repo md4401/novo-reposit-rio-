@@ -19,6 +19,7 @@ export const CATEGORIES: Category[] = [
   { id: "outros", name: "Outros", icon: "🧾", color: "#94aaa0", kind: "expense" },
   { id: "salario", name: "Salário", icon: "💼", color: "#1e6650", kind: "income" },
   { id: "renda-extra", name: "Renda extra", icon: "✨", color: "#438469", kind: "income" },
+  { id: "mesada", name: "Mesada", icon: "🪙", color: "#5d9c7e", kind: "income" },
   { id: "reembolso", name: "Reembolso e estorno", icon: "↩️", color: "#7ebaa0", kind: "income" },
   { id: "outras-receitas", name: "Outras receitas", icon: "💰", color: "#a6cdb7", kind: "income" },
   { id: "transferencia", name: "Transferência / fatura", icon: "🔁", color: "#b7c4bc", kind: "transfer" },

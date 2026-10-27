@@ -4,4 +4,12 @@
     <string name="title_activity_main">ninho.</string>
     <string name="package_name">app.ninho.familia</string>
     <string name="custom_url_scheme">app.ninho.familia</string>
+    <string name="widget_description">Lance uma despesa ou fale com a Nia sem abrir o app</string>
+    <string name="shortcut_new_short">Nova despesa</string>
+    <string name="shortcut_new_long">Registrar uma despesa</string>
+    <string name="shortcut_nia_short">Falar com a Nia</string>
+    <string name="shortcut_nia_long">Perguntar ou contar uma compra para a Nia</string>
+    <string name="shortcut_digest_short">Resumo do dia</string>
+    <string name="shortcut_digest_long">Revisar as compras do dia</string>
+    <string name="capture_service">Ler compras das notificações do banco</string>
 </resources>

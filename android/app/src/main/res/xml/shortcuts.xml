@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="nova" android:enabled="true" android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_new_short" android:shortcutLongLabel="@string/shortcut_new_long">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="app.ninho.familia" android:targetClass="app.ninho.familia.MainActivity">
+            <extra android:name="ninho_route" android:value="nova" />
+        </intent>
+    </shortcut>
+    <shortcut android:shortcutId="nia" android:enabled="true" android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_nia_short" android:shortcutLongLabel="@string/shortcut_nia_long">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="app.ninho.familia" android:targetClass="app.ninho.familia.MainActivity">
+            <extra android:name="ninho_route" android:value="nia" />
+        </intent>
+    </shortcut>
+    <shortcut android:shortcutId="resumo" android:enabled="true" android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_digest_short" android:shortcutLongLabel="@string/shortcut_digest_long">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="app.ninho.familia" android:targetClass="app.ninho.familia.MainActivity">
+            <extra android:name="ninho_route" android:value="resumo" />
+        </intent>
+    </shortcut>
+</shortcuts>

@@ -126,3 +126,60 @@ export function initNative() {
     else if (hiddenAt && Date.now() - hiddenAt > 60_000) notifyChange();
   });
 }
+
+// ---------------------------------------------------------------------------
+// Captura de notificações do banco, itens compartilhados, atalhos e widget (APK 0.5.0+)
+
+type Captured = { key: string; packageName: string; title: string; text: string; postedAt: number };
+type SharedItem = { type?: "image" | "text"; dataUrl?: string; text?: string };
+type NinhoNative = {
+  captureStatus(): Promise<{ enabled: boolean }>;
+  openCaptureSettings(): Promise<void>;
+  pendingCaptures(): Promise<{ items: Captured[] }>;
+  ackCaptures(options: { ids: string[] }): Promise<void>;
+  takeShared(): Promise<SharedItem>;
+  takeLaunchRoute(): Promise<{ route?: string }>;
+  addListener(event: "launch", fn: () => void): Promise<PluginListenerHandle>;
+};
+const Ninho = registerPlugin<NinhoNative>("NinhoNative");
+
+/** O APK instalado tem a captura de notificações? (versões até a 0.4.0 não têm) */
+export async function captureAvailable() {
+  if (!isNative()) return false;
+  try {
+    await Ninho.captureStatus();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export const captureStatus = () => Ninho.captureStatus().then((r) => r.enabled).catch(() => false);
+export const openCaptureSettings = () => Ninho.openCaptureSettings();
+
+/** Envia as compras capturadas para a conta e limpa do celular o que foi aceito. */
+export async function syncCaptures(send: (items: Captured[]) => Promise<{ created: number }>) {
+  if (!(await captureAvailable())) return 0;
+  const { items } = await Ninho.pendingCaptures();
+  if (!items.length) return 0;
+  const { created } = await send(items);
+  await Ninho.ackCaptures({ ids: items.map((i) => `${i.key}|${i.postedAt}`) });
+  return created;
+}
+
+export async function takeShared(): Promise<SharedItem | null> {
+  if (!isNative()) return null;
+  const item = await Ninho.takeShared().catch(() => ({}) as SharedItem);
+  return item.type ? item : null;
+}
+
+export async function takeLaunchRoute() {
+  if (!isNative()) return null;
+  return (await Ninho.takeLaunchRoute().catch(() => ({}) as { route?: string })).route ?? null;
+}
+
+export function onNativeLaunch(fn: () => void) {
+  if (!isNative()) return () => undefined;
+  const handle = Ninho.addListener("launch", fn).catch(() => null);
+  return () => void handle.then((h) => h?.remove());
+}

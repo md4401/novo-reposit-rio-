@@ -3,13 +3,21 @@ import {
   Activity,
   ArrowLeftRight,
   Bot,
+  CalendarClock,
+  FileText,
+  Gift,
   House,
   Landmark,
   PiggyBank,
   Receipt,
   Repeat,
+  Scale,
   Settings,
+  ShoppingBasket,
+  Tags,
   Target,
+  TrendingUp,
+  Trophy,
   Users,
   Wallet,
 } from "lucide-react";
@@ -32,8 +40,18 @@ export const NAV: NavGroup[] = [
     label: "Planejar",
     items: [
       { key: "orcamento", label: "Orçamento", hint: "Limites por categoria", icon: (s) => <PiggyBank size={s} /> },
+      { key: "pagar", label: "Contas a pagar", hint: "Vencimentos e faturas", icon: (s) => <CalendarClock size={s} /> },
+      { key: "previsao", label: "Saldo previsto", hint: "Como o mês deve fechar", icon: (s) => <TrendingUp size={s} /> },
       { key: "metas", label: "Metas", hint: "Objetivos e reservas", icon: (s) => <Target size={s} /> },
+      { key: "desejos", label: "Lista de desejos", hint: "O que a casa quer comprar", icon: (s) => <Gift size={s} /> },
       { key: "casa", label: "Contas da casa", hint: "Luz, aluguel, internet", icon: (s) => <Receipt size={s} /> },
+    ],
+  },
+  {
+    label: "Patrimônio",
+    items: [
+      { key: "patrimonio", label: "Patrimônio e dívidas", hint: "Bens, dívidas e plano", icon: (s) => <Scale size={s} /> },
+      { key: "ir", label: "Imposto de Renda", hint: "Despesas dedutíveis", icon: (s) => <FileText size={s} /> },
     ],
   },
   {
@@ -41,12 +59,15 @@ export const NAV: NavGroup[] = [
     items: [
       { key: "nia", label: "Assistente Nia", hint: "Pergunte ou fale um gasto", icon: (s) => <Bot size={s} /> },
       { key: "alertas", label: "Assinaturas e alertas", hint: "Recorrências e avisos", icon: (s) => <Repeat size={s} /> },
+      { key: "desafios", label: "Desafios", hint: "Metas curtas para gastar menos", icon: (s) => <Trophy size={s} /> },
+      { key: "cesta", label: "Cesta da família", hint: "Preço dos produtos no tempo", icon: (s) => <ShoppingBasket size={s} /> },
     ],
   },
   {
     label: "Conta",
     items: [
       { key: "contas", label: "Contas e extratos", hint: "Bancos, cartões e importação", icon: (s) => <Landmark size={s} /> },
+      { key: "etiquetas", label: "Etiquetas", hint: "Agrupe gastos do seu jeito", icon: (s) => <Tags size={s} /> },
       { key: "saude", label: "Saúde dos dados", hint: "O que está atualizado", icon: (s) => <Activity size={s} /> },
       { key: "ajustes", label: "Configurações", hint: "Perfil, família e privacidade", icon: (s) => <Settings size={s} /> },
     ],

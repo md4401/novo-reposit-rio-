@@ -184,3 +184,28 @@ export async function readReceiptWithAi(imageDataUrl: string) {
     items: { name: string; amountCents: number; categoryId: string }[];
   };
 }
+
+/** Comprovante de Pix/transferência (imagem): valor, quem recebeu/enviou e data. */
+export async function readPixWithAi(imageDataUrl: string) {
+  const content = await chat(
+    [
+      {
+        role: "system",
+        content:
+          "Leia o comprovante bancário brasileiro (Pix, TED, boleto ou transferência) da imagem. Responda JSON " +
+          '{"amountCents": inteiro, "name": string|null, "date": "AAAA-MM-DD"|null, "direction": "expense"|"income", "kind": "pix"|"ted"|"boleto"|"outro"}. ' +
+          '"name" é quem recebeu (se a pessoa pagou) ou quem enviou (se recebeu). Valores em centavos. ' +
+          "Não invente: se não conseguir ler, amountCents 0. Nunca inclua CPF, chave Pix ou número de conta.",
+      },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "Leia este comprovante." },
+          { type: "image_url", image_url: { url: imageDataUrl } },
+        ],
+      },
+    ],
+    { json: true, maxTokens: 400, vision: true },
+  );
+  return JSON.parse(content) as { amountCents: number; name: string | null; date: string | null; direction: "expense" | "income"; kind: string };
+}

@@ -4,7 +4,7 @@ import type { Me, Rule } from "../../shared/types";
 import { Avatar, Heading, Panel, Segmented, Spinner, Toggle } from "../components/ui";
 import { api } from "../lib/api";
 import { category } from "../lib/format";
-import { checkUpdate, hasNativeUpdater, isNative, type UpdateInfo } from "../lib/native";
+import { captureAvailable, captureStatus, checkUpdate, hasNativeUpdater, isNative, openCaptureSettings, type UpdateInfo } from "../lib/native";
 import { disableNotifications, enableNotifications, notificationsSupported, syncNativeReminder } from "../lib/notifications";
 import { ChangePasswordModal, DeleteAccountModal, ResetCodeModal } from "../modals/SecurityModals";
 import { UpdateModal } from "../modals/UpdateModal";
@@ -43,6 +43,15 @@ export function SettingsPage() {
   const [theme, setTheme] = useState<ThemePref>(getThemePref);
   useEffect(() => void checkUpdate(true).then(setUpdate), []);
   useEffect(() => void hasNativeUpdater().then(setNativeUpdater), []);
+  // Captura das notificações do banco: só no APK 0.5.0+ (null = indisponível)
+  const [capture, setCapture] = useState<boolean | null>(null);
+  useEffect(() => {
+    const refresh = () => void captureAvailable().then((ok) => (ok ? captureStatus().then(setCapture) : setCapture(null)));
+    refresh();
+    // Volta das configurações do Android: confere de novo
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
+  }, []);
   if (!me) return null;
   const admin = me.profile.role === "admin";
   const realMembers = me.household.members.filter((m) => !m.isDemo).length;
@@ -404,6 +413,28 @@ export function SettingsPage() {
                   </select>
                   <span className="hint">O aviso diz só quantas compras esperam revisão — nunca lojas ou valores.</span>
                 </div>
+              </Panel>
+              <Panel title="Captura automática">
+                <div className="setting-row">
+                  <div>
+                    <h4>Notificações do banco</h4>
+                    <p>
+                      {capture === null
+                        ? isNative()
+                          ? "Atualize o app para a versão 0.5.0 para lançar as compras sozinho a partir dos avisos do banco."
+                          : "No app Android, o ninho pode ler os avisos de compra e Pix dos apps de banco e lançar sozinho para você revisar."
+                        : capture
+                          ? "Ligada. Avisos de compra e Pix dos apps de banco viram lançamentos para revisar. Códigos e propagandas são ignorados."
+                          : "Desligada. Ao ligar, o Android pede para permitir que o ninho leia notificações — só as dos apps de banco são usadas."}
+                    </p>
+                  </div>
+                  {capture !== null && (
+                    <button type="button" className="btn ghost small" onClick={() => void openCaptureSettings()}>
+                      {capture ? "Gerenciar" : "Ligar"}
+                    </button>
+                  )}
+                </div>
+                <span className="hint">Nada sai do celular além do valor, do estabelecimento e da data. Quando o extrato for importado, o lançamento é ligado a ele (sem duplicar).</span>
               </Panel>
               <Panel title="Instalar o app no celular">
                 {isInstalled() ? (

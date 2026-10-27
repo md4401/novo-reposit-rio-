@@ -27,7 +27,10 @@ export const TX_SELECT = `
                                                      'scope', a.scope) ORDER BY a.position)
                      FROM transaction_allocations a WHERE a.transaction_id = t.id), '[]') AS allocations,
          (SELECT gc.goal_id FROM goal_contributions gc WHERE gc.transaction_id = t.id) AS goal_id,
-         (SELECT r.id FROM receipts r WHERE r.transaction_id = t.id ORDER BY r.created_at DESC LIMIT 1) AS receipt_id
+         (SELECT r.id FROM receipts r WHERE r.transaction_id = t.id ORDER BY r.created_at DESC LIMIT 1) AS receipt_id,
+         coalesce((SELECT json_agg(json_build_object('id', tg.id, 'name', tg.name, 'color', tg.color) ORDER BY tg.name)
+                     FROM transaction_tags tt JOIN tags tg ON tg.id = tt.tag_id WHERE tt.transaction_id = t.id), '[]') AS tags,
+         t.tax_deductible
     FROM transactions t
     LEFT JOIN financial_accounts fa ON fa.id = t.account_id`;
 
@@ -50,10 +53,12 @@ export function mapTransaction(r: Row): Transaction {
     allocations: ((r.allocations as Allocation[]) ?? []).map((a) => ({ ...a, amountCents: num(a.amountCents) })),
     goalId: (r.goal_id as string | null) ?? null,
     receiptId: (r.receipt_id as string | null) ?? null,
+    tags: (r.tags as Transaction["tags"]) ?? [],
+    taxDeductible: (r.tax_deductible as boolean | null) ?? null,
   };
 }
 
-export type TxFilter = { month?: string; q?: string; status?: string; scope?: string; accountId?: string; limit?: number };
+export type TxFilter = { month?: string; q?: string; status?: string; scope?: string; accountId?: string; tagId?: string; limit?: number };
 
 /** Só transações da própria pessoa. */
 export async function listTransactions(user: SessionUser, filter: TxFilter = {}) {
@@ -72,6 +77,7 @@ export async function listTransactions(user: SessionUser, filter: TxFilter = {})
     params.push(`%${filter.q}%`, `%${stripAccents(filter.q.toLowerCase())}%`);
     where.push(`(t.description ILIKE $${params.length - 1} OR t.merchant LIKE $${params.length})`);
   }
+  if (filter.tagId) add("EXISTS (SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = t.id AND tt.tag_id = ?)", filter.tagId);
   if (filter.status === "pending") where.push("t.status = 'pending' AND NOT t.ignored");
   if (filter.status === "ignored") where.push("t.ignored");
   if (filter.scope === "family" || filter.scope === "personal")

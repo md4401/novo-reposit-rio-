@@ -5,7 +5,7 @@ import { CATEGORY_BY_ID, categoryName } from "../shared/categories.js";
 import { formatMoney } from "../shared/money.js";
 import { stripAccents } from "../shared/merchant.js";
 import { parseExpenseStatement } from "../shared/parse-expense.js";
-import { addMonths, monthLabel, monthOf, todayKey } from "../shared/time.js";
+import { addMonths, dayLabel, monthLabel, monthOf, todayKey } from "../shared/time.js";
 import type { NiaMessage, Proposal } from "../shared/types.js";
 import { aiEnabled, niaAnswer } from "./ai.js";
 import { loadAlerts } from "./alerts.js";
@@ -14,6 +14,9 @@ import { batch, num, q, query } from "./db.js";
 import { listBudgets } from "./budgets.js";
 import { familyNumbers, listGoals, personalNumbers } from "./finance.js";
 import { logError } from "./http.js";
+import { cardInvoices, listPayables, loadForecast } from "./planning.js";
+import { listChallenges } from "./together.js";
+import { loadWealth } from "./wealth.js";
 
 export const WELCOME =
   "Oi! 👋 Sou a Nia, sua assistente financeira. Posso explicar seus gastos, revisar o que ficou pendente e " +
@@ -46,6 +49,15 @@ function mapMessage(r: Record<string, unknown>): NiaMessage {
 async function buildContext(user: SessionUser) {
   const today = todayKey(user.timezone);
   const month = monthOf(today);
+  // Planejamento: se algo falhar, a Nia responde com o resto
+  const safe = <T,>(p: Promise<T>) => p.catch((e) => (logError(e), null));
+  const [invoices, payables, forecast, wealth, challenges] = await Promise.all([
+    safe(cardInvoices(user, today)),
+    safe(listPayables(user, today)),
+    safe(loadForecast(user, today, 30)),
+    safe(loadWealth(user, today)),
+    safe(listChallenges(user, today)),
+  ]);
   const [mine, family, alerts, goals, budgets, extra] = await Promise.all([
     personalNumbers(user, month, 2),
     familyNumbers(user, month, 2),
@@ -99,6 +111,26 @@ async function buildContext(user: SessionUser) {
       gasto: b.spentCents,
       alvo: b.limitCents,
     })),
+    faturas: (invoices ?? [])
+      .filter((i) => i.status !== "future" && i.totalCents > 0)
+      .map((i) => ({ cartao: i.accountName, vence: i.dueOn, centavos: i.totalCents, situacao: i.status === "closed" ? "fechada" : "aberta" })),
+    contas_a_pagar: (payables ?? [])
+      .filter((p) => p.daysLeft <= 30)
+      .map((p) => ({ nome: p.name, vence: p.dueOn, dias: p.daysLeft, centavos: p.amountCents, situacao: p.status === "overdue" ? "atrasada" : p.status === "soon" ? "vence logo" : "em dia" })),
+    saldo_previsto_30_dias: forecast
+      ? {
+          hoje_centavos: forecast.startCents,
+          fim_centavos: forecast.endCents,
+          menor_centavos: forecast.lowest.balanceCents,
+          dia_do_menor: forecast.lowest.on,
+          fica_negativo_em: forecast.firstNegative,
+          saldo_informado: forecast.knownBalance,
+        }
+      : null,
+    patrimonio: wealth
+      ? { bens_centavos: wealth.assetsCents, dividas_centavos: wealth.debtsCents, liquido_centavos: wealth.netWorthCents }
+      : null,
+    desafios: (challenges ?? []).filter((c) => c.status === "active").map((c) => ({ desafio: c.title, progresso: `${c.progress}%`, detalhe: c.detail, termina: c.endsOn })),
     compromissos_mes_que_vem: {
       mes: monthLabel(alerts.commitments.month),
       total: alerts.commitments.totalCents,
@@ -129,7 +161,7 @@ function list(items: string[]) {
 
 export const NIA_HELP =
   "Posso ajudar com: seus gastos do mês, gastos por categoria, pendências, assinaturas, alertas, metas, orçamento, " +
-  "contas do próximo mês e o resumo da família. Para registrar uma compra, é só dizer, por exemplo: " +
+  "contas do próximo mês, fatura do cartão, contas a pagar, saldo previsto, patrimônio, desafios e o resumo da família. Para registrar uma compra, é só dizer, por exemplo: " +
   "“comprei R$ 80 de comida e R$ 30 de limpeza no mercado”.";
 
 /** Intenções comuns respondidas direto com os números do banco (sem IA: nunca erra valor).
@@ -148,6 +180,42 @@ export function ruleReply(question: string, ctx: Context): string | null {
       list(ctx.pendencias.slice(0, 4).map((p) => `${p.descricao} (${money(p.centavos)})`)) +
       `. Toque em “Resumo diário” para revisar todas de uma vez — você pode dividir uma compra em várias categorias.`
     );
+  }
+  if (has(/fatura|cartao/)) {
+    if (ctx.faturas.length === 0)
+      return "Não encontrei fatura aberta. Em “Contas”, informe o dia de fechamento e de vencimento do cartão para eu acompanhar.";
+    return (
+      list(ctx.faturas.map((f) => `${f.cartao}: ${money(f.centavos)} (${f.situacao}, vence ${dayLabel(f.vence)})`)) +
+      ". Compras feitas depois do fechamento entram na fatura seguinte."
+    );
+  }
+  if (has(/contas? a pagar|boleto|o que vence|vence (essa|esta|nesta) semana|atrasad/)) {
+    if (ctx.contas_a_pagar.length === 0) return "Nenhuma conta a pagar nos próximos 30 dias. Cadastre as suas em “Contas a pagar” para eu lembrar antes de vencer.";
+    const late = ctx.contas_a_pagar.filter((c) => c.situacao === "atrasada").length;
+    return (
+      (late ? `Atenção: ${late} conta(s) atrasada(s). ` : "") +
+      `Nos próximos 30 dias: ` +
+      list(ctx.contas_a_pagar.slice(0, 5).map((c) => `${c.nome} ${money(c.centavos)} (${c.dias < 0 ? "atrasada" : c.dias === 0 ? "hoje" : `em ${c.dias} dia(s)`})`)) +
+      "."
+    );
+  }
+  if (has(/saldo previsto|previsao|vai sobrar|vou ficar|fim do mes|ficar negativo|no vermelho|vai dar/)) {
+    const f = ctx.saldo_previsto_30_dias;
+    if (!f) return "Não consegui calcular a previsão agora. Tente de novo em instantes.";
+    return (
+      (f.saldo_informado ? "" : "Como nenhum saldo de conta foi informado, parto de zero. ") +
+      `Daqui a 30 dias o saldo previsto é ${money(f.fim_centavos)}. O ponto mais baixo é ${money(f.menor_centavos)} em ${dayLabel(f.dia_do_menor)}.` +
+      (f.fica_negativo_em ? ` ⚠️ Pode ficar negativo em ${dayLabel(f.fica_negativo_em)}.` : "")
+    );
+  }
+  if (has(/patrimonio|quanto (eu )?tenho|divida|devendo|investimento/)) {
+    const w = ctx.patrimonio;
+    if (!w) return "Não consegui calcular o patrimônio agora.";
+    return `Seu patrimônio líquido é ${money(w.liquido_centavos)}: ${money(w.bens_centavos)} em contas e bens, menos ${money(w.dividas_centavos)} em dívidas e cartões. Veja o plano para quitar dívidas em “Patrimônio”.`;
+  }
+  if (has(/desafio/)) {
+    if (ctx.desafios.length === 0) return "Nenhum desafio ativo. Em “Desafios”, escolha um — por exemplo, um mês sem delivery.";
+    return list(ctx.desafios.map((d) => `${d.desafio}: ${d.progresso} (${d.detalhe})`)) + ". Força! 💪";
   }
   if (has(/assinatura|recorrent|mensalidade|streaming|netflix|spotify|cobranca fixa/)) {
     if (ctx.assinaturas.length === 0) return "Ainda não encontrei cobranças que se repetem. Elas aparecem depois de 2 ou 3 meses de extrato.";

@@ -13,6 +13,7 @@ export function NewTransactionModal({
   source = "manual",
   receiptImage,
   direction: initialDirection = "expense",
+  receiptItems,
 }: {
   proposal?: Proposal;
   source?: "manual" | "voice" | "receipt";
@@ -20,6 +21,8 @@ export function NewTransactionModal({
   receiptImage?: string;
   /** Começar como despesa ou receita (botão "Adicionar") */
   direction?: Direction;
+  /** Produtos lidos da nota (alimentam a cesta da família) */
+  receiptItems?: { name: string; amountCents: number; categoryId: string }[];
 }) {
   const { me, closeModal, toast, refreshMe } = useApp();
   const [direction, setDirection] = useState<Direction>(proposal?.direction ?? initialDirection);
@@ -58,6 +61,8 @@ export function NewTransactionModal({
         return;
       }
       if (receiptImage) await api("receipts", { body: { image: receiptImage, transactionId: created.id }, silent: true }).catch(() => undefined);
+      if (receiptItems?.length)
+        await api(`transactions/${created.id}/items`, { method: "PUT", body: { items: receiptItems }, silent: true }).catch(() => undefined);
       await refreshMe();
       closeModal();
       toast(

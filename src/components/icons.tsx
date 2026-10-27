@@ -39,6 +39,14 @@ import {
   Droplets,
   PartyPopper,
   Target,
+  Bike,
+  CalendarDays,
+  CircleCheck,
+  CreditCard,
+  Flag,
+  Gift,
+  Leaf,
+  TrendingDown,
   type LucideIcon,
 } from "lucide-react";
 import type { Transaction } from "../../shared/types";
@@ -88,6 +96,14 @@ const EMOJI_ICONS: Record<string, LucideIcon> = {
   "💰": Wallet,
   "🎯": Target,
   "🎉": PartyPopper,
+  "📅": CalendarDays,
+  "💳": CreditCard,
+  "🎁": Gift,
+  "✅": CircleCheck,
+  "🏁": Flag,
+  "🛵": Bike,
+  "📉": TrendingDown,
+  "🧘": Leaf,
 };
 
 export function CategoryIcon({ id, size = 18 }: { id: string | null | undefined; size?: number }) {

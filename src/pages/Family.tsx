@@ -1,10 +1,11 @@
-import { Activity, ArrowLeftRight, Copy, PiggyBank, Receipt, Share2, ShieldCheck, Target, TriangleAlert, Wallet } from "lucide-react";
+import { Activity, ArrowLeftRight, Copy, Gift, PiggyBank, Receipt, Share2, ShieldCheck, Target, TriangleAlert, Wallet } from "lucide-react";
 import { useState } from "react";
-import type { Family } from "../../shared/types";
+import type { Allowance, Family } from "../../shared/types";
 import { CategoryBars, IncomeExpenseBars } from "../components/charts";
 import { Avatar, ErrorBox, Heading, LinkButton, Metric, Money, Panel, PeriodControl, Progress, Skeleton } from "../components/ui";
 import { navigate } from "../lib/router";
 import { useData } from "../lib/useData";
+import { AllowanceModal } from "../modals/AllowanceModal";
 import { useApp } from "../state";
 
 export function inviteText(code: string) {
@@ -30,6 +31,9 @@ export function FamilyPage() {
             </button>
             <button type="button" className="btn ghost" onClick={() => navigate("orcamento")}>
               <PiggyBank size={15} /> Orçamento da casa
+            </button>
+            <button type="button" className="btn ghost" onClick={() => navigate("desejos")}>
+              <Gift size={15} /> Lista de desejos
             </button>
             <button type="button" className="btn ghost" onClick={() => navigate("saude")}>
               <Activity size={15} /> Saúde dos dados
@@ -160,6 +164,61 @@ export function FamilyPage() {
           </div>
         </>
       )}
+      <AllowancePanel />
     </>
+  );
+}
+
+/** Mesada: quem administra define; quem recebe vê o valor e o limite de gastos do mês. */
+function AllowancePanel() {
+  const { me, openModal } = useApp();
+  const { data } = useData<Allowance[]>("allowances");
+  if (!me || !data) return null;
+  const admin = me.profile.role === "admin";
+  const mine = data.find((a) => a.isMe);
+  const others = me.household.members.filter((m) => !m.isDemo && !m.isMe);
+  if (!admin && !mine) return null;
+  const when = (a: Allowance) => (a.frequency === "monthly" ? `todo dia ${a.payDay}` : `toda ${["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"][a.payDay]}`);
+  return (
+    <Panel title="🪙 Mesada">
+      {mine && (
+        <div className="budget-row">
+          <div className="budget-top">
+            <span className="budget-name">
+              Sua mesada: <Money cents={mine.amountCents} /> {when(mine)}
+            </span>
+          </div>
+          {mine.limitCents && (
+            <>
+              <Progress value={(mine.spentThisMonthCents ?? 0) / mine.limitCents} tone={(mine.spentThisMonthCents ?? 0) >= mine.limitCents * 0.8 ? "warn" : undefined} />
+              <div className="budget-foot">
+                <span>
+                  Gastou <Money cents={mine.spentThisMonthCents ?? 0} /> de <Money cents={mine.limitCents} /> no mês
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+      {admin &&
+        (others.length === 0 ? (
+          <p className="muted small">Quando outra pessoa entrar na família, você pode definir uma mesada para ela.</p>
+        ) : (
+          others.map((m) => {
+            const a = data.find((x) => x.memberId === m.id);
+            return (
+              <div className="setting-row" key={m.id}>
+                <div>
+                  <h4>{m.name}</h4>
+                  <p>{a ? <><Money cents={a.amountCents} /> {when(a)}{a.limitCents ? <> · limite <Money cents={a.limitCents} /></> : null}</> : "Sem mesada"}</p>
+                </div>
+                <button type="button" className="btn ghost small" onClick={() => openModal(<AllowanceModal member={m} current={a} />)}>
+                  {a ? "Alterar" : "Definir mesada"}
+                </button>
+              </div>
+            );
+          })
+        ))}
+    </Panel>
   );
 }

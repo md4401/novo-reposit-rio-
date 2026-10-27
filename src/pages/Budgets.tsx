@@ -14,6 +14,7 @@ function BudgetModal({ scope, budget, month }: { scope: "personal" | "family"; b
   const { toast, closeModal } = useApp();
   const [categoryId, setCategoryId] = useState(budget?.categoryId ?? "alimentacao");
   const [value, setValue] = useState(budget ? centsToInput(budget.limitCents) : "");
+  const [rollover, setRollover] = useState(budget?.rollover ?? false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,7 +24,7 @@ function BudgetModal({ scope, budget, month }: { scope: "personal" | "family"; b
     if (!limitCents || limitCents <= 0) return setError("Informe um limite maior que zero");
     setBusy(true);
     try {
-      await api(`budgets?month=${month}`, { method: "PUT", body: { scope, categoryId, limitCents } });
+      await api(`budgets?month=${month}`, { method: "PUT", body: { scope, categoryId, limitCents, rollover } });
       toast("Orçamento salvo.");
       closeModal();
     } catch (err) {
@@ -53,6 +54,12 @@ function BudgetModal({ scope, budget, month }: { scope: "personal" | "family"; b
         <label htmlFor="b-limit">Limite por mês (R$)</label>
         <input id="b-limit" inputMode="decimal" required placeholder="Ex.: 1.200,00" value={value} onChange={(e) => setValue(e.target.value)} />
       </div>
+      <label className="check-line">
+        <input type="checkbox" checked={rollover} onChange={(e) => setRollover(e.target.checked)} />
+        <span>
+          <b>Acumular:</b> o que sobrar passa para o mês seguinte (e o que passar do limite é descontado).
+        </span>
+      </label>
       <div className="modal-actions">
         <button type="submit" className="btn dark" disabled={busy}>
           {busy && <Spinner />} Salvar
@@ -65,7 +72,8 @@ function BudgetModal({ scope, budget, month }: { scope: "personal" | "family"; b
 function BudgetRow({ b, editable, month }: { b: Budget; editable: boolean; month: string }) {
   const { openModal, toast } = useApp();
   const c = category(b.categoryId);
-  const left = b.limitCents - b.spentCents;
+  const limit = b.limitCents + b.carryCents;
+  const left = limit - b.spentCents;
   async function remove() {
     if (!window.confirm(`Apagar o limite de ${c.name}?`)) return;
     try {
@@ -86,7 +94,14 @@ function BudgetRow({ b, editable, month }: { b: Budget; editable: boolean; month
       <Progress value={b.ratio} tone={b.ratio >= 0.8 ? "warn" : undefined} />
       <div className="budget-foot">
         <span>
-          <Money cents={b.spentCents} /> de <Money cents={b.limitCents} />
+          <Money cents={b.spentCents} /> de <Money cents={limit} />
+          {b.rollover && b.carryCents !== 0 && (
+            <span className="muted">
+              {" "}
+              ({b.carryCents > 0 ? "+" : "−"}
+              <Money cents={Math.abs(b.carryCents)} /> acumulado)
+            </span>
+          )}
         </span>
         <span className={left < 0 ? "down" : "muted"}>{left < 0 ? <>Passou <Money cents={-left} /></> : <>Restam <Money cents={left} /></>}</span>
       </div>
@@ -113,7 +128,7 @@ export function BudgetsPage() {
   const list = data ? (tab === "personal" ? data.personal : data.family) : [];
   const editable = tab === "personal" || Boolean(data?.canEditFamily);
   const spent = list.reduce((s, b) => s + b.spentCents, 0);
-  const limit = list.reduce((s, b) => s + b.limitCents, 0);
+  const limit = list.reduce((s, b) => s + b.limitCents + b.carryCents, 0);
 
   return (
     <>

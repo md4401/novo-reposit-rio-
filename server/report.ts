@@ -4,7 +4,7 @@ import { PDFDocument, rgb, StandardFonts, type PDFFont } from "pdf-lib";
 import { categoryName } from "../shared/categories.js";
 import { formatMoney } from "../shared/money.js";
 import { monthLabel, monthRange } from "../shared/time.js";
-import type { MonthReport } from "../shared/types.js";
+import type { MonthReport, TaxReport } from "../shared/types.js";
 import { sha256, type SessionUser } from "./auth.js";
 import { listBudgets, summarize } from "./budgets.js";
 import { num, one, query } from "./db.js";
@@ -38,18 +38,20 @@ export async function buildReport(user: SessionUser, month: string): Promise<Mon
 }
 
 /** Link curto e de uso único para baixar o PDF (no APK o download vai para o navegador). */
-export async function createReportLink(user: SessionUser, month: string) {
+export type ReportRequest = { type: "month"; month: string } | { type: "tax"; year: number };
+
+export async function createReportLink(user: SessionUser, request: ReportRequest) {
   const token = randomBytes(24).toString("base64url");
   await query(
     `INSERT INTO download_tokens (token_hash, profile_id, kind, payload, expires_at)
      VALUES ($1, $2, 'report', $3, now() + interval '10 minutes')`,
-    [sha256(token), user.id, JSON.stringify({ month })],
+    [sha256(token), user.id, JSON.stringify(request)],
   );
   return `/api/report/pdf?t=${token}`;
 }
 
 export async function redeemReportLink(token: string) {
-  const row = await one<{ profile_id: string; payload: { month: string } }>(
+  const row = await one<{ profile_id: string; payload: ReportRequest & { month?: string } }>(
     `DELETE FROM download_tokens WHERE token_hash = $1 AND kind = 'report' AND expires_at > now() RETURNING profile_id, payload`,
     [sha256(token)],
   );
@@ -59,7 +61,61 @@ export async function redeemReportLink(token: string) {
     [row.profile_id],
   );
   if (!user) throw new HttpError(410, "Conta não encontrada");
-  return { user, month: row.payload.month };
+  // Links antigos guardavam só { month }
+  const request: ReportRequest = row.payload.type === "tax" ? row.payload : { type: "month", month: row.payload.month! };
+  return { user, request };
+}
+
+/** Resumo anual para a declaração do IR (despesas dedutíveis). */
+export async function taxPdf(user: SessionUser, report: TaxReport) {
+  const doc = await PDFDocument.create();
+  const regular = await doc.embedFont(StandardFonts.Helvetica);
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const green = rgb(0.05, 0.16, 0.13);
+  const muted = rgb(0.38, 0.45, 0.42);
+  let page = doc.addPage([595, 842]);
+  let y = 790;
+  const text = (value: string, x: number, opts: { size?: number; font?: PDFFont; color?: typeof green } = {}) =>
+    page.drawText(pdfText(value), { x, y, size: opts.size ?? 10, font: opts.font ?? regular, color: opts.color ?? green });
+  text("ninho.", 50, { size: 24, font: bold });
+  y -= 24;
+  text(`Despesas dedutíveis ${report.year} - ${user.name}`, 50, { size: 12, color: muted });
+  y -= 30;
+  const totals: [string, number][] = [
+    ["Saúde (sem limite)", report.totals.saude],
+    [`Educação (limite por pessoa: ${formatMoney(report.educationLimitCents)})`, report.totals.educacao],
+    ["Outras marcadas por você", report.totals.outros],
+  ];
+  for (const [label, cents] of totals) {
+    text(label, 50, { color: muted });
+    text(formatMoney(cents), 420, { font: bold });
+    y -= 18;
+  }
+  y -= 16;
+  text("Data", 50, { font: bold });
+  text("Descrição", 110, { font: bold });
+  text("Tipo", 360, { font: bold });
+  text("Valor", 450, { font: bold });
+  y -= 16;
+  for (const i of report.items) {
+    if (y < 60) {
+      page = doc.addPage([595, 842]);
+      y = 800;
+    }
+    text(`${i.occurredOn.slice(8, 10)}/${i.occurredOn.slice(5, 7)}`, 50);
+    text(i.description.slice(0, 42), 110);
+    text(i.kind === "saude" ? "Saúde" : i.kind === "educacao" ? "Educação" : "Outros", 360);
+    text(formatMoney(i.amountCents), 450);
+    y -= 15;
+  }
+  page.drawText(pdfText("Guarde os recibos e notas: a Receita pede o CPF/CNPJ de quem recebeu. Confira as regras do ano antes de declarar."), {
+    x: 50,
+    y: 36,
+    size: 8,
+    font: regular,
+    color: muted,
+  });
+  return doc.save();
 }
 
 // As fontes padrão do PDF só têm caracteres latinos: emojis e símbolos saem do texto

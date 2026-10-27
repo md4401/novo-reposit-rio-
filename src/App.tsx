@@ -6,13 +6,22 @@ import { AlertsPage } from "./pages/Alerts";
 import { AssistantPage } from "./pages/Assistant";
 import { AuthPage } from "./pages/Auth";
 import { BudgetsPage } from "./pages/Budgets";
+import { ChallengesPage } from "./pages/Challenges";
 import { FamilyPage } from "./pages/Family";
+import { ForecastPage } from "./pages/Forecast";
 import { GoalsPage } from "./pages/Goals";
 import { HealthPage } from "./pages/Health";
 import { HomePage } from "./pages/Home";
 import { HouseBillsPage } from "./pages/HouseBills";
+import { PayablesPage } from "./pages/Payables";
 import { PersonalPage } from "./pages/Personal";
+import { WealthPage } from "./pages/Wealth";
+import { WishesPage } from "./pages/Wishes";
+import { BasketPage } from "./pages/Basket";
 import { SettingsPage } from "./pages/Settings";
+import { SharePage } from "./pages/Share";
+import { TagsPage } from "./pages/Tags";
+import { TaxPage } from "./pages/Tax";
 import { TransactionsPage } from "./pages/Transactions";
 import { useApp } from "./state";
 
@@ -40,6 +49,15 @@ export function App() {
     familia: <FamilyPage />,
     transacoes: <TransactionsPage route={route} key={route.query.toString()} />,
     orcamento: <BudgetsPage />,
+    pagar: <PayablesPage />,
+    previsao: <ForecastPage />,
+    patrimonio: <WealthPage />,
+    ir: <TaxPage />,
+    etiquetas: <TagsPage />,
+    desejos: <WishesPage />,
+    desafios: <ChallengesPage />,
+    cesta: <BasketPage />,
+    compartilhar: <SharePage />,
     casa: <HouseBillsPage />,
     metas: <GoalsPage />,
     nia: <AssistantPage />,

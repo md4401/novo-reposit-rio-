@@ -2,7 +2,7 @@
 import { Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { categoriesFor } from "../../shared/categories";
-import type { Allocation, Direction, Goal, Scope, Transaction } from "../../shared/types";
+import type { Allocation, Direction, Goal, Scope, Tag, Transaction } from "../../shared/types";
 import { ModalHeader, Spinner } from "../components/ui";
 import { api, apiBlobUrl } from "../lib/api";
 import { useData } from "../lib/useData";
@@ -13,6 +13,59 @@ import { CategoryIcon } from "../components/icons";
 type Row = { categoryId: string; value: string; scope: Scope };
 
 const QUICK = ["alimentacao", "compras", "saude", "transporte", "lazer", "moradia", "outros"];
+
+/** Etiquetas: salvam na hora (não dependem do botão Salvar). */
+function TagPicker({ transaction }: { transaction: Transaction }) {
+  const { toast } = useApp();
+  const tags = useData<Tag[]>("tags");
+  const [selected, setSelected] = useState<string[]>(transaction.tags.map((x) => x.id));
+  const [name, setName] = useState("");
+
+  async function save(next: string[]) {
+    setSelected(next);
+    try {
+      await api(`transactions/${transaction.id}/tags`, { method: "PUT", body: { tagIds: next }, silent: true });
+    } catch (e) {
+      toast((e as Error).message);
+    }
+  }
+
+  async function create() {
+    const clean = name.trim();
+    if (!clean) return;
+    try {
+      const list = await api<Tag[]>("tags", { body: { name: clean } });
+      const created = list.find((x) => x.name.toLowerCase() === clean.toLowerCase());
+      setName("");
+      if (created) await save([...selected, created.id]);
+      tags.reload();
+    } catch (e) {
+      toast((e as Error).message);
+    }
+  }
+
+  return (
+    <div className="field" style={{ marginTop: 14 }}>
+      <label>Etiquetas</label>
+      <div className="template-chips" style={{ marginBottom: 8 }}>
+        {(tags.data ?? []).map((tg) => {
+          const on = selected.includes(tg.id);
+          return (
+            <button key={tg.id} type="button" className={`quick ${on ? "on" : ""}`} onClick={() => void save(on ? selected.filter((x) => x !== tg.id) : [...selected, tg.id])}>
+              🏷️ {tg.name}
+            </button>
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <input placeholder="Nova etiqueta (ex.: Viagem Bahia)" maxLength={30} value={name} onChange={(e) => setName(e.target.value)} />
+        <button type="button" className="btn ghost small" onClick={() => void create()} disabled={!name.trim()}>
+          <Plus size={13} /> Criar
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function ReceiptPreview({ id }: { id: string }) {
   const { toast } = useApp();
@@ -56,6 +109,7 @@ export function OrganizeModal({ transaction: t }: { transaction: Transaction }) 
   const goals = useData<Goal[]>("goals");
   const [goalId, setGoalId] = useState(t.goalId ?? "");
   const [goalAlways, setGoalAlways] = useState(false);
+  const [tax, setTax] = useState<"auto" | "yes" | "no">(t.taxDeductible === null ? "auto" : t.taxDeductible ? "yes" : "no");
   const manual = t.source !== "csv" && t.source !== "ofx";
   const [direction, setDirection] = useState<Direction>(t.direction);
   const [description, setDescription] = useState(t.description);
@@ -109,6 +163,8 @@ export function OrganizeModal({ transaction: t }: { transaction: Transaction }) 
         body.description = description;
         body.amountCents = totalCents;
       }
+      const taxValue = tax === "auto" ? null : tax === "yes";
+      if (taxValue !== t.taxDeductible) body.taxDeductible = taxValue;
       if (goalId !== (t.goalId ?? "") || goalAlways) {
         body.goalId = goalId || null;
         body.goalAlways = goalAlways;
@@ -279,6 +335,19 @@ export function OrganizeModal({ transaction: t }: { transaction: Transaction }) 
               <span>Sempre que for “{t.merchant}”, contar para esta meta</span>
             </label>
           )}
+        </div>
+      )}
+
+      <TagPicker transaction={t} />
+
+      {direction === "expense" && (
+        <div className="field" style={{ marginTop: 14 }}>
+          <label htmlFor="o-tax">Imposto de Renda</label>
+          <select id="o-tax" value={tax} onChange={(e) => setTax(e.target.value as typeof tax)}>
+            <option value="auto">Automático (saúde e educação contam)</option>
+            <option value="yes">Dedutível</option>
+            <option value="no">Não dedutível</option>
+          </select>
         </div>
       )}
 

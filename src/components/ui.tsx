@@ -181,9 +181,9 @@ export function DemoFlag() {
     <div className="mock-flag">
       <Info size={15} />
       <span>
-        <b>Dados de exemplo:</b> valores fictícios para você testar o app. Quando quiser usar de verdade, remova em{" "}
-        <a href="#/ajustes?aba=privacidade">Configurações</a>.
+        <b>Dados de exemplo</b> · valores fictícios para testar o app.
       </span>
+      <a href="#/ajustes?aba=privacidade">Remover</a>
     </div>
   );
 }

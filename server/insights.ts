@@ -237,7 +237,9 @@ export const INSIGHT_PRIORITY = {
   pending: 3, // compras para revisar
   dueSoon: 4, // conta ou fatura vencendo nos próximos dias
   nearBudget: 5, // orçamento acima de 80%
-  attention: 6, // aumento de preço, gasto fora do padrão
+  stale: 6, // conta bancária sem atualização recente
+  attention: 7, // aumento de preço, gasto fora do padrão
+  closing: 8, // o mês fechou: relatório disponível
   info: 9, // dicas (13º, tendência, recorrências, compromissos)
   filler: 10, // só aparece se sobrar espaço
 } as const;

@@ -103,7 +103,8 @@ export async function seedDemo(user: SessionUser, opts: { withMembers: boolean }
   const card = randomUUID();
   const savings = randomUUID();
   const accounts = [
-    { id: checking, profile_id: me, name: "Conta corrente", kind: "checking", institution: "Banco Exemplo", last4: "0193", hours: 2 },
+    // Saldo informado há 3 dias: com ele o app calcula o saldo de hoje e a sobra prevista do mês
+    { id: checking, profile_id: me, name: "Conta corrente", kind: "checking", institution: "Banco Exemplo", last4: "0193", hours: 2, balance_cents: 325000, balance_on: addDays(today, -3) },
     // Fechamento uma semana antes do vencimento, que cai daqui a 4 dias: a fatura aparece no Início
     { id: card, profile_id: me, name: "Cartão de crédito", kind: "credit_card", institution: "Banco Exemplo", last4: "4821", hours: 74, ...cardDays(today) },
     { id: savings, profile_id: me, name: "Conta secundária", kind: "savings", institution: "Banco Digital", last4: "7710", hours: 290 },
@@ -255,10 +256,12 @@ export async function seedDemo(user: SessionUser, opts: { withMembers: boolean }
       [json(members)],
     ),
     q(
-      `INSERT INTO financial_accounts (id, profile_id, name, kind, institution, last4, last_synced_at, closing_day, due_day, is_demo)
-       SELECT x.id, x.profile_id, x.name, x.kind, x.institution, x.last4, now() - make_interval(hours => x.hours), x.closing_day, x.due_day, true
+      `INSERT INTO financial_accounts (id, profile_id, name, kind, institution, last4, last_synced_at, closing_day, due_day,
+                                       balance_cents, balance_on, is_demo)
+       SELECT x.id, x.profile_id, x.name, x.kind, x.institution, x.last4, now() - make_interval(hours => x.hours), x.closing_day, x.due_day,
+              x.balance_cents, x.balance_on, true
          FROM json_to_recordset($1::json) AS x(id uuid, profile_id uuid, name text, kind text, institution text, last4 text, hours int,
-              closing_day smallint, due_day smallint)`,
+              closing_day smallint, due_day smallint, balance_cents bigint, balance_on date)`,
       [json(accounts)],
     ),
     q(

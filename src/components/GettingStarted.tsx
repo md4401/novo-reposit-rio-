@@ -25,6 +25,8 @@ export function GettingStarted() {
   const { me, openModal, refreshMe, toast } = useApp();
   const [hidden, setHidden] = useState(() => (me ? readHidden(me.profile.id) : false));
   const [loadingDemo, setLoadingDemo] = useState(false);
+  // Depois de 2 passos feitos, o guia vira uma faixa de uma linha (abre ao tocar)
+  const [expanded, setExpanded] = useState(false);
   // Conta, meta ou orçamento criados em outra janela: atualiza o progresso
   useEffect(() => (hidden ? undefined : onChange(() => void refreshMe())), [hidden, refreshMe]);
   if (!me || hidden) return null;
@@ -92,6 +94,23 @@ export function GettingStarted() {
       setLoadingDemo(false);
     }
   }
+
+  if (done >= 2 && !expanded)
+    return (
+      <div className="guide-bar" role="region" aria-label="Primeiros passos">
+        <button type="button" className="guide-bar-main" onClick={() => setExpanded(true)}>
+          <Sparkles size={15} />
+          <b>
+            {done} de {steps.length}
+          </b>
+          <span>Próximo: {next.title}</span>
+          <ChevronRight size={16} />
+        </button>
+        <button type="button" className="guide-bar-close" onClick={hide} aria-label="Ocultar guia" title="Ocultar guia">
+          <X size={15} />
+        </button>
+      </div>
+    );
 
   return (
     <section className="guide" aria-label="Primeiros passos">

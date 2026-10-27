@@ -709,3 +709,84 @@ button.insight:hover { background: var(--tint); }
 .shared-text { white-space: pre-wrap; word-break: break-word; font: inherit; font-size: 13px; background: var(--soft); padding: 12px; border-radius: 12px; margin: 0; max-height: 280px; overflow: auto; }
 /* Três valores lado a lado no celular: a fonte encolhe para caber "R$ 12.345,67" */
 .cards.three .val { font-size: clamp(13px, 3.9vw, 26px); letter-spacing: -0.4px; }
+
+/* Início: duas colunas no computador; no celular, uma só, na ordem do que importa */
+.home-cols { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr); gap: 17px; align-items: start; }
+.home-col { display: flex; flex-direction: column; gap: 17px; min-width: 0; }
+.home-col > * { min-width: 0; }
+.home-scope { margin-top: 10px; }
+
+.month-card { background: var(--dark); color: #fff; border-radius: var(--radius); padding: 22px; position: relative; overflow: hidden; }
+.month-card::after { content: ""; position: absolute; width: 240px; height: 240px; border: 1px solid #ffffff1a; border-radius: 50%; right: -90px; top: -120px; pointer-events: none; }
+.month-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; position: relative; z-index: 1; }
+.month-eyebrow { font-size: 11px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: #a9c7b6; }
+.month-head h2 { font-size: 18px; margin-top: 2px; }
+.month-head .segmented { background: #ffffff14; border-color: #ffffff22; }
+.month-head .segmented button { color: #cfe3d6; }
+.month-head .segmented button.on { background: var(--accent); color: var(--on-accent); }
+.month-main { margin-top: 18px; position: relative; z-index: 1; }
+.month-main > span { font-size: 12px; color: #a9c7b6; font-weight: 650; }
+.month-main b { display: block; font-size: 34px; letter-spacing: -1.2px; line-height: 1.15; margin-top: 2px; }
+.month-compare { margin-top: 12px; display: grid; gap: 7px; font-size: 12px; color: #cfe3d6; position: relative; z-index: 1; }
+.month-compare .progress { background: #ffffff1f; height: 6px; }
+.month-row { display: flex; flex-wrap: wrap; gap: 10px 28px; margin-top: 18px; padding-top: 16px; border-top: 1px solid #ffffff1f; position: relative; z-index: 1; }
+.month-row > div > span { display: block; font-size: 11.5px; color: #a9c7b6; font-weight: 650; }
+.month-row b { display: block; font-size: 17px; margin-top: 2px; white-space: nowrap; }
+.month-row b.up { color: var(--accent); }
+.month-card .down-light { color: #ffb4a8; }
+.month-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 18px; flex-wrap: wrap; position: relative; z-index: 1; }
+.month-chip { font-size: 12px; font-weight: 750; color: #e6f2ea; background: #ffffff14; border: 1px solid #ffffff22; border-radius: 100px; padding: 6px 12px; }
+.month-chip:hover { background: #ffffff22; }
+.month-link { font-size: 12px; font-weight: 750; color: var(--accent); display: inline-flex; align-items: center; gap: 6px; }
+
+.all-good { display: flex; gap: 12px; align-items: center; color: var(--green-ink); background: var(--soft); border-radius: 13px; padding: 14px; }
+.all-good h4 { font-size: 13.5px; color: var(--text); }
+.all-good p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.action-list { display: flex; flex-direction: column; gap: 8px; }
+.action-row { display: flex; align-items: center; gap: 11px; width: 100%; text-align: left; padding: 11px 12px; border-radius: 13px; background: var(--soft); border: 1px solid var(--line); transition: background 0.15s; }
+.action-row:hover { background: var(--tint); }
+.action-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.action-text b { font-size: 13px; line-height: 1.3; }
+.action-text small { font-size: 11.5px; color: var(--muted); line-height: 1.4; margin-top: 2px; }
+.action-cta { flex-shrink: 0; font-size: 12px; font-weight: 800; color: var(--on-accent); background: var(--accent); border-radius: 100px; padding: 6px 12px; }
+
+.upcoming-list { display: flex; flex-direction: column; }
+.upcoming-row { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.upcoming-row:last-child { border-bottom: 0; }
+.upcoming-row:hover .upcoming-label { text-decoration: underline; }
+.day-chip { flex-shrink: 0; min-width: 72px; font-size: 11px; font-weight: 800; color: var(--text2); background: var(--soft); border: 1px solid var(--line); border-radius: 100px; padding: 4px 9px; text-align: center; }
+.day-chip.today { background: var(--warn-bg); border-color: var(--warn-line); color: var(--warn); }
+.day-chip.late { background: var(--red-bg); border-color: var(--red-line); color: var(--red); }
+.upcoming-ic { color: var(--green2); display: grid; place-items: center; }
+.upcoming-label { flex: 1; min-width: 0; font-size: 13px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upcoming-row b { font-size: 13px; white-space: nowrap; }
+
+@media (max-width: 940px) {
+  .home-cols { display: flex; flex-direction: column; align-items: stretch; gap: 14px; }
+  .home-col { display: contents; }
+  .month-card { order: 1; }
+  .home-actions { order: 2; }
+  .home-upcoming { order: 3; }
+  .home-donut { order: 4; }
+  .home-recent { order: 5; }
+  .home-tips { order: 6; }
+}
+@media (max-width: 660px) {
+  .month-card { padding: 18px; border-radius: 16px; }
+  .month-main b { font-size: 30px; }
+  .month-row { gap: 10px 20px; }
+  .month-row b { font-size: 15px; }
+  .action-cta { padding: 6px 10px; }
+  .day-chip { min-width: 64px; }
+}
+
+/* Primeiros passos em uma linha (depois de 2 passos feitos) */
+.guide-bar { display: flex; align-items: center; gap: 4px; background: var(--dark); color: #fff; border-radius: 14px; padding: 4px; margin-bottom: 17px; }
+.guide-bar-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; padding: 9px 10px; border-radius: 11px; text-align: left; color: #fff; }
+.guide-bar-main:hover { background: #ffffff12; }
+.guide-bar-main svg:first-child { color: var(--accent); }
+.guide-bar-main b { font-size: 12px; background: #23493b; color: var(--accent); border-radius: 100px; padding: 2px 8px; white-space: nowrap; }
+.guide-bar-main span { flex: 1; min-width: 0; font-size: 13px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.guide-bar-close { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; color: #cfe3d6; flex-shrink: 0; }
+.guide-bar-close:hover { background: #ffffff12; }
+.mock-flag a { margin-left: auto; white-space: nowrap; }

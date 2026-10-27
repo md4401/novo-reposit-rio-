@@ -53,7 +53,7 @@ export function TaxPage() {
         <Skeleton />
       ) : (
         <>
-          <div className="cards" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+          <div className="cards three" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
             <div className="metric">
               <span className="cap">🩺 Saúde</span>
               <div className="val">

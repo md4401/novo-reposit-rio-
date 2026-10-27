@@ -108,6 +108,7 @@ import {
   toggleVote,
   wishToGoal,
 } from "./together.js";
+import { loadBasket, saveReceiptItems } from "./basket.js";
 
 type Ctx = { request: Request; url: URL; params: string[] };
 type Handler = (ctx: Ctx) => Promise<Response>;
@@ -1183,6 +1184,23 @@ route("POST", "share/pix", async ({ request }) => {
     allocations: [],
   };
   return json({ proposal });
+});
+
+// ===========================================================================
+// Cesta da família (itens das notas; o agregado não mostra quem nem onde)
+
+route("PUT", "transactions/:id/items", async ({ request, params }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request, 64 * 1024);
+  await rateLimit(`items:${user.id}`, 30, 60);
+  if (!Array.isArray(body.items)) throw new HttpError(400, "Envie os itens da nota");
+  return json(await saveReceiptItems(user, uuid(params[0]), body.items as never));
+});
+
+route("GET", "basket", async ({ request, url }) => {
+  const user = await requireUser(request);
+  const months = Math.min(12, Math.max(2, Number(url.searchParams.get("months")) || 6));
+  return json(await loadBasket(user, months));
 });
 
 // ===========================================================================

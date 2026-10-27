@@ -23,6 +23,16 @@ const PROTECTED: [string, string][] = [
   ["POST", "bills"], ["POST", `bills/${ID}/pay`], ["POST", `bills/${ID}/unpay`], ["POST", `bills/${ID}/duplicate`],
   ["DELETE", `bills/${ID}`], ["GET", "report"], ["POST", "report/link"], ["POST", "receipts"], ["GET", `receipts/${ID}`],
   ["DELETE", `receipts/${ID}`],
+  // Planejamento, patrimônio, família e captura
+  ["GET", "invoices"], ["GET", "payables"], ["POST", "payables"], ["PATCH", `payables/${ID}`], ["POST", `payables/${ID}/pay`],
+  ["DELETE", `payables/${ID}`], ["GET", "forecast"], ["GET", "tags"], ["POST", "tags"], ["DELETE", `tags/${ID}`],
+  ["PUT", `transactions/${ID}/tags`], ["GET", "tax"], ["GET", "wealth"], ["POST", "assets"], ["PATCH", `assets/${ID}`],
+  ["DELETE", `assets/${ID}`], ["POST", "debts"], ["PATCH", `debts/${ID}`], ["DELETE", `debts/${ID}`], ["GET", "debts/plan"],
+  ["GET", "wishes"], ["POST", "wishes"], ["POST", `wishes/${ID}/vote`], ["POST", `wishes/${ID}/goal`],
+  ["POST", `wishes/${ID}/bought`], ["DELETE", `wishes/${ID}`], ["GET", "challenges"], ["POST", "challenges"],
+  ["POST", `challenges/${ID}/abandon`], ["GET", "allowances"], ["PUT", "allowances"], ["DELETE", `allowances/${ID}`],
+  ["POST", "capture/notifications"], ["POST", "share/text"], ["POST", "share/pix"], ["PUT", `transactions/${ID}/items`],
+  ["GET", "basket"],
 ];
 
 const call = (method: string, path: string, init: RequestInit = {}) =>

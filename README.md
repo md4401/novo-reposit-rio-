@@ -34,6 +34,20 @@ marcar como *familiar*. Feito a partir do *Caderno de produto v0.3* (PDF do proj
 | **Senha e conta** | Trocar senha; “Esqueci minha senha” com código (por e-mail, se o Resend estiver configurado, ou gerado por quem administra a família); papéis, remover integrante, sair da família e **apagar a conta** (LGPD). |
 | **Sem internet** | Lançamentos feitos offline ficam no aparelho e são enviados quando a conexão volta, sem duplicar. |
 | **Notas guardadas** | A foto da nota fiscal (comprimida no celular) fica guardada com a compra, visível só para o dono. |
+| **Fatura do cartão** | Com o dia de fechamento e de vencimento, mostra a fatura fechada, a aberta e as próximas (com parcelas já previstas). Aviso 5 dias antes de vencer. |
+| **Contas a pagar** | Boletos e contas com repetição (mensal/anual) e lembrete; “Paguei” lança a despesa e avança para o próximo vencimento. **Sazonais** (IPVA, IPTU, material escolar) sugerem quanto guardar por mês. |
+| **Saldo previsto** | 30, 60 ou 90 dias à frente: saldo de hoje + salário − contas − faturas − assinaturas, com o dia mais apertado e o aviso “pode ficar negativo”. |
+| **Orçamento acumulado** | Opcional por categoria: o que sobrou (ou faltou) no mês passado passa para o mês seguinte. |
+| **Etiquetas** | Marque compras de uma viagem, reforma ou festa e veja o total — de várias categorias. |
+| **Imposto de Renda** | Saúde e educação do ano (com limite da educação), ajuste item a item e PDF para o contador. |
+| **Patrimônio e dívidas** | Contas + bens − dívidas − cartões, com a evolução mês a mês. Plano para quitar dívidas: bola de neve × avalanche, com meses e juros de cada um. |
+| **Lista de desejos** | Compras grandes da casa com votos; vira meta da família em um toque. |
+| **Desafios** | Mês sem delivery, dias sem gastar, gastar menos que no mês passado, tudo organizado — o progresso vem dos lançamentos. |
+| **Mesada** | Quem administra define valor, semana/mês e limite; entra sozinha como receita de quem recebe. |
+| **Captura automática (APK 0.5.0)** | Lê os avisos de compra e Pix dos apps de banco (só bancos conhecidos; códigos e propagandas são ignorados) e lança para revisar. Ao importar o extrato, liga ao lançamento sem duplicar. |
+| **Compartilhar com o ninho** | Comprovante de Pix (imagem), nota fiscal ou texto do banco enviados pelo “Compartilhar” do celular viram proposta de lançamento. Widget e atalhos: “Nova despesa”, “Nia” e “Resumo”. |
+| **Cesta da família** | Os produtos das notas fiscais das compras da família ao longo dos meses: o que ficou mais caro ou mais barato. Só totais — nunca quem comprou nem onde; compras pessoais ficam de fora. |
+| **Nia (planejamento)** | Também responde sobre fatura, contas a pagar, saldo previsto, patrimônio e desafios — sem IA, com os números do banco. |
 | **Privacidade** | Botão para ocultar valores, todas as consultas filtradas pelo dono, testes de isolamento. |
 
 ## Regras de dinheiro (garantidas no banco)

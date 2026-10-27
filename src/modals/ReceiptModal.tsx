@@ -92,6 +92,8 @@ export function ReceiptModal({ initialImage }: { initialImage?: string } = {}) {
     setBusy(true);
     try {
       await api(`transactions/${reading.match.transactionId}`, { method: "PATCH", body: { allocations: groupByCategory(items, scope) } });
+      // Itens da nota vão para a cesta da família (só se a compra for da família)
+      await api(`transactions/${reading.match.transactionId}/items`, { method: "PUT", body: { items }, silent: true }).catch(() => undefined);
       const image = keepPhoto && file ? await forStorage(file) : null;
       if (image) await api("receipts", { body: { image, transactionId: reading.match.transactionId }, silent: true }).catch(() => undefined);
       closeModal();
@@ -111,7 +113,7 @@ export function ReceiptModal({ initialImage }: { initialImage?: string } = {}) {
       occurredOn: reading?.occurredOn ?? me?.today ?? "",
       allocations: groupByCategory(items, scope),
     };
-    closeModal(() => openModal(<NewTransactionModal proposal={proposal} source="receipt" receiptImage={receiptImage} />));
+    closeModal(() => openModal(<NewTransactionModal proposal={proposal} source="receipt" receiptImage={receiptImage} receiptItems={example ? undefined : items} />));
   }
 
   return (

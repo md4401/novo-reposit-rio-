@@ -1,32 +1,5 @@
 // Estrutura: menu lateral (computador) e barra inferior + gaveta (celular), como no protótipo.
-import {
-  Activity,
-  ArrowLeftRight,
-  Bell,
-  Bot,
-  CalendarClock,
-  Eye,
-  FileText,
-  Gift,
-  EyeOff,
-  House,
-  Landmark,
-  Lock,
-  Menu,
-  PiggyBank,
-  Plus,
-  Receipt,
-  Repeat,
-  Scale,
-  Settings,
-  Sparkles,
-  Tags,
-  Target,
-  TrendingUp,
-  Trophy,
-  Users,
-  Wallet,
-} from "lucide-react";
+import { Activity, ArrowLeftRight, Bell, Bot, CalendarClock, Eye, EyeOff, FileText, Gift, House, Landmark, Lock, Menu, PiggyBank, Plus, Receipt, Repeat, Scale, Settings, ShoppingBasket, Sparkles, Tags, Target, TrendingUp, Trophy, Users, Wallet } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { navigate } from "../lib/router";
 import { DigestModal } from "../modals/DigestModal";
@@ -56,6 +29,7 @@ const SMART: NavItem[] = [
   { key: "nia", label: "Assistente Nia", icon: <Bot size={17} /> },
   { key: "alertas", label: "Assinaturas e alertas", icon: <Repeat size={17} /> },
   { key: "desafios", label: "Desafios", icon: <Trophy size={17} /> },
+  { key: "cesta", label: "Cesta da família", icon: <ShoppingBasket size={17} /> },
   { key: "saude", label: "Saúde dos dados", icon: <Activity size={17} /> },
 ];
 const MORE: NavItem[] = [

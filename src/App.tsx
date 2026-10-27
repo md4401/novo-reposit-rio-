@@ -17,6 +17,7 @@ import { PayablesPage } from "./pages/Payables";
 import { PersonalPage } from "./pages/Personal";
 import { WealthPage } from "./pages/Wealth";
 import { WishesPage } from "./pages/Wishes";
+import { BasketPage } from "./pages/Basket";
 import { SettingsPage } from "./pages/Settings";
 import { SharePage } from "./pages/Share";
 import { TagsPage } from "./pages/Tags";
@@ -55,6 +56,7 @@ export function App() {
     etiquetas: <TagsPage />,
     desejos: <WishesPage />,
     desafios: <ChallengesPage />,
+    cesta: <BasketPage />,
     compartilhar: <SharePage />,
     casa: <HouseBillsPage />,
     metas: <GoalsPage />,

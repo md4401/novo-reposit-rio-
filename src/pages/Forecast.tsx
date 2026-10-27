@@ -56,7 +56,7 @@ export function ForecastPage() {
               </div>
             </div>
           )}
-          <div className="cards" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+          <div className="cards three" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
             <div className="metric">
               <span className="cap">Hoje</span>
               <div className="val">

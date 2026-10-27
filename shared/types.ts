@@ -399,3 +399,20 @@ export type Allowance = {
   spentThisMonthCents: number | null;
   isMe: boolean;
 };
+
+export type BasketProduct = {
+  key: string;
+  name: string;
+  categoryId: string;
+  lastCents: number;
+  changeBp: number | null;
+  purchases: number;
+  points: { month: string; avgCents: number; count: number }[];
+};
+
+export type Basket = {
+  months: number;
+  products: BasketProduct[];
+  /** Quantas notas da família alimentam a cesta (sem dizer de quem) */
+  receipts: number;
+};

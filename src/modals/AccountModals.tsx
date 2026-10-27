@@ -13,6 +13,7 @@ export const KIND_LABEL: Record<AccountKind, string> = {
   credit_card: "Cartão de crédito",
   savings: "Poupança / conta digital",
   cash: "Dinheiro / carteira",
+  benefit: "Vale-refeição / alimentação",
   other: "Outra",
 };
 

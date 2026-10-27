@@ -18,6 +18,8 @@ import { PersonalPage } from "./pages/Personal";
 import { WealthPage } from "./pages/Wealth";
 import { WishesPage } from "./pages/Wishes";
 import { BasketPage } from "./pages/Basket";
+import { BetweenPage } from "./pages/Between";
+import { MeetingPage } from "./pages/Meeting";
 import { SettingsPage } from "./pages/Settings";
 import { SharePage } from "./pages/Share";
 import { TagsPage } from "./pages/Tags";
@@ -57,6 +59,8 @@ export function App() {
     desejos: <WishesPage />,
     desafios: <ChallengesPage />,
     cesta: <BasketPage />,
+    acertos: <BetweenPage />,
+    reuniao: <MeetingPage />,
     compartilhar: <SharePage />,
     casa: <HouseBillsPage />,
     metas: <GoalsPage />,

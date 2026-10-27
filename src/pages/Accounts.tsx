@@ -1,4 +1,4 @@
-import { CreditCard, FileUp, Landmark, Plus, PiggyBank, Wallet } from "lucide-react";
+import { CreditCard, FileUp, Landmark, PiggyBank, Plus, Utensils, Wallet } from "lucide-react";
 import { useState } from "react";
 import type { Account, AccountKind } from "../../shared/types";
 import { Heading, ModalHeader, Money, Panel, Spinner, Toggle } from "../components/ui";
@@ -12,6 +12,7 @@ const ICON: Record<AccountKind, React.ReactNode> = {
   credit_card: <CreditCard size={18} />,
   savings: <PiggyBank size={18} />,
   cash: <Wallet size={18} />,
+  benefit: <Utensils size={18} />,
   other: <Landmark size={18} />,
 };
 

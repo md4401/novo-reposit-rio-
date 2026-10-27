@@ -2,7 +2,7 @@
 // Funciona igual no navegador, no app instalado (PWA) e no APK Android, sem cookies de terceiros.
 import { createHash, randomBytes, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
-import { one, query } from "./db.js";
+import { batch, one, q, query } from "./db.js";
 import { HttpError } from "./http.js";
 
 const scrypt = promisify(scryptCb) as (password: string, salt: Buffer, keylen: number, options: object) => Promise<Buffer>;
@@ -73,10 +73,11 @@ export async function requireUser(request: Request): Promise<SessionUser> {
   if (!user) throw new HttpError(401, "Sua sessão expirou. Entre de novo.");
   // Renova a sessão (no máximo uma vez por hora)
   if (Date.now() - new Date(user.last_seen_at).getTime() > 3_600_000) {
-    await query(
-      `UPDATE sessions SET last_seen_at = now(), expires_at = now() + make_interval(days => $2) WHERE id = $1`,
-      [user.session_id, SESSION_DAYS],
-    );
+    await batch([
+      q(`UPDATE sessions SET last_seen_at = now(), expires_at = now() + make_interval(days => $2) WHERE id = $1`, [user.session_id, SESSION_DAYS]),
+      // Última vez que a pessoa usou o app ("e se eu faltar?" usa isso)
+      q(`UPDATE profiles SET last_seen_at = now() WHERE id = $1`, [user.id]),
+    ]);
   }
   return user;
 }

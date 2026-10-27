@@ -1,5 +1,5 @@
 // Estrutura: menu lateral (computador) e barra inferior + gaveta (celular), como no protótipo.
-import { Activity, ArrowLeftRight, Bell, Bot, CalendarClock, Eye, EyeOff, FileText, Gift, House, Landmark, Lock, Menu, PiggyBank, Plus, Receipt, Repeat, Scale, Settings, ShoppingBasket, Sparkles, Tags, Target, TrendingUp, Trophy, Users, Wallet } from "lucide-react";
+import { Activity, ArrowLeftRight, Bell, Bot, CalendarClock, Eye, EyeOff, FileText, Gift, Handshake, House, Landmark, Lock, Menu, MessagesSquare, PiggyBank, Plus, Receipt, Repeat, Scale, Settings, ShoppingBasket, Sparkles, Tags, Target, TrendingUp, Trophy, Users, Wallet } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { navigate } from "../lib/router";
 import { DigestModal } from "../modals/DigestModal";
@@ -25,6 +25,10 @@ const MAIN: NavItem[] = [
   { key: "metas", label: "Metas e objetivos", icon: <Target size={17} /> },
   { key: "desejos", label: "Lista de desejos", icon: <Gift size={17} /> },
 ];
+const TOGETHER: NavItem[] = [
+  { key: "acertos", label: "Quem deve a quem", icon: <Handshake size={17} /> },
+  { key: "reuniao", label: "Reunião do mês", icon: <MessagesSquare size={17} /> },
+];
 const SMART: NavItem[] = [
   { key: "nia", label: "Assistente Nia", icon: <Bot size={17} /> },
   { key: "alertas", label: "Assinaturas e alertas", icon: <Repeat size={17} /> },
@@ -38,7 +42,7 @@ const MORE: NavItem[] = [
   { key: "ajustes", label: "Configurações", icon: <Settings size={17} /> },
 ];
 
-export const PAGE_TITLES: Record<string, string> = Object.fromEntries([...MAIN, ...PLAN, ...SMART, ...MORE].map((n) => [n.key, n.label]));
+export const PAGE_TITLES: Record<string, string> = Object.fromEntries([...MAIN, ...TOGETHER, ...PLAN, ...SMART, ...MORE].map((n) => [n.key, n.label]));
 
 const BOTTOM: NavItem[] = [
   { key: "inicio", label: "Início", icon: <House size={20} /> },
@@ -84,6 +88,10 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
         </div>
         <div className="group-label">PAINEL</div>
         <nav className="nav">{MAIN.map(navButton)}</nav>
+        <div className="group-label" style={{ marginTop: 24 }}>
+          ENTRE NÓS
+        </div>
+        <nav className="nav">{TOGETHER.map(navButton)}</nav>
         <div className="group-label" style={{ marginTop: 24 }}>
           PLANEJAMENTO
         </div>

@@ -5,7 +5,7 @@ import { useState } from "react";
 import { categoriesFor } from "../../shared/categories";
 import { splitProportionally } from "../../shared/money";
 import type { HouseBill } from "../../shared/types";
-import { Avatar, Empty, ErrorBox, Heading, ModalHeader, Money, Panel, PeriodControl, Progress, Skeleton, Spinner } from "../components/ui";
+import { Avatar, Empty, ErrorBox, Heading, ModalHeader, Money, Panel, PeriodControl, Progress, Segmented, Skeleton, Spinner } from "../components/ui";
 import { api } from "../lib/api";
 import { addMonths, category, centsToInput, dayLabel, parseMoney } from "../lib/format";
 import { useData } from "../lib/useData";
@@ -23,8 +23,12 @@ function BillModal({ month }: { month: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [mode, setMode] = useState<"equal" | "income">("equal");
   const total = parseMoney(value) ?? 0;
-  const equal = total > 0 && chosen.length ? splitProportionally(total, chosen.map(() => 1)) : [];
+  // Proporcional à renda: só quando todos os escolhidos informaram (a família vê só a porcentagem)
+  const canProportional = chosen.length > 1 && chosen.every((id) => people.find((p) => p.id === id)?.splitBp);
+  const weights = chosen.map((id) => (mode === "income" && canProportional ? (people.find((p) => p.id === id)?.splitBp ?? 1) : 1));
+  const equal = total > 0 && chosen.length ? splitProportionally(total, weights) : [];
   const shares = chosen.map((id, i) => ({ profileId: id, amountCents: custom[id] !== undefined ? (parseMoney(custom[id]) ?? 0) : (equal[i] ?? 0) }));
   const sum = shares.reduce((s, x) => s + x.amountCents, 0);
 
@@ -70,6 +74,22 @@ function BillModal({ month }: { month: string }) {
             </option>
           ))}
         </select>
+      </div>
+      <div className="field">
+        <label>Como dividir</label>
+        <Segmented
+          value={canProportional ? mode : "equal"}
+          onChange={(m) => (setMode(m), setCustom({}))}
+          options={[
+            ["equal", "Partes iguais"],
+            ["income", "Proporcional à renda"],
+          ]}
+        />
+        {!canProportional && (
+          <span className="hint">
+            Para dividir pela renda, cada pessoa informa a dela em “Quem deve a quem” (ninguém vê o valor, só a porcentagem).
+          </span>
+        )}
       </div>
       <div className="field">
         <label>Quem divide</label>

@@ -109,6 +109,18 @@ import {
   wishToGoal,
 } from "./together.js";
 import { loadBasket, saveReceiptItems } from "./basket.js";
+import {
+  createAgreement,
+  createIou,
+  deleteAgreement,
+  deleteIou,
+  listAgreements,
+  listIous,
+  meetingAgenda,
+  saveMeeting,
+  setSplitIncome,
+  settleIous,
+} from "./between.js";
 
 type Ctx = { request: Request; url: URL; params: string[] };
 type Handler = (ctx: Ctx) => Promise<Response>;
@@ -222,15 +234,15 @@ route("POST", "auth/logout", async ({ request }) => {
 });
 
 async function loadMe(user: SessionUser): Promise<Me> {
-  const [household, members, accounts, pending, demo, notify] = await batch(
+  const [household, members, accounts, pending, demo, notify, agreement] = await batch(
     [
       q(`SELECT id, name, invite_code FROM households WHERE id = $1`, [user.household_id]),
       q(
-        `SELECT id, name, avatar_color, is_demo, role FROM profiles WHERE household_id = $1 ORDER BY is_demo, created_at, name, id`,
+        `SELECT id, name, avatar_color, is_demo, role, split_income_cents FROM profiles WHERE household_id = $1 ORDER BY is_demo, created_at, name, id`,
         [user.household_id],
       ),
       q(
-        `SELECT id, name, kind, institution, last4, active, last_synced_at, closing_day, due_day FROM financial_accounts
+        `SELECT id, name, kind, institution, last4, active, last_synced_at, closing_day, due_day, is_reserve FROM financial_accounts
           WHERE profile_id = $1 ORDER BY active DESC, created_at, name, id`,
         [user.id],
       ),
@@ -240,7 +252,8 @@ async function loadMe(user: SessionUser): Promise<Me> {
              OR EXISTS (SELECT 1 FROM profiles WHERE household_id = $2 AND is_demo) AS has_demo`,
         [user.id, user.household_id],
       ),
-      q(`SELECT notify_digest FROM profiles WHERE id = $1`, [user.id]),
+      q(`SELECT notify_digest, income_mode, self_salary_cents, ui_mode, split_income_cents FROM profiles WHERE id = $1`, [user.id]),
+      q(`SELECT min(limit_cents) AS limit_cents FROM agreements WHERE household_id = $1`, [user.household_id]),
     ],
     { readOnly: true },
   );
@@ -253,6 +266,10 @@ async function loadMe(user: SessionUser): Promise<Me> {
       avatarColor: user.avatar_color,
       digestHour: user.digest_hour,
       timezone: user.timezone,
+      incomeMode: (notify[0]?.income_mode as "fixed" | "variable") ?? "fixed",
+      selfSalaryCents: notify[0]?.self_salary_cents == null ? null : num(notify[0].self_salary_cents),
+      uiMode: (notify[0]?.ui_mode as "full" | "simple" | "kid") ?? "full",
+      hasSplitIncome: notify[0]?.split_income_cents != null,
     },
     household: {
       id: household[0].id as string,
@@ -265,7 +282,9 @@ async function loadMe(user: SessionUser): Promise<Me> {
         isDemo: Boolean(m.is_demo),
         role: m.role as "admin" | "member",
         isMe: m.id === user.id,
+        splitBp: splitBp(members, m),
       })),
+      agreementLimitCents: agreement[0]?.limit_cents == null ? null : num(agreement[0].limit_cents),
     },
     accounts: await withBalances(user, accounts),
     pendingCount: num(pending[0].n),
@@ -275,6 +294,13 @@ async function loadMe(user: SessionUser): Promise<Me> {
     hasDemoData: Boolean(demo[0].has_demo),
     today: todayKey(user.timezone),
   };
+}
+
+/** Parte de cada pessoa na divisão proporcional (pontos-base). A renda em si nunca sai do servidor. */
+function splitBp(members: Record<string, unknown>[], m: Record<string, unknown>) {
+  if (m.split_income_cents == null) return null;
+  const total = members.reduce((s, x) => s + (x.split_income_cents == null ? 0 : num(x.split_income_cents)), 0);
+  return total > 0 ? Math.round((num(m.split_income_cents) * 10000) / total) : null;
 }
 
 async function withBalances(user: SessionUser, rows: Record<string, unknown>[]) {
@@ -296,6 +322,7 @@ function mapAccount(a: Record<string, unknown>, balance: Pick<Account, "balanceC
     lastSyncedAt: a.last_synced_at ? new Date(a.last_synced_at as string).toISOString() : null,
     closingDay: (a.closing_day as number | null) ?? null,
     dueDay: (a.due_day as number | null) ?? null,
+    isReserve: Boolean(a.is_reserve),
   };
 }
 
@@ -660,7 +687,7 @@ route("POST", "accounts", async ({ request }) => {
     [
       user.id,
       str(body, "name", { max: 60, label: "nome da conta" }),
-      oneOf(body.kind, ["checking", "credit_card", "savings", "cash", "other"] as const, "tipo de conta"),
+      oneOf(body.kind, ["checking", "credit_card", "savings", "cash", "other", "benefit"] as const, "tipo de conta"),
       str(body, "institution", { max: 60, optional: true }),
       last4,
     ],
@@ -672,8 +699,8 @@ route("PATCH", "accounts/:id", async ({ request, params }) => {
   const user = await requireUser(request);
   const body = await readJson(request);
   const id = uuid(params[0]);
-  const current = await one<{ name: string; active: boolean; balance_cents: string | null; balance_on: string | null; closing_day: number | null; due_day: number | null }>(
-    `SELECT name, active, balance_cents, balance_on::text AS balance_on, closing_day, due_day FROM financial_accounts WHERE id = $1 AND profile_id = $2`,
+  const current = await one<{ name: string; active: boolean; balance_cents: string | null; balance_on: string | null; closing_day: number | null; due_day: number | null; is_reserve: boolean }>(
+    `SELECT name, active, balance_cents, balance_on::text AS balance_on, closing_day, due_day, is_reserve FROM financial_accounts WHERE id = $1 AND profile_id = $2`,
     [id, user.id],
   );
   if (!current) throw new HttpError(404, "Conta não encontrada");
@@ -692,7 +719,7 @@ route("PATCH", "accounts/:id", async ({ request, params }) => {
   const cardDay = (key: "closingDay" | "dueDay", currentValue: number | null) =>
     body[key] === undefined ? currentValue : body[key] === null ? null : int(body, key, 1, 31, key === "closingDay" ? "dia do fechamento" : "dia do vencimento");
   const row = await one(
-    `UPDATE financial_accounts SET name = $3, active = $4, balance_cents = $5, balance_on = $6, closing_day = $7, due_day = $8
+    `UPDATE financial_accounts SET name = $3, active = $4, balance_cents = $5, balance_on = $6, closing_day = $7, due_day = $8, is_reserve = $9
       WHERE id = $1 AND profile_id = $2 RETURNING *`,
     [
       id,
@@ -703,6 +730,7 @@ route("PATCH", "accounts/:id", async ({ request, params }) => {
       balanceOn,
       cardDay("closingDay", current.closing_day),
       cardDay("dueDay", current.due_day),
+      body.isReserve === undefined ? current.is_reserve : bool(body, "isReserve"),
     ],
   );
   return json((await withBalances(user, [row!]))[0]);
@@ -1184,6 +1212,74 @@ route("POST", "share/pix", async ({ request }) => {
     allocations: [],
   };
   return json({ proposal });
+});
+
+// ===========================================================================
+// Entre as pessoas da casa: acertos, divisão proporcional, combinados e reunião do mês
+
+route("GET", "ious", async ({ request }) => json(await listIous(await requireUser(request))));
+
+route("POST", "ious", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  await rateLimit(`ious:${user.id}`, 60, 60);
+  await createIou(user, {
+    otherId: uuid(body.otherId, "pessoa"),
+    owedToMe: bool(body, "owedToMe"),
+    amountCents: cents(body.amountCents),
+    description: str(body, "description", { max: 80, label: "descrição" })!,
+    occurredOn: body.occurredOn ? dateKey(body.occurredOn) : todayKey(user.timezone),
+  });
+  return json(await listIous(user), 201);
+});
+
+route("POST", "ious/settle", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  const settled = await settleIous(user, body.id ? { id: uuid(body.id) } : { otherId: uuid(body.otherId, "pessoa") });
+  return json({ settled, ...(await listIous(user)) });
+});
+
+route("DELETE", "ious/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await deleteIou(user, uuid(params[0]));
+  return json(await listIous(user));
+});
+
+route("PUT", "me/split-income", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  await setSplitIncome(user, body.amountCents === null ? null : cents(body.amountCents, "renda"));
+  return json(await loadMe(user));
+});
+
+route("GET", "agreements", async ({ request }) => json(await listAgreements(await requireUser(request))));
+
+route("POST", "agreements", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  const limit = body.limitCents === undefined || body.limitCents === null ? null : cents(body.limitCents, "limite");
+  await createAgreement(user, str(body, "text", { max: 200, label: "combinado" })!, limit);
+  return json(await listAgreements(user), 201);
+});
+
+route("DELETE", "agreements/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await deleteAgreement(user, uuid(params[0]));
+  return json(await listAgreements(user));
+});
+
+route("GET", "meeting", async ({ request, url }) => {
+  const user = await requireUser(request);
+  return json(await meetingAgenda(user, monthParam(url, currentMonth(user))));
+});
+
+route("PUT", "meeting", async ({ request, url }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  const month = monthParam(url, currentMonth(user));
+  await saveMeeting(user, month, str(body, "notes", { max: 4000, optional: true, label: "anotações" }) ?? "", body.held === true);
+  return json(await meetingAgenda(user, month));
 });
 
 // ===========================================================================

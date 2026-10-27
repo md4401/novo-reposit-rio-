@@ -30,6 +30,9 @@ import { SecurityPage } from "./pages/Security";
 import { IncomePage } from "./pages/Income";
 import { GuardianPage } from "./pages/Guardian";
 import { KidHomePage } from "./pages/KidHome";
+import { InstallmentsPage } from "./pages/Installments";
+import { SimulatorPage } from "./pages/Simulator";
+import { ShoppingPage } from "./pages/Shopping";
 import { SettingsPage } from "./pages/Settings";
 import { SharePage } from "./pages/Share";
 import { TagsPage } from "./pages/Tags";
@@ -79,6 +82,9 @@ export function App() {
     legado: <LegacyPage />,
     seguranca: <SecurityPage />,
     renda: <IncomePage />,
+    parcelar: <InstallmentsPage />,
+    momentos: <SimulatorPage />,
+    compras: <ShoppingPage />,
     acompanhar: <GuardianPage id={route.query.get("id") ?? ""} key={route.query.get("id")} />,
     compartilhar: <SharePage />,
     casa: <HouseBillsPage />,

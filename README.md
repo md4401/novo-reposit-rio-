@@ -48,6 +48,22 @@ marcar como *familiar*. Feito a partir do *Caderno de produto v0.3* (PDF do proj
 | **Compartilhar com o ninho** | Comprovante de Pix (imagem), nota fiscal ou texto do banco enviados pelo “Compartilhar” do celular viram proposta de lançamento. Widget e atalhos: “Nova despesa”, “Nia” e “Resumo”. |
 | **Cesta da família** | Os produtos das notas fiscais das compras da família ao longo dos meses: o que ficou mais caro ou mais barato. Só totais — nunca quem comprou nem onde; compras pessoais ficam de fora. |
 | **Nia (planejamento)** | Também responde sobre fatura, contas a pagar, saldo previsto, patrimônio e desafios — sem IA, com os números do banco. |
+| **Quem deve a quem** | “Paguei o mercado, você me deve metade”: saldo com cada pessoa, “acertar tudo” e pedido pelo WhatsApp. Só as duas pessoas envolvidas veem. |
+| **Divisão justa** | Contas da casa divididas na proporção da renda. Cada um informa a própria renda; a família vê só a porcentagem. |
+| **Combinados e reunião do mês** | Regras da casa (“acima de R$ 500 a gente conversa”, com lembrete ao lançar) e pauta pronta de 10 minutos com totais da família e as decisões anotadas. |
+| **Valores a receber** | Reembolso do plano/empresa, restituição, dinheiro emprestado: aviso quando atrasa e “Recebi” vira receita. |
+| **Custo dos bancos** | Tarifas, juros, IOF, anuidade e multas do ano, com dica para cortar cada um. |
+| **Benefícios e pontos** | VR/VA como conta; pontos, milhas e cashback com aviso 30 dias antes de vencer. Aviso de dinheiro parado na conta. |
+| **Reserva de emergência** | Quantos meses do custo essencial a reserva cobre (meta de 6, ou 12 para renda variável). |
+| **Documentos e garantias** | Garantias, seguros, contratos e documentos com foto e aviso antes de vencer; privados ou visíveis para a família. |
+| **E se eu faltar?** | Bilhete para uma pessoa de confiança (nunca senhas), liberado já ou só depois de N dias sem abrir o app. |
+| **Golpes e segurança** | Alerta de Pix alto para quem nunca recebeu e de compras pequenas em série (teste de cartão clonado), com dicas. |
+| **Renda variável e MEI** | “Salário para si mesmo” sugerido pelos meses fracos, simulação do colchão e lembretes de DAS, carnê-leão e INSS. |
+| **Modo simples e acompanhamento** | Letras maiores e poucas telas; com autorização, um filho acompanha totais, contas e alertas de golpe dos pais — nunca as compras. |
+| **Modo criança** | Quanto sobrou da mesada, cofrinhos com “Guardar” e desafios. |
+| **Parcelar ou à vista?** | Juro escondido do parcelado, comparação com o rendimento e o teto de 30% da renda em parcelas. |
+| **Grandes momentos** | Simulador de bebê, mudança, casamento, carro, faculdade, viagem e aposentadoria; vira meta da família. |
+| **Lista de compras** | Uma lista para a casa toda, com preço previsto pelas notas da cesta. |
 | **Privacidade** | Botão para ocultar valores, todas as consultas filtradas pelo dono, testes de isolamento. |
 
 ## Regras de dinheiro (garantidas no banco)

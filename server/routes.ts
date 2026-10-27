@@ -147,6 +147,7 @@ import {
   sharedLegacies,
   type DocumentInput,
 } from "./protection.js";
+import { addShoppingItem, clearChecked, deleteShoppingItem, planBase, planInsights, shoppingList, updateShoppingItem } from "./plans.js";
 import { addGuardian, guardianInfo, guardianSummary, incomeOverview, kidSummary, removeGuardian, setMemberMode } from "./care.js";
 
 type Ctx = { request: Request; url: URL; params: string[] };
@@ -410,7 +411,7 @@ route("GET", "overview", async ({ request, url }) => {
   const user = await requireUser(request);
   const month = monthParam(url, currentMonth(user));
   const today = todayKey(user.timezone);
-  const [family, mine, recent, alerts, budgets, due, invoices, extra, protection] = await Promise.all([
+  const [family, mine, recent, alerts, budgets, due, invoices, extra, protection, plans] = await Promise.all([
     familyNumbers(user, month, 7),
     personalNumbers(user, month, 2),
     listTransactions(user, { limit: 6 }),
@@ -420,6 +421,7 @@ route("GET", "overview", async ({ request, url }) => {
     cardInvoices(user, today),
     moneyInsights(user, today),
     protectionInsights(user, today),
+    planInsights(user, today),
   ]);
   const budgetSummary = summarize([...budgets.personal, ...budgets.family]);
   const insights: Insight[] = [];
@@ -434,7 +436,7 @@ route("GET", "overview", async ({ request, url }) => {
     });
   }
   // Golpe suspeito vem primeiro; depois o resto da proteção e do dinheiro esquecido
-  insights.push(...protection.filter((i) => i.page === "seguranca"), ...extra, ...protection.filter((i) => i.page !== "seguranca"));
+  insights.push(...protection.filter((i) => i.page === "seguranca"), ...extra, ...protection.filter((i) => i.page !== "seguranca"), ...plans);
   const invoiceDue = invoices.find((i) => i.status !== "future" && i.totalCents > 0 && daysBetweenKeys(today, i.dueOn) <= 5);
   if (invoiceDue)
     insights.push({
@@ -1527,6 +1529,46 @@ route("PUT", "household/members/:id/mode", async ({ request, params }) => {
 route("GET", "kid", async ({ request }) => {
   const user = await requireUser(request);
   return json(await kidSummary(user, todayKey(user.timezone)));
+});
+
+// ===========================================================================
+// Planejamento: base do simulador e lista de compras
+
+route("GET", "plan-base", async ({ request }) => {
+  const user = await requireUser(request);
+  return json(await planBase(user, todayKey(user.timezone)));
+});
+
+route("GET", "shopping", async ({ request }) => json(await shoppingList(await requireUser(request))));
+
+route("POST", "shopping", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  await rateLimit(`shopping:${user.id}`, 120, 60);
+  await addShoppingItem(user, str(body, "name", { max: 60, label: "item" })!, body.quantity === undefined ? 1 : int(body, "quantity", 1, 99, "quantidade"));
+  return json(await shoppingList(user), 201);
+});
+
+route("PATCH", "shopping/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  await updateShoppingItem(user, uuid(params[0]), {
+    checked: body.checked === undefined ? undefined : bool(body, "checked"),
+    quantity: body.quantity === undefined ? undefined : int(body, "quantity", 1, 99, "quantidade"),
+  });
+  return json(await shoppingList(user));
+});
+
+route("DELETE", "shopping/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await deleteShoppingItem(user, uuid(params[0]));
+  return json(await shoppingList(user));
+});
+
+route("POST", "shopping/clear", async ({ request }) => {
+  const user = await requireUser(request);
+  await clearChecked(user);
+  return json(await shoppingList(user));
 });
 
 // ===========================================================================

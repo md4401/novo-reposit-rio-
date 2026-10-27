@@ -1,5 +1,5 @@
 // Estrutura: menu lateral (computador) e barra inferior + gaveta (celular), como no protótipo.
-import { Activity, ArrowLeftRight, Banknote, Bell, Bot, Briefcase, CalendarClock, Eye, EyeOff, FileText, FolderLock, Gift, HandCoins, Handshake, HeartHandshake, House, Landmark, LifeBuoy, Lock, Menu, MessagesSquare, PiggyBank, Plus, Receipt, Repeat, Scale, Settings, ShieldAlert, ShoppingBasket, Sparkles, Tags, Target, Ticket, TrendingUp, Trophy, Users, Wallet } from "lucide-react";
+import { Activity, ArrowLeftRight, Banknote, Bell, Bot, Briefcase, Calculator, CalendarClock, Eye, EyeOff, FileText, FolderLock, Gift, HandCoins, Handshake, HeartHandshake, House, Landmark, LifeBuoy, ListChecks, Lock, Menu, MessagesSquare, Milestone, PiggyBank, Plus, Receipt, Repeat, Scale, Settings, ShieldAlert, ShoppingBasket, Sparkles, Tags, Target, Ticket, TrendingUp, Trophy, Users, Wallet } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { navigate } from "../lib/router";
 import { DigestModal } from "../modals/DigestModal";
@@ -16,6 +16,8 @@ const PLAN: NavItem[] = [
   { key: "patrimonio", label: "Patrimônio e dívidas", icon: <Scale size={17} /> },
   { key: "ir", label: "Imposto de Renda", icon: <FileText size={17} /> },
   { key: "renda", label: "Renda variável", icon: <Briefcase size={17} /> },
+  { key: "parcelar", label: "Parcelar ou à vista?", icon: <Calculator size={17} /> },
+  { key: "momentos", label: "Grandes momentos", icon: <Milestone size={17} /> },
 ];
 const MAIN: NavItem[] = [
   { key: "inicio", label: "Visão geral", icon: <House size={17} /> },
@@ -29,6 +31,7 @@ const MAIN: NavItem[] = [
 const TOGETHER: NavItem[] = [
   { key: "acertos", label: "Quem deve a quem", icon: <Handshake size={17} /> },
   { key: "reuniao", label: "Reunião do mês", icon: <MessagesSquare size={17} /> },
+  { key: "compras", label: "Lista de compras", icon: <ListChecks size={17} /> },
 ];
 const CARE: NavItem[] = [
   { key: "receber", label: "Valores a receber", icon: <HandCoins size={17} /> },
@@ -105,7 +108,9 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
     </button>
   );
 
-  const showFab = ["inicio", "meu", "transacoes"].includes(page);
+  // Na criança, o "Gastei" já fica na tela inicial
+  const showFab = ["inicio", "meu", "transacoes"].includes(page) && !(mode === "kid" && page === "inicio");
+  const bottom = mode === "kid" ? BOTTOM.map((n) => (n.key === "familia" ? { key: "metas", label: "Cofrinhos", icon: <PiggyBank size={20} /> } : n)) : BOTTOM;
 
   return (
     <div className={`app ${mode}`}>
@@ -221,7 +226,7 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
       )}
 
       <nav className="bottom-nav" aria-label="Navegação principal">
-        {BOTTOM.map((n) => (
+        {bottom.map((n) => (
           <button key={n.key} type="button" className={page === n.key ? "active" : ""} onClick={() => go(n.key)} aria-current={page === n.key ? "page" : undefined}>
             <span className="ic">{n.icon}</span>
             {n.label}

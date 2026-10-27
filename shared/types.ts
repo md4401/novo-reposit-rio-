@@ -573,3 +573,16 @@ export type KidSummary = {
   leftCents: number;
   goals: { id: string; name: string; icon: string; savedCents: number; targetCents: number }[];
 };
+
+export type PlanBase = {
+  /** Médias mensais dos últimos 3 meses completos (só da pessoa) */
+  incomeCents: number;
+  expenseCents: number;
+  /** Parcelas já previstas para o mês que vem */
+  installmentsCents: number;
+  /** Parcelas ÷ renda média (0,3 = 30%) */
+  installmentsRatio: number;
+};
+
+export type ShoppingItem = { id: string; name: string; quantity: number; checked: boolean; addedBy: string | null; estimateCents: number | null };
+export type ShoppingList = { items: ShoppingItem[]; estimateCents: number; unknownCount: number };

@@ -128,7 +128,7 @@ export function NewTransactionModal({
               <option value="auto">✨ Deixar o ninho sugerir</option>
               {options.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.icon} {c.name}
+                  {c.name}
                 </option>
               ))}
             </select>

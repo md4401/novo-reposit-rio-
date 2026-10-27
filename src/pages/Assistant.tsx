@@ -13,6 +13,7 @@ import { DigestModal } from "../modals/DigestModal";
 import { NewTransactionModal } from "../modals/NewTransactionModal";
 import { ReceiptModal } from "../modals/ReceiptModal";
 import { useApp } from "../state";
+import { CategoryIcon, Glyph } from "../components/icons";
 
 const QUICK = ["Quanto gastei este mês?", "O que falta classificar?", "Quais assinaturas estão ativas?", "Como está a família?", "Gastei 45 na farmácia"];
 const SAVED_KEY = "ninho.savedProposals";
@@ -61,7 +62,7 @@ function ProposalCard({ message, onSaved, saved }: { message: NiaMessage; saved:
       {p.allocations.map((a, i) => (
         <div className="proposal-row" key={i}>
           <span>
-            {category(a.categoryId).icon} {category(a.categoryId).name} · {a.scope === "family" ? "🏠 familiar" : "🔒 pessoal"}
+            <CategoryIcon id={a.categoryId} size={14} /> {category(a.categoryId).name} · {a.scope === "family" ? "familiar" : "pessoal"}
           </span>
           <span className="num">{formatMoney(a.amountCents)}</span>
         </div>
@@ -292,21 +293,21 @@ export function AssistantPage() {
           <Panel title="O que a Nia pode fazer?">
             <div className="insights">
               <div className="insight">
-                <span className="insight-ic">🎙️</span>
+                <span className="insight-ic"><Glyph emoji="🎙️" /></span>
                 <div>
                   <h4>Entender sua voz</h4>
                   <p>Toque no microfone e fale “comprei 80 de comida e 30 de limpeza no mercado”. Você confere o texto antes de enviar.</p>
                 </div>
               </div>
               <div className="insight">
-                <span className="insight-ic">📸</span>
+                <span className="insight-ic"><Glyph emoji="📸" /></span>
                 <div>
                   <h4>Ler notas fiscais</h4>
                   <p>{me?.aiEnabled ? "Transforma os produtos da foto em categorias." : "Exemplo simulado até configurar a chave de IA."}</p>
                 </div>
               </div>
               <div className="insight">
-                <span className="insight-ic">🧠</span>
+                <span className="insight-ic"><Glyph emoji="🧠" /></span>
                 <div>
                   <h4>Aprender com você</h4>
                   <p>Depois de 2 confirmações iguais, o estabelecimento vira regra automática (desligável).</p>

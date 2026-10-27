@@ -81,7 +81,7 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
           </div>
           <div className="top-right">
             {me?.hasDemoData && (
-              <button type="button" className="demo-pill" onClick={() => go("ajustes")} title="Dados fictícios para testar. Remova em Configurações.">
+              <button type="button" className="demo-pill" onClick={() => go("ajustes?aba=privacidade")} title="Dados fictícios para testar. Remova em Configurações.">
                 <span className="hide-mobile">● DADOS DE </span>EXEMPLO
               </button>
             )}

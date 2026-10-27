@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import type { Transaction } from "../../shared/types";
 import { formatMoney, initials, monthLabel } from "../lib/format";
 import { useApp } from "../state";
+import { Glyph } from "./icons";
 
 /** Valor em reais que respeita o botão "ocultar valores". */
 export function Money({ cents, sign, className }: { cents: number; sign?: "-" | "+"; className?: string }) {
@@ -150,7 +151,7 @@ export function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boo
 export function Empty({ icon, title, text, action }: { icon: ReactNode; title: string; text?: string; action?: ReactNode }) {
   return (
     <div className="empty">
-      <div style={{ fontSize: 30 }}>{icon}</div>
+      <div className="empty-ic">{typeof icon === "string" ? <Glyph emoji={icon} size={24} /> : icon}</div>
       <h3>{title}</h3>
       {text && <p>{text}</p>}
       {action}
@@ -181,7 +182,7 @@ export function DemoFlag() {
       <Info size={15} />
       <span>
         <b>Dados de exemplo:</b> valores fictícios para você testar o app. Quando quiser usar de verdade, remova em{" "}
-        <a href="#/ajustes">Configurações</a>.
+        <a href="#/ajustes?aba=privacidade">Configurações</a>.
       </span>
     </div>
   );

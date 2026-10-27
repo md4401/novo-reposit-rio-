@@ -5,6 +5,7 @@ import { relativeDays } from "../lib/format";
 import { useData } from "../lib/useData";
 import { ImportModal } from "../modals/AccountModals";
 import { useApp } from "../state";
+import { Glyph } from "../components/icons";
 
 const STATUS = {
   ok: { label: "Em dia", cls: "", color: "#2b8e65", icon: <Check size={18} /> },
@@ -117,28 +118,28 @@ export function HealthPage() {
               <Panel title="Como interpretar os dados?">
                 <div className="insights">
                   <div className="insight">
-                    <span className="insight-ic">🔄</span>
+                    <span className="insight-ic"><Glyph emoji="🔄" /></span>
                     <div>
                       <h4>Atualização</h4>
                       <p>Há quanto tempo cada conta trouxe dados novos. Mais de 7 dias = desatualizada.</p>
                     </div>
                   </div>
                   <div className="insight">
-                    <span className="insight-ic">🧩</span>
+                    <span className="insight-ic"><Glyph emoji="🧩" /></span>
                     <div>
                       <h4>Cobertura</h4>
                       <p>Quantas das suas contas estão sendo acompanhadas. Conta fora do ninho = total incompleto.</p>
                     </div>
                   </div>
                   <div className="insight">
-                    <span className="insight-ic">🏷️</span>
+                    <span className="insight-ic"><Glyph emoji="🏷️" /></span>
                     <div>
                       <h4>Classificação</h4>
                       <p>Quanto do mês já tem categoria. Pendências entram nos totais como “A confirmar”.</p>
                     </div>
                   </div>
                   <div className="insight">
-                    <span className="insight-ic">🔍</span>
+                    <span className="insight-ic"><Glyph emoji="🔍" /></span>
                     <div>
                       <h4>Reconciliação</h4>
                       <p>Importar o mesmo extrato de novo não duplica nada; cobranças iguais e próximas viram suspeita para você conferir.</p>

@@ -8,6 +8,7 @@ import { api, apiBlobUrl } from "../lib/api";
 import { useData } from "../lib/useData";
 import { category, centsToInput, dayLabel, formatMoney, parseMoney } from "../lib/format";
 import { useApp } from "../state";
+import { CategoryIcon } from "../components/icons";
 
 type Row = { categoryId: string; value: string; scope: Scope };
 
@@ -207,8 +208,8 @@ export function OrganizeModal({ transaction: t }: { transaction: Transaction }) 
               <span className="field-label">Toque para classificar de uma vez:</span>
               <div className="quick-cats">
                 {(direction === "income" ? ["salario", "renda-extra", "reembolso", "outras-receitas"] : QUICK).map((id) => (
-                  <button key={id} type="button" onClick={() => update(0, { categoryId: id })} style={rows[0].categoryId === id ? { background: "#e2f3df", borderColor: "#9fd09a" } : undefined}>
-                    {category(id).icon} {category(id).name}
+                  <button key={id} type="button" onClick={() => update(0, { categoryId: id })} style={rows[0].categoryId === id ? { background: "var(--tint)", borderColor: "var(--green2)" } : undefined}>
+                    <CategoryIcon id={id} size={14} /> {category(id).name}
                   </button>
                 ))}
               </div>
@@ -223,7 +224,7 @@ export function OrganizeModal({ transaction: t }: { transaction: Transaction }) 
               <select aria-label={`Categoria ${i + 1}`} value={r.categoryId} onChange={(e) => update(i, { categoryId: e.target.value })}>
                 {options.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.icon} {c.name}
+                    {c.name}
                   </option>
                 ))}
               </select>
@@ -250,7 +251,7 @@ export function OrganizeModal({ transaction: t }: { transaction: Transaction }) 
           <div className={`alloc-total ${ok ? "" : "bad"}`}>
             <div>
               <b>Total distribuído</b>
-              <div style={{ fontSize: 12, color: ok ? "#4f7d58" : "#a24b44" }}>
+              <div style={{ fontSize: 12, color: ok ? "var(--green-ink)" : "var(--red)" }}>
                 {ok ? "✓ Valores conferidos" : `${totalCents - sum > 0 ? "Faltam" : "Sobram"} ${formatMoney(Math.abs(totalCents - sum))}`}
               </div>
             </div>

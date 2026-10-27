@@ -17,7 +17,7 @@ export function DigestModal() {
         title="Seu resumo diário"
         subtitle={`Olá, ${me?.profile.name.split(" ")[0] ?? ""}! Revise tudo de uma vez, sem uma notificação a cada compra.`}
       />
-      <div className="panel" style={{ background: "#f7faf6", boxShadow: "none", padding: 15 }}>
+      <div className="panel" style={{ background: "var(--soft)", boxShadow: "none", padding: 15 }}>
         <div className="eyebrow" style={{ marginBottom: 2 }}>
           Compras aguardando revisão
         </div>

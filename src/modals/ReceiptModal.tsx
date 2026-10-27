@@ -124,7 +124,7 @@ export function ReceiptModal() {
         </div>
       )}
       {items.length > 0 && (
-        <div style={{ marginTop: 16, background: "#eaf7e9", border: "1px solid #d6edd6", padding: 14, borderRadius: 12 }}>
+        <div style={{ marginTop: 16, background: "var(--tint)", border: "1px solid var(--line-strong)", padding: 14, borderRadius: 12 }}>
           <strong>
             <Sparkles size={14} style={{ verticalAlign: -2 }} /> {example ? "Exemplo de resultado (não foi lido da sua foto)" : `Itens lidos${reading?.merchant ? ` · ${reading.merchant}` : ""}`}
           </strong>
@@ -140,7 +140,7 @@ export function ReceiptModal() {
             </tbody>
           </table>
           <div style={{ fontWeight: 800, marginTop: 10 }}>Total: {formatMoney(total)}</div>
-          {itemsSum !== total && <div className="small" style={{ color: "#8e3f3b" }}>A soma dos itens ({formatMoney(itemsSum)}) não bate com o total da nota: confira antes de salvar.</div>}
+          {itemsSum !== total && <div className="small" style={{ color: "var(--red)" }}>A soma dos itens ({formatMoney(itemsSum)}) não bate com o total da nota: confira antes de salvar.</div>}
           {reading?.match && (
             <div className="small" style={{ marginTop: 8 }}>
               Encontrei a compra <b>{reading.match.description}</b> de {dayLabel(reading.match.occurredOn)} com o mesmo valor. Vincular só detalha as categorias — não cria outra despesa.

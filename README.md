@@ -35,6 +35,7 @@ marcar como *familiar*. Feito a partir do *Caderno de produto v0.3* (PDF do proj
 | **Sem internet** | Lançamentos feitos offline ficam no aparelho e são enviados quando a conexão volta, sem duplicar. |
 | **Notas guardadas** | A foto da nota fiscal (comprimida no celular) fica guardada com a compra, visível só para o dono. |
 | **Privacidade** | Botão para ocultar valores, todas as consultas filtradas pelo dono, testes de isolamento. |
+| **Primeiros passos e tema** | Guia na tela inicial para quem acabou de chegar (conta, movimentações, família, orçamento, meta). Tema claro, escuro ou automático (Configurações → App). |
 
 ## Regras de dinheiro (garantidas no banco)
 
@@ -89,7 +90,7 @@ npm test                    # testes
 
 - **Vercel** (projeto `novo-reposit-rio` → https://ninho-financas-familia.vercel.app): importado deste repositório; cada `git push` na `main` publica. Variáveis: `DATABASE_URL` (obrigatória) e, se quiser IA, `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL` (ver `.env.example`).
 - **Banco**: projeto `ninho` no Neon (região São Paulo). `npm run db:migrate` aplica as migrations.
-- **APK**: `public/download/ninho.apk` (baixável em `/download/ninho.apk` e em Configurações → App Android). O GitHub Actions (`.github/workflows/android.yml`) compila o app a cada mudança; o APK de produção é gerado manualmente (*Run workflow*), assinado com a chave guardada nos secrets, e vira um rascunho de *Release*. O APK abre o site publicado, então atualizações do site chegam sem reinstalar; só é preciso gerar outro APK se mudar algo do Android (ícone, permissões, endereço).
+- **APK**: `public/download/ninho.apk` (baixável em `/download/ninho.apk` e em Configurações → App). O GitHub Actions (`.github/workflows/android.yml`) compila o app a cada mudança; o APK de produção é gerado manualmente (*Run workflow*), assinado com a chave guardada nos secrets, e vira um rascunho de *Release*. O APK abre o site publicado, então atualizações do site chegam sem reinstalar; só é preciso gerar outro APK se mudar algo do Android (ícone, permissões, endereço).
 
 ### Gerar o APK no computador
 

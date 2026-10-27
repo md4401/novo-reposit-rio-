@@ -10,6 +10,7 @@ import { useData } from "../lib/useData";
 import { DigestModal } from "../modals/DigestModal";
 import { MonthReportModal } from "../modals/MonthReportModal";
 import { useApp } from "../state";
+import { Glyph } from "../components/icons";
 
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
@@ -165,7 +166,7 @@ export function HomePage() {
                       className="insight"
                       onClick={() => (i.id === "pending" ? openModal(<DigestModal />) : i.page ? navigate(i.page) : undefined)}
                     >
-                      <span className="insight-ic">{i.icon}</span>
+                      <span className="insight-ic"><Glyph emoji={i.icon} /></span>
                       <div>
                         <h4>{i.title}</h4>
                         <p>{i.text}</p>

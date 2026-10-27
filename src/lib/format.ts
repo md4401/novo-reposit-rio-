@@ -16,12 +16,6 @@ export function txCategoryLabel(t: Transaction) {
   return category(t.allocations[0].categoryId).name;
 }
 
-export function txIcon(t: Transaction) {
-  if (t.allocations.length === 0) return "❔";
-  const main = [...t.allocations].sort((a, b) => b.amountCents - a.amountCents)[0];
-  return category(main.categoryId).icon;
-}
-
 export function txScope(t: Transaction): "family" | "personal" | "mixed" | null {
   if (t.allocations.length === 0) return null;
   const scopes = new Set(t.allocations.map((a) => a.scope));

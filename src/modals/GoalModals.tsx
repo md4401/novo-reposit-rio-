@@ -43,7 +43,7 @@ export function NewGoalModal() {
         <span className="field-label">Ícone</span>
         <div className="quick-cats">
           {ICONS.map((i) => (
-            <button key={i} type="button" onClick={() => setIcon(i)} style={i === icon ? { background: "#e2f3df", borderColor: "#9fd09a" } : undefined} aria-label={`Ícone ${i}`}>
+            <button key={i} type="button" onClick={() => setIcon(i)} style={i === icon ? { background: "var(--tint)", borderColor: "var(--green2)" } : undefined} aria-label={`Ícone ${i}`}>
               {i}
             </button>
           ))}

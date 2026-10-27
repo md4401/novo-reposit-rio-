@@ -8,6 +8,7 @@ import { api } from "../lib/api";
 import { category, centsToInput, parseMoney } from "../lib/format";
 import { useData } from "../lib/useData";
 import { useApp } from "../state";
+import { CategoryIcon } from "../components/icons";
 
 function BudgetModal({ scope, budget, month }: { scope: "personal" | "family"; budget?: Budget; month: string }) {
   const { toast, closeModal } = useApp();
@@ -43,7 +44,7 @@ function BudgetModal({ scope, budget, month }: { scope: "personal" | "family"; b
         <select id="b-cat" value={categoryId} disabled={Boolean(budget)} onChange={(e) => setCategoryId(e.target.value)}>
           {categoriesFor("expense").map((c) => (
             <option key={c.id} value={c.id}>
-              {c.icon} {c.name}
+              {c.name}
             </option>
           ))}
         </select>
@@ -78,7 +79,7 @@ function BudgetRow({ b, editable, month }: { b: Budget; editable: boolean; month
     <div className="budget-row">
       <div className="budget-top">
         <span className="budget-name">
-          {c.icon} {c.name}
+          <CategoryIcon id={c.id} size={16} /> {c.name}
         </span>
         <span className={`chip ${b.ratio > 1 ? "red" : b.ratio >= 0.8 ? "amber" : "green"}`}>{Math.round(b.ratio * 100)}%</span>
       </div>

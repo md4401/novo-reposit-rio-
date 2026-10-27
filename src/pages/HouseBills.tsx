@@ -10,6 +10,7 @@ import { api } from "../lib/api";
 import { addMonths, category, centsToInput, dayLabel, parseMoney } from "../lib/format";
 import { useData } from "../lib/useData";
 import { useApp } from "../state";
+import { CategoryBadge } from "../components/icons";
 
 function BillModal({ month }: { month: string }) {
   const { me, toast, closeModal } = useApp();
@@ -66,7 +67,7 @@ function BillModal({ month }: { month: string }) {
         <select id="hb-cat" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
           {categoriesFor("expense").map((c) => (
             <option key={c.id} value={c.id}>
-              {c.icon} {c.name}
+              {c.name}
             </option>
           ))}
         </select>
@@ -134,7 +135,7 @@ function BillCard({ bill, month }: { bill: HouseBill; month: string }) {
   return (
     <Panel>
       <div className="bill-head">
-        <span className="insight-ic">{c.icon}</span>
+        <CategoryBadge id={c.id} size={36} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <h3>{bill.name}</h3>
           <p className="muted small">Vence {dayLabel(bill.dueOn)} · {c.name}</p>

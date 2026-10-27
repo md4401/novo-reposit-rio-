@@ -3,6 +3,7 @@ import type { CategoryTotal, SeriesPoint } from "../../shared/types";
 import { category, formatMoneyShort, monthShort } from "../lib/format";
 import { useApp } from "../state";
 import { Money } from "./ui";
+import { CategoryIcon } from "./icons";
 
 export function IncomeExpenseBars({ series, current }: { series: SeriesPoint[]; current: string }) {
   const max = Math.max(1, ...series.flatMap((p) => [p.incomeCents, p.expenseCents]));
@@ -21,7 +22,7 @@ export function IncomeExpenseBars({ series, current }: { series: SeriesPoint[]; 
       </div>
       <div className="legend">
         <span>
-          <i className="dot" style={{ background: "#e4efdf" }} /> Receitas
+          <i className="dot" style={{ background: "var(--bar-income)" }} /> Receitas
         </span>
         <span>
           <i className="dot" style={{ background: "#438469" }} /> Despesas
@@ -38,7 +39,7 @@ export function CategoryDonut({ categories }: { categories: CategoryTotal[] }) {
   const total = items.reduce((s, c) => s + c.cents, 0);
   const top = items.slice(0, 3).map((c) => ({ name: category(c.categoryId).name, color: category(c.categoryId).color, cents: c.cents }));
   const rest = items.slice(3).reduce((s, c) => s + c.cents, 0);
-  if (rest > 0) top.push({ name: "Outras", color: "#e4eadf", cents: rest });
+  if (rest > 0) top.push({ name: "Outras", color: "var(--bar-income)", cents: rest });
   let acc = 0;
   const stops = top
     .map((t) => {
@@ -79,7 +80,7 @@ export function CategoryBars({ categories, limit }: { categories: CategoryTotal[
         return (
           <div className="cat-item" key={c.categoryId}>
             <span className="emoji" aria-hidden="true">
-              {cat.icon}
+              <CategoryIcon id={cat.id} size={16} />
             </span>
             <label>{cat.name}</label>
             <div className="progress">

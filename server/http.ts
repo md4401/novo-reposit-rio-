@@ -10,24 +10,46 @@ export class HttpError extends Error {
   }
 }
 
-const CORS = {
-  // A API usa token no cabeçalho Authorization (sem cookies): liberar a origem é seguro
-  // e permite o app Android (Capacitor) chamar a API.
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS",
-  "Access-Control-Allow-Headers": "Authorization,Content-Type",
-  "Access-Control-Max-Age": "86400",
-};
+// O site, o app instalado e o APK (que abre o site publicado) chamam a API na mesma origem:
+// CORS só é liberado para origens listadas em ALLOWED_ORIGINS (ex.: um front em outro domínio).
+export function allowedOrigin(origin: string | null, allowList = process.env.ALLOWED_ORIGINS ?? "") {
+  if (!origin) return null;
+  const allowed = allowList.split(",").map((o) => o.trim().replace(/\/$/, "")).filter(Boolean);
+  return allowed.includes(origin) ? origin : null;
+}
+
+export function withCors(response: Response, request: Request) {
+  const origin = allowedOrigin(request.headers.get("origin"));
+  response.headers.append("Vary", "Origin");
+  if (origin) {
+    response.headers.set("Access-Control-Allow-Origin", origin);
+    response.headers.set("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS");
+    response.headers.set("Access-Control-Allow-Headers", "Authorization,Content-Type");
+    response.headers.set("Access-Control-Max-Age", "86400");
+  }
+  return response;
+}
 
 export function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...CORS },
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      // Respostas são dados pessoais: nunca em cache (navegador, CDN ou service worker)
+      "Cache-Control": "no-store, private",
+      "X-Content-Type-Options": "nosniff",
+    },
   });
 }
 
 export function preflight() {
-  return new Response(null, { status: 204, headers: CORS });
+  return new Response(null, { status: 204 });
+}
+
+/** Log de erro sem dados pessoais: só tipo, código e mensagem curta (sem parâmetros/detalhes). */
+export function logError(error: unknown) {
+  const e = error as { name?: string; code?: string; message?: string };
+  console.error(`[api] ${e?.name ?? "Error"}${e?.code ? ` ${e.code}` : ""}: ${String(e?.message ?? error).slice(0, 300)}`);
 }
 
 export type Body = Record<string, unknown>;
@@ -102,6 +124,8 @@ export function cents(value: unknown, label = "valor") {
   return n;
 }
 
+// Na Vercel, x-real-ip / x-vercel-forwarded-for são definidos pela própria plataforma.
 export function clientIp(request: Request) {
-  return (request.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "local";
+  const h = request.headers;
+  return (h.get("x-real-ip") ?? h.get("x-vercel-forwarded-for") ?? h.get("x-forwarded-for") ?? "").split(",")[0].trim() || "local";
 }

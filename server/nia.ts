@@ -12,6 +12,7 @@ import { loadAlerts } from "./alerts.js";
 import type { SessionUser } from "./auth.js";
 import { batch, num, q, query } from "./db.js";
 import { familyNumbers, listGoals, personalNumbers } from "./finance.js";
+import { logError } from "./http.js";
 
 export const WELCOME =
   "Oi! 👋 Sou a Nia, sua assistente financeira. Posso explicar seus gastos, revisar o que ficou pendente e " +
@@ -228,7 +229,7 @@ export async function askNia(user: SessionUser, message: string): Promise<NiaMes
         const answer = await niaAnswer(message, moneyForAi(ctx), history);
         if (answer) reply = answer;
       } catch (error) {
-        console.error("IA indisponível, usando regras", error);
+        logError(error); // IA indisponível: segue sem ela
       }
     }
   }

@@ -11,6 +11,7 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         // O WebView não baixa arquivos: entrega o download (ex.: APK novo) ao navegador.
         getBridge().getWebView().setDownloadListener((url, userAgent, contentDisposition, mimetype, length) -> {
+            if (url == null || !url.startsWith("https://")) return; // só downloads seguros
             try {
                 startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
             } catch (Exception ignored) {

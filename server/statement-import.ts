@@ -8,7 +8,7 @@ import { aiEnabled, classifyManyWithAi } from "./ai.js";
 import { classifyWith, loadClassifier } from "./classify.js";
 import { batch, one, q, query } from "./db.js";
 import { NO_ACCOUNT } from "./finance.js";
-import { HttpError } from "./http.js";
+import { HttpError, logError } from "./http.js";
 import { ImportError, parseStatement } from "./importers.js";
 
 export async function importStatement(
@@ -90,7 +90,7 @@ export async function importStatement(
           }
         }
       } catch (error) {
-        console.error("IA indisponível na importação; linhas ficam pendentes", error);
+        logError(error); // IA indisponível: segue sem ela
       }
     }
     const [inserted] = await batch([

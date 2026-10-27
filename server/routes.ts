@@ -54,12 +54,14 @@ import {
   HttpError,
   int,
   json,
+  logError,
   monthParam,
   oneOf,
   preflight,
   readJson,
   str,
   uuid,
+  withCors,
 } from "./http.js";
 import { askNia, listMessages } from "./nia.js";
 import { importStatement } from "./statement-import.js";
@@ -159,11 +161,16 @@ route("POST", "auth/login", async ({ request }) => {
     `SELECT id, password_hash FROM profiles WHERE lower(email) = $1 AND NOT is_demo`,
     [email],
   );
-  if (!profile || !(await verifyPassword(password, profile.password_hash)))
+  // Sem conta: compara com um hash falso para o tempo de resposta não revelar quais e-mails existem
+  const valid = await verifyPassword(password, profile ? profile.password_hash : await dummyHash());
+  if (!profile || !valid)
     throw new HttpError(401, "E-mail ou senha incorretos");
   const token = await createSession(profile.id, request.headers.get("user-agent"));
   return json({ token });
 });
+
+let dummy: Promise<string> | null = null;
+const dummyHash = () => (dummy ??= hashPassword("conta-inexistente"));
 
 route("POST", "auth/logout", async ({ request }) => {
   await endSession(request);
@@ -393,6 +400,7 @@ route("GET", "transactions", async ({ request, url }) => {
 route("POST", "transactions", async ({ request }) => {
   const user = await requireUser(request);
   const body = await readJson(request);
+  await rateLimit(`tx:${user.id}`, 120, 10); // cada lançamento sem categoria pode consultar a IA
   const description = str(body, "description", { max: 120, label: "descrição" })!;
   const amountCents = cents(body.amountCents);
   const direction = oneOf(body.direction ?? "expense", ["expense", "income", "transfer"] as const, "tipo");
@@ -762,7 +770,7 @@ route("POST", "nia/transcribe", async ({ request }) => {
     return json({ text });
   } catch (error) {
     if (error instanceof HttpError) throw error;
-    console.error(error);
+    logError(error);
     throw new HttpError(502, "A transcrição não respondeu agora. Tente de novo ou digite.");
   }
 });
@@ -808,7 +816,7 @@ route("POST", "nia/receipt", async ({ request }) => {
 
 // ===========================================================================
 
-export async function handle(request: Request): Promise<Response> {
+async function dispatch(request: Request): Promise<Response> {
   if (request.method === "OPTIONS") return preflight();
   const url = new URL(request.url);
   // Na Vercel o vercel.json reescreve /api/<rota> para /api/router?route=<rota>.
@@ -823,8 +831,12 @@ export async function handle(request: Request): Promise<Response> {
     throw new HttpError(404, "Rota não encontrada");
   } catch (error) {
     if (error instanceof HttpError) return json({ error: error.message }, error.status);
-    console.error(error);
+    logError(error);
     return json({ error: "Algo deu errado do nosso lado. Tente de novo em instantes." }, 500);
   }
+}
+
+export async function handle(request: Request): Promise<Response> {
+  return withCors(await dispatch(request), request);
 }
 

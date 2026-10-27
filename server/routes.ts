@@ -24,6 +24,7 @@ import { parseExpenseStatement } from "../shared/parse-expense.js";
 import { aiEnabled, readPixWithAi, readReceiptWithAi, transcribe, transcriptionEnabled } from "./ai.js";
 import { captureNotifications } from "./capture.js";
 import { loadAlerts } from "./alerts.js";
+import { INSIGHT_PRIORITY, rankInsights } from "./insights.js";
 import {
   audit,
   createSession,
@@ -108,7 +109,7 @@ import {
   toggleVote,
   wishToGoal,
 } from "./together.js";
-import { loadBasket, saveReceiptItems } from "./basket.js";
+import { loadBasket, pruneBasketItems, saveReceiptItems } from "./basket.js";
 
 type Ctx = { request: Request; url: URL; params: string[] };
 type Handler = (ctx: Ctx) => Promise<Response>;
@@ -372,10 +373,12 @@ route("GET", "overview", async ({ request, url }) => {
     cardInvoices(user, today),
   ]);
   const budgetSummary = summarize([...budgets.personal, ...budgets.family]);
-  const insights: Insight[] = [];
+  // Cada aviso entra com a sua urgência; só os 3 mais urgentes aparecem (dica nunca esconde alerta)
+  const ranked: { item: Insight; priority: number }[] = [];
+  const add = (priority: number, item: Insight) => ranked.push({ item, priority });
   if (due.length) {
     const first = due[0];
-    insights.push({
+    add(due.some((p) => p.status === "overdue" || p.daysLeft === 0) ? INSIGHT_PRIORITY.urgent : INSIGHT_PRIORITY.dueSoon, {
       id: "payables",
       icon: first.status === "overdue" ? "🚨" : "📅",
       title: due.length === 1 ? `${first.name}: ${first.status === "overdue" ? "venceu" : first.daysLeft === 0 ? "vence hoje" : `vence em ${first.daysLeft} dia(s)`}` : `${due.length} contas vencendo`,
@@ -385,15 +388,15 @@ route("GET", "overview", async ({ request, url }) => {
   }
   const invoiceDue = invoices.find((i) => i.status !== "future" && i.totalCents > 0 && daysBetweenKeys(today, i.dueOn) <= 5);
   if (invoiceDue)
-    insights.push({
+    add(INSIGHT_PRIORITY.dueSoon, {
       id: `invoice-${invoiceDue.accountId}`,
       icon: "💳",
       title: `Fatura ${invoiceDue.accountName}: ${formatMoney(invoiceDue.totalCents)}`,
       text: `Vence ${invoiceDue.dueOn.slice(8, 10)}/${invoiceDue.dueOn.slice(5, 7)}${invoiceDue.status === "open" ? " (ainda aberta)" : ""}.`,
       page: "pagar",
     });
-  if (["11", "12"].includes(today.slice(5, 7)) && insights.length < 3)
-    insights.push({
+  if (["11", "12"].includes(today.slice(5, 7)))
+    add(INSIGHT_PRIORITY.info, {
       id: "decimo-terceiro",
       icon: "🎁",
       title: "13º salário chegando",
@@ -402,7 +405,7 @@ route("GET", "overview", async ({ request, url }) => {
     });
   const overBudget = [...budgets.personal, ...budgets.family].sort((a, b) => b.ratio - a.ratio)[0];
   if (overBudget && overBudget.ratio >= 0.8)
-    insights.push({
+    add(overBudget.ratio > 1 ? INSIGHT_PRIORITY.overBudget : INSIGHT_PRIORITY.nearBudget, {
       id: `budget-${overBudget.id}`,
       icon: overBudget.ratio > 1 ? "🚨" : "⚠️",
       title: `${CATEGORY_BY_ID.get(overBudget.categoryId)?.name ?? "Categoria"}: ${Math.round(overBudget.ratio * 100)}% do orçamento${overBudget.scope === "family" ? " da casa" : ""}`,
@@ -410,17 +413,19 @@ route("GET", "overview", async ({ request, url }) => {
       page: "orcamento",
     });
   if (mine.counts.pending > 0)
-    insights.push({
+    add(INSIGHT_PRIORITY.pending, {
       id: "pending",
       icon: "📌",
       title: `${mine.counts.pending} compra${mine.counts.pending > 1 ? "s" : ""} para revisar`,
       text: "Classifique tudo de uma vez no resumo diário. Dá para dividir uma compra em várias categorias.",
       page: "transacoes?filtro=pendentes",
     });
-  const alert = alerts.alerts[0];
-  if (alert) insights.push({ id: alert.key, icon: alert.type === "increase" ? "📈" : alert.type === "duplicate" ? "🔁" : "⚠️", title: alert.title, text: alert.text, page: "alertas" });
-  if (alerts.commitments.totalCents > 0 && insights.length < 2)
-    insights.push({
+  // Cobrança duplicada é mais urgente que aumento de preço ou gasto fora do padrão
+  const alert = alerts.alerts.find((x) => x.type === "duplicate") ?? alerts.alerts[0];
+  if (alert)
+    add(alert.type === "duplicate" ? INSIGHT_PRIORITY.duplicate : INSIGHT_PRIORITY.attention, { id: alert.key, icon: alert.type === "increase" ? "📈" : alert.type === "duplicate" ? "🔁" : "⚠️", title: alert.title, text: alert.text, page: "alertas" });
+  if (alerts.commitments.totalCents > 0)
+    add(INSIGHT_PRIORITY.info, {
       id: "commitments",
       icon: "🗓️",
       title: `${formatMoney(alerts.commitments.totalCents)} já comprometidos em ${monthLabel(alerts.commitments.month).split(" ")[0]}`,
@@ -428,7 +433,7 @@ route("GET", "overview", async ({ request, url }) => {
       page: "alertas",
     });
   if (alerts.recurring.length)
-    insights.push({
+    add(INSIGHT_PRIORITY.info, {
       id: "recurring",
       icon: "🔄",
       title: `${alerts.recurring.length} cobranças recorrentes`,
@@ -436,9 +441,9 @@ route("GET", "overview", async ({ request, url }) => {
       page: "alertas",
     });
   const previous = mine.series[0]?.expenseCents ?? 0;
-  if (previous > 0 && insights.length < 3) {
+  if (previous > 0) {
     const diff = Math.round(((mine.totals.expenseCents - previous) / previous) * 100);
-    insights.push({
+    add(INSIGHT_PRIORITY.info, {
       id: "trend",
       icon: diff <= 0 ? "🌱" : "🧭",
       title: diff <= 0 ? "Gastos sob controle" : "Gastos acima do mês passado",
@@ -446,7 +451,7 @@ route("GET", "overview", async ({ request, url }) => {
       page: "meu",
     });
   }
-  insights.push({
+  add(INSIGHT_PRIORITY.filler, {
     id: "privacy",
     icon: "🔒",
     title: "Sua privacidade está protegida",
@@ -460,7 +465,7 @@ route("GET", "overview", async ({ request, url }) => {
     mine: mine.totals,
     pendingCount: mine.counts.pending,
     recent,
-    insights: insights.slice(0, 3),
+    insights: rankInsights(ranked, 3),
     dataWarning: family.dataWarning,
     budgets: budgetSummary,
     // Nos 7 primeiros dias do mês atual, oferece o fechamento do mês anterior
@@ -615,6 +620,7 @@ route("PATCH", "transactions/:id", async ({ request, params }) => {
     throw error;
   }
   await audit(user.id, "transaction.updated", "transaction", tx.id, { allocations: allocations?.length ?? null, ignored });
+  if (allocations || ignored !== tx.ignored) await pruneBasketItems(user, tx.id);
 
   if (body.taxDeductible !== undefined)
     await query(`UPDATE transactions SET tax_deductible = $3 WHERE id = $1 AND profile_id = $2`, [
@@ -650,6 +656,7 @@ route("DELETE", "transactions/:id", async ({ request, params }) => {
   if (tx.source === "csv" || tx.source === "ofx") {
     // Importadas nunca somem: ficam ignoradas (e não voltam ao reimportar o extrato)
     await query(`UPDATE transactions SET ignored = true, updated_at = now() WHERE id = $1 AND profile_id = $2`, [tx.id, user.id]);
+    await pruneBasketItems(user, tx.id);
   } else {
     await query(`DELETE FROM transactions WHERE id = $1 AND profile_id = $2`, [tx.id, user.id]);
   }

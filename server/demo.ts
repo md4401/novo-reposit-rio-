@@ -36,6 +36,19 @@ function prng(seed: string) {
   };
 }
 
+/** Dias de fechamento e vencimento do cartão de exemplo (1 a 28, para valer em qualquer mês). */
+function cardDays(today: string) {
+  const dueDay = Math.min(28, Number(addDays(today, 4).slice(8, 10)));
+  return { closing_day: ((dueDay + 20) % 28) + 1, due_day: dueDay };
+}
+
+/** Próxima data (a partir de hoje) com esse dia do mês. */
+function nextDay(today: string, day: number) {
+  const month = monthOf(today);
+  const key = `${month}-${String(Math.min(day, daysInMonth(month))).padStart(2, "0")}`;
+  return key >= today ? key : `${addMonths(month, 1)}-${String(Math.min(day, daysInMonth(addMonths(month, 1)))).padStart(2, "0")}`;
+}
+
 export async function seedDemo(user: SessionUser, opts: { withMembers: boolean }) {
   const rand = prng(user.id);
   const between = (min: number, max: number) => Math.round((min + rand() * (max - min)) / 10) * 10; // centavos "redondos"
@@ -91,7 +104,8 @@ export async function seedDemo(user: SessionUser, opts: { withMembers: boolean }
   const savings = randomUUID();
   const accounts = [
     { id: checking, profile_id: me, name: "Conta corrente", kind: "checking", institution: "Banco Exemplo", last4: "0193", hours: 2 },
-    { id: card, profile_id: me, name: "Cartão de crédito", kind: "credit_card", institution: "Banco Exemplo", last4: "4821", hours: 74 },
+    // Fechamento uma semana antes do vencimento, que cai daqui a 4 dias: a fatura aparece no Início
+    { id: card, profile_id: me, name: "Cartão de crédito", kind: "credit_card", institution: "Banco Exemplo", last4: "4821", hours: 74, ...cardDays(today) },
     { id: savings, profile_id: me, name: "Conta secundária", kind: "savings", institution: "Banco Digital", last4: "7710", hours: 290 },
   ];
 
@@ -241,9 +255,10 @@ export async function seedDemo(user: SessionUser, opts: { withMembers: boolean }
       [json(members)],
     ),
     q(
-      `INSERT INTO financial_accounts (id, profile_id, name, kind, institution, last4, last_synced_at, is_demo)
-       SELECT x.id, x.profile_id, x.name, x.kind, x.institution, x.last4, now() - make_interval(hours => x.hours), true
-         FROM json_to_recordset($1::json) AS x(id uuid, profile_id uuid, name text, kind text, institution text, last4 text, hours int)`,
+      `INSERT INTO financial_accounts (id, profile_id, name, kind, institution, last4, last_synced_at, closing_day, due_day, is_demo)
+       SELECT x.id, x.profile_id, x.name, x.kind, x.institution, x.last4, now() - make_interval(hours => x.hours), x.closing_day, x.due_day, true
+         FROM json_to_recordset($1::json) AS x(id uuid, profile_id uuid, name text, kind text, institution text, last4 text, hours int,
+              closing_day smallint, due_day smallint)`,
       [json(accounts)],
     ),
     q(
@@ -287,6 +302,20 @@ export async function seedDemo(user: SessionUser, opts: { withMembers: boolean }
               ($1, $4, 'demo', 'conta-secundaria.csv', 'success', 12, 12, 0, now() - interval '290 hours')`,
       [me, checking, card, savings],
     ),
+    // Contas a pagar: luz vencendo em 2 dias (aparece no Início), aluguel e o IPVA sazonal de janeiro
+    q(
+      `INSERT INTO payables (profile_id, name, category_id, amount_cents, due_on, recurrence, remind_days, account_id, seasonal, is_demo)
+       VALUES ($1, 'Conta de luz', 'moradia', 18990, $2, 'monthly', 3, $5, false, true),
+              ($1, 'Aluguel', 'moradia', 180000, $3, 'monthly', 3, $5, false, true),
+              ($1, 'IPVA', 'transporte', 195000, $4, 'yearly', 15, NULL, true, true)`,
+      [me, addDays(today, 2), nextDay(today, 10), `${Number(today.slice(0, 4)) + 1}-01-20`, checking],
+    ),
+    q(`INSERT INTO assets (profile_id, name, kind, value_cents, updated_on, is_demo) VALUES ($1, 'Reserva no Tesouro Selic', 'investment', 1250000, $2, true)`, [me, today]),
+    q(
+      `INSERT INTO debts (profile_id, name, balance_cents, monthly_rate_bp, min_payment_cents, is_demo)
+       VALUES ($1, 'Financiamento do carro', 1840000, 149, 89000, true)`,
+      [me],
+    ),
   ]);
   return { transactions: transactions.length, members: members.length };
 }
@@ -302,6 +331,9 @@ export async function clearDemo(user: SessionUser) {
       [user.id],
     ),
     q(`DELETE FROM financial_goals WHERE owner_id = $1 AND is_demo`, [user.id]),
+    q(`DELETE FROM payables WHERE profile_id = $1 AND is_demo`, [user.id]),
+    q(`DELETE FROM assets WHERE profile_id = $1 AND is_demo`, [user.id]),
+    q(`DELETE FROM debts WHERE profile_id = $1 AND is_demo`, [user.id]),
   ];
   if (user.role === "admin") {
     queries.push(q(`DELETE FROM financial_goals WHERE household_id = $1 AND is_demo`, [user.household_id]));

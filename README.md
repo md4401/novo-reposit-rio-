@@ -69,7 +69,7 @@ marcar como *familiar*. Feito a partir do *Caderno de produto v0.3* (PDF do proj
 | Banco | Neon Postgres (São Paulo) + migrations SQL | Plano grátis, `@neondatabase/serverless` (HTTP). |
 | Login | Próprio (scrypt + token Bearer) | Funciona igual no navegador, PWA e APK. O Neon Auth usa cookies de outro domínio, que o WebView do Android pode bloquear; a troca fica isolada em `server/auth.ts`. |
 | IA | Groq (grátis) ou qualquer API compatível com a da OpenAI | Texto, imagem e voz (Whisper). Sem chave a Nia funciona por regras. O AI Gateway do Neon exige plano pago e não está na região de São Paulo. |
-| Testes | Vitest | Centavos, importadores, regras, alertas e frases faladas. |
+| Testes | Vitest + Playwright | Vitest: centavos, importadores, regras, alertas e frases faladas. Playwright (`npm run test:e2e`, fora do CI): cadastro, lançar despesa, revisar compras e importar extrato, no celular e no computador, com a API simulada em `e2e/fake-api.ts`. |
 
 Diferenças em relação ao caderno de produto (de propósito, para um protótipo grátis e testável no celular):
 Expo → React + Capacitor; Neon Auth → login próprio; Drizzle → SQL direto; Neon Functions → função na Vercel;
@@ -98,6 +98,7 @@ npm run db:migrate          # cria as tabelas
 npm run dev:api             # API em http://localhost:8787
 npm run dev                 # app em http://localhost:5173
 npm test                    # testes
+npm run test:e2e            # testes de tela (Chromium do Playwright; não precisa de banco)
 ```
 
 ## Publicação

@@ -13,7 +13,8 @@
     "db:migrate": "NODE_USE_ENV_PROXY=1 tsx --env-file-if-exists=.env scripts/migrate.ts",
     "icons": "node scripts/icons.mjs",
     "android:sync": "cap sync android",
-    "db:reset": "NODE_USE_ENV_PROXY=1 tsx --env-file-if-exists=.env scripts/reset-dev-db.ts"
+    "db:reset": "NODE_USE_ENV_PROXY=1 tsx --env-file-if-exists=.env scripts/reset-dev-db.ts",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.2",
@@ -30,6 +31,7 @@
     "@capacitor/android": "^8.5.2",
     "@capacitor/cli": "^8.5.2",
     "@capacitor/core": "^8.5.2",
+    "@playwright/test": "1.63.0",
     "@types/node": "^22.20.4",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

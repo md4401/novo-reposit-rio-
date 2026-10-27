@@ -80,19 +80,19 @@ npm test                    # testes
 
 - **Vercel** (projeto `novo-reposit-rio` → https://ninho-financas-familia.vercel.app): importado deste repositório; cada `git push` na `main` publica. Variáveis: `DATABASE_URL` (obrigatória) e, se quiser IA, `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL` (ver `.env.example`).
 - **Banco**: projeto `ninho` no Neon (região São Paulo). `npm run db:migrate` aplica as migrations.
-- **APK**: `public/download/ninho.apk` (baixável em `/download/ninho.apk` e em Configurações → App Android). O GitHub Actions (`.github/workflows/android.yml`) gera um APK novo a cada mudança e publica em *Releases*. O APK abre o site publicado, então atualizações do site chegam sem reinstalar; só é preciso gerar outro APK se mudar algo do Android (ícone, permissões, endereço).
+- **APK**: `public/download/ninho.apk` (baixável em `/download/ninho.apk` e em Configurações → App Android). O GitHub Actions (`.github/workflows/android.yml`) compila o app a cada mudança; o APK de produção é gerado manualmente (*Run workflow*), assinado com a chave guardada nos secrets, e vira um rascunho de *Release*. O APK abre o site publicado, então atualizações do site chegam sem reinstalar; só é preciso gerar outro APK se mudar algo do Android (ícone, permissões, endereço).
 
 ### Gerar o APK no computador
 
 ```bash
 npx cap sync android                       # copia android-web/ (página "sem conexão") para o APK
-cd android && ./gradlew assembleRelease    # precisa de Java 21 e Android SDK
-# resultado: android/app/build/outputs/apk/release/app-release.apk
+cd android && ./gradlew assembleDebug      # teste local (chave de depuração da sua máquina)
+# produção: ./gradlew assembleRelease com NINHO_KEYSTORE_FILE, NINHO_KEYSTORE_PASSWORD,
+# NINHO_KEY_ALIAS e NINHO_KEY_PASSWORD (sem elas o build falha)
 ```
 
 Ao mudar a versão em `android/app/build.gradle`, atualize `public/download/version.json`: o app instalado compara com ele e avisa “Nova versão do app”.
-A assinatura usa a chave de teste `android/app/ninho-debug.keystore` (a mesma no computador e no GitHub, para atualizar por cima).
-Para publicar na Play Store, gere uma chave própria e um `bundleRelease` (AAB).
+**Assinatura:** a chave antiga (`ninho-debug.keystore`, até a v0.3.0) foi publicada no repositório e está comprometida. Como gerar e configurar a chave de produção, e como avisar quem precisa reinstalar: [docs/assinatura-android.md](docs/assinatura-android.md).
 
 ### IA da Nia (Groq, plano grátis)
 

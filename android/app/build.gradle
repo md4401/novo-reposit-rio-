@@ -7,8 +7,8 @@ android {
         applicationId "app.ninho.familia"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 5
-        versionName "0.3.0"
+        versionCode 6
+        versionName "0.4.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,28 +16,62 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
-    // Chave fixa de teste: o APK gerado aqui e no GitHub Actions tem a mesma assinatura,
-    // então uma versão nova instala por cima da antiga. Para a Play Store, use uma chave própria.
+    // Assinatura:
+    // - debug: chave de depuração padrão do Android de cada máquina (~/.android/debug.keystore),
+    //   nunca versionada. Serve só para testes locais.
+    // - release: chave de produção lida de variáveis de ambiente (secrets do GitHub Actions).
+    //   Sem todas as variáveis, o build de release FALHA — nunca sai APK de produção com
+    //   chave de depuração ou sem assinatura.
+    // A chave antiga (android/app/ninho-debug.keystore) foi publicada e está comprometida:
+    // não a reutilize. Veja docs/assinatura-android.md.
     signingConfigs {
-        debug {
-            storeFile file('ninho-debug.keystore')
-            storePassword 'android'
-            keyAlias 'androiddebugkey'
-            keyPassword 'android'
+        release {
+            def keystorePath = System.getenv("NINHO_KEYSTORE_FILE")
+            if (keystorePath) {
+                storeFile file(keystorePath)
+                storePassword System.getenv("NINHO_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("NINHO_KEY_ALIAS")
+                keyPassword System.getenv("NINHO_KEY_PASSWORD")
+            }
         }
     }
     buildTypes {
-        debug {
-            signingConfig signingConfigs.debug
-        }
-        // Release: sem modo de depuração e mais leve; mesma chave, então instala por cima.
         release {
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
 }
+
+// Confere a assinatura de produção antes de qualquer tarefa de release começar.
+// SHA-256 do certificado de ninho-debug.keystore, publicado no repositório até a v0.3.0
+def COMPROMISED_CERT_SHA256 = ["3659599b4b88e183ecc5d032dcb5694b8fc06eb4f9b877703998e793dc1b8aef"]
+def releaseSigningVars = ["NINHO_KEYSTORE_FILE", "NINHO_KEYSTORE_PASSWORD", "NINHO_KEY_ALIAS", "NINHO_KEY_PASSWORD"]
+tasks.register("validateReleaseSigning") {
+    doLast {
+        def missing = releaseSigningVars.findAll { !System.getenv(it) }
+        if (!missing.isEmpty()) {
+            throw new GradleException("Assinatura de produção não configurada. Faltam: ${missing.join(', ')}. Veja docs/assinatura-android.md.")
+        }
+        def keystore = file(System.getenv("NINHO_KEYSTORE_FILE"))
+        if (!keystore.isFile()) {
+            throw new GradleException("Keystore de produção não encontrado no caminho indicado em NINHO_KEYSTORE_FILE.")
+        }
+        // Recusa o certificado que foi publicado no repositório (comprometido)
+        def ks = java.security.KeyStore.getInstance(java.security.KeyStore.getDefaultType())
+        keystore.withInputStream { ks.load(it, System.getenv("NINHO_KEYSTORE_PASSWORD").toCharArray()) }
+        def cert = ks.getCertificate(System.getenv("NINHO_KEY_ALIAS"))
+        if (cert == null) {
+            throw new GradleException("O alias informado em NINHO_KEY_ALIAS não existe no keystore de produção.")
+        }
+        def fingerprint = java.security.MessageDigest.getInstance("SHA-256").digest(cert.encoded).encodeHex().toString()
+        if (COMPROMISED_CERT_SHA256.contains(fingerprint)) {
+            throw new GradleException("Este keystore é a chave publicada no repositório (comprometida). Gere uma chave de produção nova.")
+        }
+    }
+}
+tasks.matching { it.name == "preReleaseBuild" }.configureEach { dependsOn "validateReleaseSigning" }
 
 repositories {
     flatDir{

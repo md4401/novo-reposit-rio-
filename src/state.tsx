@@ -146,7 +146,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const signedIn = Boolean(me);
   useEffect(() => {
     if (!signedIn) return;
-    void checkUpdate().then((u) => u?.latest && toast(`Nova versão do app (${u.latest.name}). Atualize em Configurações.`));
+    void checkUpdate().then(
+      (u) => u?.latest && toast(u.reinstall ? `Nova versão do app (${u.latest.name}): veja em Configurações como reinstalar.` : `Nova versão do app (${u.latest.name}). Atualize em Configurações.`),
+    );
   }, [signedIn, toast]);
 
   return (

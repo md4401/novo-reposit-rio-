@@ -198,7 +198,11 @@ export function SettingsPage() {
                 {isNative() ? (
                   <p>
                     Versão instalada: <b>{update?.current.name ?? "…"}</b>.{" "}
-                    {update?.latest ? `Nova versão ${update.latest.name} disponível — baixe e instale por cima (seus dados continuam).` : "Você está na versão mais recente."}
+                    {update?.reinstall
+                      ? `A versão ${update.latest?.name} usa uma assinatura nova e não instala por cima: desinstale o ninho, baixe e instale de novo e entre com seu e-mail e senha. Seus dados ficam salvos na conta.`
+                      : update?.latest
+                        ? `Nova versão ${update.latest.name} disponível — baixe e instale por cima (seus dados continuam).`
+                        : "Você está na versão mais recente."}
                   </p>
                 ) : (
                   <p>Versão instalável sem a Play Store. O Android pede para permitir “instalar apps desta fonte”.</p>

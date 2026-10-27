@@ -20,3 +20,11 @@ android/app/src/main/assets/capacitor.plugins.json
 android/app/src/main/res/xml/config.xml
 *.apk
 !public/download/*.apk
+# Chaves de assinatura e certificados nunca entram no repositório
+*.keystore
+*.jks
+*.p12
+*.pfx
+*.pem
+*.key
+keystore.properties

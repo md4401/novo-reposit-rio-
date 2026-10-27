@@ -10,7 +10,10 @@ export function isNative() {
 }
 
 export type AppVersion = { name: string; build: number };
-export type UpdateInfo = { current: AppVersion; latest: AppVersion | null };
+/** reinstallBelow: builds abaixo deste número usam a assinatura antiga (comprometida) e não
+ *  conseguem atualizar por cima — é preciso desinstalar e instalar de novo. */
+export type PublishedVersion = AppVersion & { reinstallBelow?: number };
+export type UpdateInfo = { current: AppVersion; latest: AppVersion | null; reinstall: boolean };
 
 let cached: Promise<UpdateInfo | null> | null = null;
 
@@ -19,14 +22,16 @@ export function checkUpdate(force = false): Promise<UpdateInfo | null> {
   if (!isNative()) return Promise.resolve(null);
   if (!cached || force) {
     cached = (async () => {
-      const info = await App.getInfo();
-      const current = { name: info.version, build: Number(info.build) };
+      // Versões até a 0.2.x não têm o plugin App: são as mais antigas
+      const info = await App.getInfo().catch(() => null);
+      const current = info ? { name: info.version, build: Number(info.build) } : { name: "antiga", build: 0 };
       try {
         const res = await fetch(`/download/version.json?t=${Date.now()}`, { cache: "no-store" });
-        const latest = (await res.json()) as AppVersion;
-        return { current, latest: latest.build > current.build ? latest : null };
+        const published = (await res.json()) as PublishedVersion;
+        const latest = published.build > current.build ? { name: published.name, build: published.build } : null;
+        return { current, latest, reinstall: Boolean(latest && current.build < (published.reinstallBelow ?? 0)) };
       } catch {
-        return { current, latest: null };
+        return { current, latest: null, reinstall: false };
       }
     })().catch(() => null);
   }

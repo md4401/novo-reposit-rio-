@@ -9,6 +9,7 @@ import { classifyWith, loadClassifier } from "./classify.js";
 import { batch, one, q, query } from "./db.js";
 import { applyGoalRules, NO_ACCOUNT } from "./finance.js";
 import { HttpError, logError } from "./http.js";
+import { daysBetween } from "../shared/time.js";
 import { ImportError, parseStatement } from "./importers.js";
 
 export async function importStatement(
@@ -59,9 +60,28 @@ export async function importStatement(
     };
   });
 
-  const fresh = rows.filter((r) => !r.duplicate);
+  // Compras já capturadas pela notificação do banco: o extrato só completa (não duplica)
+  const captured = await query<{ id: string; amount_cents: string; direction: string; occurred_on: string }>(
+    `SELECT id, amount_cents, direction, occurred_on::text AS occurred_on FROM transactions
+      WHERE profile_id = $1 AND source = 'notification' AND external_id IS NULL AND NOT ignored
+        AND occurred_on BETWEEN $2::date - 3 AND $3::date + 3`,
+    [user.id, rows.reduce((m, r) => (r.occurredOn < m ? r.occurredOn : m), "9999-12-31"), rows.reduce((m, r) => (r.occurredOn > m ? r.occurredOn : m), "0000-01-01")],
+  );
+  const used = new Set<string>();
+  const matches = new Map<string, string>();
+  for (const r of rows) {
+    if (r.duplicate) continue;
+    const hit = captured.find(
+      (c) => !used.has(c.id) && Number(c.amount_cents) === r.amountCents && c.direction === r.direction && Math.abs(daysBetween(c.occurred_on, r.occurredOn)) <= 3,
+    );
+    if (hit) {
+      used.add(hit.id);
+      matches.set(r.externalId, hit.id);
+    }
+  }
+  const fresh = rows.filter((r) => !r.duplicate && !matches.has(r.externalId));
   let imported = 0;
-  if (input.commit && fresh.length) {
+  if (input.commit && (fresh.length || matches.size)) {
     const classifier = await loadClassifier(user.id);
     const records = fresh.map((r) => {
       const merchant = normalizeMerchant(r.description);
@@ -123,6 +143,14 @@ export async function importStatement(
       q(`UPDATE financial_accounts SET last_synced_at = now() WHERE id = $1`, [account.id]),
     ]);
     imported = Number(inserted[0]?.n ?? 0);
+    if (matches.size) {
+      // Liga a captura à linha do extrato: reimportar continua sem duplicar
+      await batch(
+        [...matches].map(([externalId, id]) =>
+          q(`UPDATE transactions SET external_id = $3, account_id = $4, updated_at = now() WHERE id = $1 AND profile_id = $2`, [id, user.id, externalId, account.id]),
+        ),
+      );
+    }
     await applyGoalRules(user.id, records.map((r) => r.id));
     await logRun(user, input, parsed.format, "success", rows.length, imported, rows.length - imported, null);
   }
@@ -134,10 +162,10 @@ export async function importStatement(
       description: r.description,
       amountCents: r.amountCents,
       direction: r.shownDirection as "income" | "expense" | "transfer",
-      duplicate: r.duplicate,
+      duplicate: r.duplicate || matches.has(r.externalId),
     })),
     total: rows.length,
-    duplicates: rows.filter((r) => r.duplicate).length,
+    duplicates: rows.filter((r) => r.duplicate).length + matches.size,
     imported,
     committed: input.commit,
     bank: parsed.bank?.name ?? null,

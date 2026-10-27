@@ -14,11 +14,15 @@ import type {
   Me,
   Overview,
   Personal,
+  Proposal,
   ReceiptReading,
   Rule,
   SourceHealth,
 } from "../shared/types.js";
-import { aiEnabled, readReceiptWithAi, transcribe, transcriptionEnabled } from "./ai.js";
+import { parseBankText } from "../shared/bank-text.js";
+import { parseExpenseStatement } from "../shared/parse-expense.js";
+import { aiEnabled, readPixWithAi, readReceiptWithAi, transcribe, transcriptionEnabled } from "./ai.js";
+import { captureNotifications } from "./capture.js";
 import { loadAlerts } from "./alerts.js";
 import {
   audit,
@@ -1122,6 +1126,63 @@ route("DELETE", "budgets/:id", async ({ request, params, url }) => {
   );
   if (!row) throw new HttpError(404, "Orçamento não encontrado");
   return json(await listBudgets(user, monthParam(url, currentMonth(user))));
+});
+
+// ===========================================================================
+// Captura automática: notificações do banco (APK) e compartilhar com o ninho
+
+route("POST", "capture/notifications", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request, 256 * 1024);
+  await rateLimit(`capture:${user.id}`, 60, 60);
+  const items = (Array.isArray(body.items) ? body.items : []).slice(0, 100).map((x: Record<string, unknown>) => ({
+    key: String(x.key ?? "").slice(0, 200),
+    packageName: String(x.packageName ?? "").slice(0, 100),
+    title: String(x.title ?? "").slice(0, 300),
+    text: String(x.text ?? "").slice(0, 1000),
+    postedAt: Number(x.postedAt ?? 0),
+  }));
+  return json(await captureNotifications(user, items, todayKey(user.timezone)));
+});
+
+/** Texto compartilhado (ex.: comprovante de Pix em texto): devolve uma proposta para confirmar. */
+route("POST", "share/text", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  const text = str(body, "text", { max: 3000, label: "texto" })!;
+  const parsed = parseBankText("", text);
+  const today = todayKey(user.timezone);
+  if (parsed) {
+    const proposal: Proposal = {
+      description: parsed.merchant,
+      amountCents: parsed.amountCents,
+      direction: parsed.direction,
+      occurredOn: today,
+      allocations: [],
+    };
+    return json({ proposal });
+  }
+  // Não é comprovante: tenta como frase ("gastei 45 na farmácia")
+  return json({ proposal: parseExpenseStatement(text, today) });
+});
+
+route("POST", "share/pix", async ({ request }) => {
+  const user = await requireUser(request);
+  if (!aiEnabled()) throw new HttpError(503, "Ler comprovantes precisa da chave de IA configurada no servidor.");
+  const body = await readJson(request, 4 * 1024 * 1024);
+  await rateLimit(`pix:${user.id}`, 20, 60);
+  const image = typeof body.image === "string" ? body.image : "";
+  if (!/^data:image\/(jpeg|png|webp);base64,/.test(image)) throw new HttpError(400, "Envie uma imagem do comprovante");
+  const r = await readPixWithAi(image);
+  if (!Number.isInteger(r.amountCents) || r.amountCents <= 0) throw new HttpError(422, "Não consegui ler o valor do comprovante. Tente uma imagem mais nítida.");
+  const proposal: Proposal = {
+    description: (r.name ? `${r.kind === "boleto" ? "Boleto" : "Pix"} ${r.direction === "income" ? "de" : "para"} ${String(r.name).slice(0, 60)}` : "Comprovante").slice(0, 120),
+    amountCents: r.amountCents,
+    direction: r.direction === "income" ? "income" : "expense",
+    occurredOn: r.date && isDateKey(r.date) && r.date <= todayKey(user.timezone) ? r.date : todayKey(user.timezone),
+    allocations: [],
+  };
+  return json({ proposal });
 });
 
 // ===========================================================================

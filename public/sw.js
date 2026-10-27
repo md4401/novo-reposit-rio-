@@ -1,6 +1,7 @@
 // Service worker do ninho.: guarda a "casca" do app para abrir rápido e funcionar com
 // internet ruim. Dados financeiros (/api) NUNCA são guardados em cache.
-const VERSION = "ninho-v2";
+const VERSION = "ninho-v3";
+const SHARE_CACHE = "ninho-share";
 const SHELL = ["/", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/favicon.svg"];
 
 self.addEventListener("install", (event) => {
@@ -11,7 +12,7 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION && k !== SHARE_CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });
@@ -19,6 +20,23 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
+  // "Compartilhar → ninho": guarda o item no aparelho e abre a tela de compartilhamento
+  if (request.method === "POST" && url.origin === self.location.origin && url.pathname === "/compartilhar") {
+    event.respondWith(
+      (async () => {
+        const form = await request.formData();
+        const cache = await caches.open(SHARE_CACHE);
+        const file = form.get("file");
+        const text = [form.get("title"), form.get("text")].filter(Boolean).join("\n");
+        await cache.delete("/shared/file");
+        await cache.delete("/shared/text");
+        if (file && typeof file !== "string" && file.size < 8 * 1024 * 1024) await cache.put("/shared/file", new Response(file, { headers: { "Content-Type": file.type } }));
+        if (text) await cache.put("/shared/text", new Response(text));
+        return Response.redirect("/#/compartilhar", 303);
+      })(),
+    );
+    return;
+  }
   if (request.method !== "GET" || url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
 
   // Páginas: rede primeiro (versão nova), cache se estiver sem internet

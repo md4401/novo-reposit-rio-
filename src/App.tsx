@@ -18,6 +18,7 @@ import { PersonalPage } from "./pages/Personal";
 import { WealthPage } from "./pages/Wealth";
 import { WishesPage } from "./pages/Wishes";
 import { SettingsPage } from "./pages/Settings";
+import { SharePage } from "./pages/Share";
 import { TagsPage } from "./pages/Tags";
 import { TaxPage } from "./pages/Tax";
 import { TransactionsPage } from "./pages/Transactions";
@@ -54,6 +55,7 @@ export function App() {
     etiquetas: <TagsPage />,
     desejos: <WishesPage />,
     desafios: <ChallengesPage />,
+    compartilhar: <SharePage />,
     casa: <HouseBillsPage />,
     metas: <GoalsPage />,
     nia: <AssistantPage />,

@@ -1,7 +1,7 @@
 // Ler nota fiscal: com chave de IA no servidor, lê de verdade; sem ela, mostra um exemplo
 // claramente marcado como simulação. Comprovante vinculado a uma compra só detalha (não duplica).
 import { Camera, Sparkles } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Allocation, Proposal, ReceiptItem, ReceiptReading } from "../../shared/types";
 import { ModalHeader, Spinner } from "../components/ui";
 import { api } from "../lib/api";
@@ -41,7 +41,7 @@ function groupByCategory(items: ReceiptItem[], scope: "personal" | "family"): Al
   return [...map].map(([categoryId, amountCents]) => ({ categoryId, amountCents, scope }));
 }
 
-export function ReceiptModal() {
+export function ReceiptModal({ initialImage }: { initialImage?: string } = {}) {
   const { me, closeModal, openModal, toast } = useApp();
   const input = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -53,6 +53,13 @@ export function ReceiptModal() {
   const [scope, setScope] = useState<"personal" | "family">("family");
   const [keepPhoto, setKeepPhoto] = useState(true);
   const ai = Boolean(me?.aiEnabled);
+  // Imagem que chegou por "Compartilhar"
+  useEffect(() => {
+    if (!initialImage) return;
+    void fetch(initialImage)
+      .then((r) => r.blob())
+      .then((b) => choose(new File([b], "compartilhado.jpg", { type: b.type || "image/jpeg" })));
+  }, [initialImage]);
 
   function choose(f: File | undefined) {
     setReading(null);

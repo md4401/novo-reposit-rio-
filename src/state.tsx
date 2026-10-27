@@ -1,9 +1,11 @@
 // Estado global: pessoa logada, valores ocultos, avisos (toast) e janelas (modal).
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Me } from "../shared/types";
-import { checkUpdate, hasNativeUpdater } from "./lib/native";
+import { checkUpdate, hasNativeUpdater, onNativeLaunch, syncCaptures, takeLaunchRoute } from "./lib/native";
 import { syncNativeReminder } from "./lib/notifications";
 import { flushOutbox } from "./lib/offline";
+import { DigestModal } from "./modals/DigestModal";
+import { NewTransactionModal } from "./modals/NewTransactionModal";
 import { UpdateModal } from "./modals/UpdateModal";
 import { api, getToken, onLogout, setToken } from "./lib/api";
 import { clearCache } from "./lib/useData";
@@ -154,6 +156,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!me) return;
     void syncNativeReminder(me.notifyDigest, me.profile.digestHour);
   }, [reminder]);
+  // APK: compras capturadas das notificações do banco, "Compartilhar", atalhos e widget
+  useEffect(() => {
+    if (!signedIn) return;
+    const run = async () => {
+      try {
+        const created = await syncCaptures((items) => api<{ created: number }>("capture/notifications", { body: { items } }));
+        if (created > 0) {
+          toast(`${created} compra${created > 1 ? "s" : ""} capturada${created > 1 ? "s" : ""} das notificações do banco. Confira no resumo.`);
+          void refreshMe();
+        }
+      } catch {
+        // sem internet: tenta na próxima vez
+      }
+      // Atalhos do app instalado pelo navegador (?abrir=nova)
+      const opened = new URLSearchParams(window.location.search).get("abrir");
+      if (opened) window.history.replaceState(null, "", window.location.pathname + window.location.hash);
+      const route = opened ?? (await takeLaunchRoute());
+      if (route === "nova") openModal(<NewTransactionModal />);
+      else if (route === "resumo") openModal(<DigestModal />);
+      else if (route) window.location.hash = `#/${route === "inicio" ? "" : route}`;
+    };
+    void run();
+    const onVisible = () => document.visibilityState === "visible" && void run();
+    document.addEventListener("visibilitychange", onVisible);
+    const off = onNativeLaunch(() => void run());
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      off();
+    };
+  }, [signedIn, toast, refreshMe, openModal]);
+
   // Envia o que ficou guardado sem internet (ao entrar e quando a conexão volta)
   useEffect(() => {
     if (!signedIn) return;

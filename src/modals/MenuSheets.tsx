@@ -1,8 +1,8 @@
-// "Adicionar" (botão + da barra) e "Mais" (todas as seções) — abrem como painel de baixo no celular.
+// "Adicionar" (botão + da barra) e "Menu" (as 8 seções, pela foto no topo) — abrem como painel de baixo no celular.
 import { Camera, ChevronRight, FileUp, Lock, MessageCircle, Minus, Plus } from "lucide-react";
 import type { ReactNode } from "react";
 import { Avatar, ModalHeader } from "../components/ui";
-import { NAV } from "../lib/nav";
+import { NAV, sectionOf } from "../lib/nav";
 import { navigate } from "../lib/router";
 import { useApp } from "../state";
 import { ImportModal } from "./AccountModals";
@@ -42,6 +42,7 @@ export function QuickAddSheet() {
 export function MoreSheet({ page }: { page: string }) {
   const { me, closeModal } = useApp();
   const go = (key: string) => closeModal(() => navigate(key === "inicio" ? "" : key));
+  const current = sectionOf(page).key;
   return (
     <div>
       <ModalHeader title="Menu" />
@@ -57,20 +58,15 @@ export function MoreSheet({ page }: { page: string }) {
           </span>
         </button>
       )}
-      {NAV.map((group) => (
-        <div key={group.label ?? "principal"} className="sheet-group">
-          {group.label && <div className="sheet-label">{group.label}</div>}
-          <div className="sheet-grid">
-            {group.items.map((n) => (
-              <button key={n.key} type="button" className={`sheet-tile ${page === n.key ? "on" : ""}`} onClick={() => go(n.key)} aria-current={page === n.key ? "page" : undefined}>
-                <span className="sheet-ic">{n.icon(18)}</span>
-                <b>{n.label}</b>
-                <small>{n.hint}</small>
-              </button>
-            ))}
-          </div>
-        </div>
-      ))}
+      <div className="sheet-grid">
+        {NAV.map((n) => (
+          <button key={n.key} type="button" className={`sheet-tile ${current === n.key ? "on" : ""}`} onClick={() => go(n.key)} aria-current={current === n.key ? "page" : undefined}>
+            <span className="sheet-ic">{n.icon(18)}</span>
+            <b>{n.label}</b>
+            <small>{n.hint}</small>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

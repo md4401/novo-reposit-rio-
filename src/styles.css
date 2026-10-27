@@ -441,8 +441,18 @@ button.insight:hover { background: var(--tint); }
 .tabs button { padding: 10px; border-radius: 10px; font-weight: 750; color: var(--text2); }
 .tabs button.on { background: var(--card); color: var(--text); box-shadow: 0 1px 4px #0001; }
 
+/* ------------------------------------------------------------------ mapa: abas da seção e aviso */
+.section-tabs { margin-top: 4px; margin-bottom: 18px; }
+.news-bar { display: flex; align-items: center; gap: 12px; padding: 10px 10px 10px 16px; margin: 4px 0 14px; border-radius: 14px; background: var(--tint); border: 1px solid var(--line); color: var(--text2); font-size: 13px; line-height: 1.45; }
+.news-bar b { color: var(--text); }
+.news-bar span { flex: 1; min-width: 0; }
+.news-bar .icon-btn { width: 30px; height: 30px; background: transparent; border-color: transparent; }
+.avatar-btn { border-radius: 50%; padding: 0; flex-shrink: 0; }
+.avatar-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 /* ------------------------------------------------------------------ celular */
 .bottom-nav { display: none; }
+.show-mobile { display: none !important; }
 
 @media (max-width: 1170px) {
   .app { grid-template-columns: 225px minmax(0, 1fr); }
@@ -478,6 +488,8 @@ button.insight:hover { background: var(--tint); }
   .bottom-add:active .ic { transform: scale(0.95); }
   .bottom-nav .badge { position: absolute; top: 6px; left: calc(50% + 8px); min-width: 16px; height: 16px; border-radius: 8px; background: var(--dark); color: var(--accent); font-size: 9.5px; font-weight: 800; display: grid; place-items: center; padding: 0 4px; }
   .hide-mobile { display: none !important; }
+  .show-mobile { display: grid !important; }
+  .section-tabs { margin-bottom: 14px; }
   .chat-card { height: calc(100dvh - 230px - var(--bottom-nav) - var(--safe-bottom) - var(--safe-top)); }
 }
 
@@ -588,8 +600,6 @@ button.insight:hover { background: var(--tint); }
 .sheet-text b { font-size: 14px; }
 .sheet-text small { color: var(--muted); font-size: 12px; margin-top: 1px; }
 .sheet-profile { margin-bottom: 16px; background: var(--soft); }
-.sheet-group + .sheet-group { margin-top: 16px; }
-.sheet-label { font-size: 10.5px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: var(--muted); margin: 0 2px 8px; }
 .sheet-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .sheet-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); min-width: 0; }
 .sheet-tile:hover { background: var(--soft); }
@@ -644,7 +654,6 @@ button.insight:hover { background: var(--tint); }
   .sheet-tile .sheet-ic { margin-bottom: 0; }
   .sheet-tile small { display: none; }
   .sheet-tile b { font-size: 12.5px; line-height: 1.25; }
-  .sheet-group + .sheet-group { margin-top: 12px; }
 }
 
 /* Transações: busca, período e filtros numa faixa só */

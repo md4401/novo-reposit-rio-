@@ -1,35 +1,63 @@
-// Estrutura: menu lateral (computador) e barra inferior com "+" no centro (celular).
-import { Bell, Eye, EyeOff, Lock, Menu, Plus } from "lucide-react";
-import type { ReactNode } from "react";
-import { BOTTOM_KEYS, NAV, PAGE_TITLES, type NavItem } from "../lib/nav";
+// Estrutura: menu lateral com 8 seções (computador) e barra inferior com "+" no centro (celular).
+// As telas de cada seção aparecem como abas no topo da página.
+import { Bell, Bot, Eye, EyeOff, Lock, Plus, X } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { BOTTOM_KEYS, NAV, PAGE_TITLES, sectionOf, type NavItem } from "../lib/nav";
 import { navigate } from "../lib/router";
 import { DigestModal } from "../modals/DigestModal";
 import { MoreSheet, QuickAddSheet } from "../modals/MenuSheets";
 import { useApp } from "../state";
 import { Avatar } from "./ui";
 
-const BOTTOM = BOTTOM_KEYS.map((key) => NAV.flatMap((g) => g.items).find((n) => n.key === key)!);
+const BOTTOM = BOTTOM_KEYS.map((key) => NAV.find((n) => n.key === key)!);
+const BOTTOM_LABEL: Record<string, string> = { inicio: "Início", transacoes: "Transações", orcamento: "Planejar", familia: "Casa" };
+
+// Aviso de uma vez só para quem já usava o app antes do menu novo
+const NEWS_KEY = "ninho.novidades.menu8";
+function readSeen() {
+  try {
+    return localStorage.getItem(NEWS_KEY) === "1";
+  } catch {
+    return true;
+  }
+}
 
 export function Layout({ page, children }: { page: string; children: ReactNode }) {
   const { me, hidden, toggleHidden, openModal, toast } = useApp();
   const pending = me?.pendingCount ?? 0;
+  const section = sectionOf(page);
+  const [seenNews, setSeenNews] = useState(readSeen);
 
   const go = (key: string) => navigate(key === "inicio" ? "" : key);
   const quickAdd = () => openModal(<QuickAddSheet />);
+  const openMenu = () => openModal(<MoreSheet page={page} />);
+
+  const hideNews = () => {
+    try {
+      localStorage.setItem(NEWS_KEY, "1");
+    } catch {
+      // sem armazenamento: some só nesta visita
+    }
+    setSeenNews(true);
+  };
 
   const navButton = (n: NavItem) => (
-    <button key={n.key} type="button" className={`nav-btn ${page === n.key ? "active" : ""}`} onClick={() => go(n.key)} aria-current={page === n.key ? "page" : undefined}>
+    <button key={n.key} type="button" className={`nav-btn ${section.key === n.key ? "active" : ""}`} onClick={() => go(n.key)} aria-current={section.key === n.key ? "page" : undefined}>
       {n.icon(17)}
       <span>{n.label}</span>
-      {n.key === "nia" && pending > 0 && <span className="count">{pending}</span>}
+      {n.key === "transacoes" && pending > 0 && (
+        <span className="count" title="Compras a revisar">
+          {pending}
+        </span>
+      )}
     </button>
   );
 
   const bottomButton = (n: NavItem) => (
-    <button key={n.key} type="button" className={page === n.key ? "active" : ""} onClick={() => go(n.key)} aria-current={page === n.key ? "page" : undefined}>
+    <button key={n.key} type="button" className={section.key === n.key ? "active" : ""} onClick={() => go(n.key)} aria-current={section.key === n.key ? "page" : undefined}>
       <span className="ic">{n.icon(20)}</span>
-      {n.key === "inicio" ? "Início" : n.key === "nia" ? "Nia" : n.label}
-      {n.key === "nia" && pending > 0 && <span className="badge">{pending}</span>}
+      {BOTTOM_LABEL[n.key] ?? n.label}
+      {n.key === "transacoes" && pending > 0 && <span className="badge">{pending}</span>}
     </button>
   );
 
@@ -48,12 +76,7 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
         <button type="button" className="btn primary block sidebar-add" onClick={quickAdd}>
           <Plus size={16} /> Adicionar
         </button>
-        {NAV.map((group) => (
-          <div key={group.label ?? "principal"} className="nav-group">
-            {group.label && <div className="group-label">{group.label}</div>}
-            <nav className="nav">{group.items.map(navButton)}</nav>
-          </div>
-        ))}
+        <nav className="nav">{NAV.map(navButton)}</nav>
         {me && (
           <button type="button" className="sidebar-footer" onClick={() => go("ajustes")}>
             <Avatar name={me.profile.name} color={me.profile.avatarColor} />
@@ -97,13 +120,40 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
             >
               {hidden ? <EyeOff size={17} /> : <Eye size={17} />}
             </button>
-            <button type="button" className="icon-btn" onClick={() => openModal(<DigestModal />)} aria-label="Resumo diário" title="Resumo diário">
+            <button type="button" className="icon-btn hide-mobile" onClick={() => openModal(<DigestModal />)} aria-label="Revisar compras" title="Revisar compras">
               <Bell size={17} />
               {pending > 0 && <span className="dot-badge">{pending}</span>}
             </button>
+            <button type="button" className="icon-btn show-mobile" onClick={() => go("nia")} aria-label="Assistente Nia" title="Assistente Nia">
+              <Bot size={17} />
+            </button>
+            {me && (
+              <button type="button" className="avatar-btn show-mobile" onClick={openMenu} aria-label="Menu e configurações" title="Menu">
+                <Avatar name={me.profile.name} color={me.profile.avatarColor} />
+              </button>
+            )}
           </div>
         </header>
         <div className="content">
+          {!seenNews && me?.setup.hasTransactions && (
+            <div className="news-bar" role="status">
+              <span>
+                <b>O menu ficou mais simples:</b> 8 seções, e as telas de cada uma viram abas no topo. No celular, o menu completo abre pela sua foto, no canto de cima.
+              </span>
+              <button type="button" className="icon-btn" onClick={hideNews} aria-label="Entendi">
+                <X size={15} />
+              </button>
+            </div>
+          )}
+          {section.tabs.length > 1 && (
+            <div className="chips-row section-tabs" role="tablist" aria-label={section.label}>
+              {section.tabs.map((t) => (
+                <button key={t.key} type="button" role="tab" aria-selected={page === t.key} className={`filter-chip ${page === t.key ? "on" : ""}`} onClick={() => go(t.key)}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="page" key={page}>
             {children}
           </div>
@@ -118,12 +168,6 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
           </span>
         </button>
         {BOTTOM.slice(2).map(bottomButton)}
-        <button type="button" className={!BOTTOM.some((b) => b.key === page) ? "active" : ""} onClick={() => openModal(<MoreSheet page={page} />)}>
-          <span className="ic">
-            <Menu size={20} />
-          </span>
-          Mais
-        </button>
       </nav>
     </div>
   );

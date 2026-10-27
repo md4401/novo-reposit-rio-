@@ -1,80 +1,82 @@
-// Mapa do app: as mesmas seções no menu lateral (computador) e no "Mais" (celular).
-import {
-  Activity,
-  ArrowLeftRight,
-  Bot,
-  CalendarClock,
-  FileText,
-  Gift,
-  House,
-  Landmark,
-  PiggyBank,
-  Receipt,
-  Repeat,
-  Scale,
-  Settings,
-  ShoppingBasket,
-  Tags,
-  Target,
-  TrendingUp,
-  Trophy,
-  Users,
-  Wallet,
-} from "lucide-react";
+// Mapa do app: 8 seções no menu; as telas de cada seção viram abas no topo da página.
+// Os endereços das telas não mudam (#/pagar, #/cesta…): links antigos continuam funcionando.
+import { ArrowLeftRight, Bot, House, Landmark, PiggyBank, Settings, Users, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
 
-export type NavItem = { key: string; label: string; hint: string; icon: (size: number) => ReactNode };
-export type NavGroup = { label: string | null; items: NavItem[] };
+export type NavTab = { key: string; label: string };
+export type NavItem = { key: string; label: string; hint: string; icon: (size: number) => ReactNode; tabs: NavTab[] };
 
-export const NAV: NavGroup[] = [
+export const NAV: NavItem[] = [
+  { key: "inicio", label: "Início", hint: "Resumo do mês", icon: (s) => <House size={s} />, tabs: [{ key: "inicio", label: "Início" }] },
   {
-    label: null,
-    items: [
-      { key: "inicio", label: "Início", hint: "Resumo do mês", icon: (s) => <House size={s} /> },
-      { key: "transacoes", label: "Transações", hint: "Tudo o que entrou e saiu", icon: (s) => <ArrowLeftRight size={s} /> },
-      { key: "meu", label: "Meu financeiro", hint: "Só seu, privado", icon: (s) => <Wallet size={s} /> },
-      { key: "familia", label: "Família", hint: "Totais da casa", icon: (s) => <Users size={s} /> },
+    key: "transacoes",
+    label: "Transações",
+    hint: "Tudo o que entrou e saiu",
+    icon: (s) => <ArrowLeftRight size={s} />,
+    tabs: [
+      { key: "transacoes", label: "Transações" },
+      { key: "etiquetas", label: "Etiquetas" },
     ],
   },
   {
+    key: "meu",
+    label: "Meu dinheiro",
+    hint: "Só seu: resumo, assinaturas, patrimônio, IR",
+    icon: (s) => <Wallet size={s} />,
+    tabs: [
+      { key: "meu", label: "Resumo" },
+      { key: "alertas", label: "Assinaturas e alertas" },
+      { key: "patrimonio", label: "Patrimônio e dívidas" },
+      { key: "ir", label: "Imposto de Renda" },
+    ],
+  },
+  {
+    key: "orcamento",
     label: "Planejar",
-    items: [
-      { key: "orcamento", label: "Orçamento", hint: "Limites por categoria", icon: (s) => <PiggyBank size={s} /> },
-      { key: "pagar", label: "Contas a pagar", hint: "Vencimentos e faturas", icon: (s) => <CalendarClock size={s} /> },
-      { key: "previsao", label: "Saldo previsto", hint: "Como o mês deve fechar", icon: (s) => <TrendingUp size={s} /> },
-      { key: "metas", label: "Metas", hint: "Objetivos e reservas", icon: (s) => <Target size={s} /> },
-      { key: "desejos", label: "Lista de desejos", hint: "O que a casa quer comprar", icon: (s) => <Gift size={s} /> },
-      { key: "casa", label: "Contas da casa", hint: "Luz, aluguel, internet", icon: (s) => <Receipt size={s} /> },
+    hint: "Orçamento, contas, metas e desafios",
+    icon: (s) => <PiggyBank size={s} />,
+    tabs: [
+      { key: "orcamento", label: "Orçamento" },
+      { key: "pagar", label: "Contas a pagar" },
+      { key: "previsao", label: "Saldo previsto" },
+      { key: "metas", label: "Metas" },
+      { key: "desejos", label: "Desejos" },
+      { key: "desafios", label: "Desafios" },
     ],
   },
   {
-    label: "Patrimônio",
-    items: [
-      { key: "patrimonio", label: "Patrimônio e dívidas", hint: "Bens, dívidas e plano", icon: (s) => <Scale size={s} /> },
-      { key: "ir", label: "Imposto de Renda", hint: "Despesas dedutíveis", icon: (s) => <FileText size={s} /> },
+    key: "familia",
+    label: "Casa",
+    hint: "Totais da família, contas divididas e cesta",
+    icon: (s) => <Users size={s} />,
+    tabs: [
+      { key: "familia", label: "Resumo da casa" },
+      { key: "casa", label: "Contas da casa" },
+      { key: "cesta", label: "Cesta" },
     ],
   },
+  { key: "nia", label: "Assistente Nia", hint: "Pergunte ou fale um gasto", icon: (s) => <Bot size={s} />, tabs: [{ key: "nia", label: "Nia" }] },
   {
-    label: "Inteligência",
-    items: [
-      { key: "nia", label: "Assistente Nia", hint: "Pergunte ou fale um gasto", icon: (s) => <Bot size={s} /> },
-      { key: "alertas", label: "Assinaturas e alertas", hint: "Recorrências e avisos", icon: (s) => <Repeat size={s} /> },
-      { key: "desafios", label: "Desafios", hint: "Metas curtas para gastar menos", icon: (s) => <Trophy size={s} /> },
-      { key: "cesta", label: "Cesta da família", hint: "Preço dos produtos no tempo", icon: (s) => <ShoppingBasket size={s} /> },
+    key: "contas",
+    label: "Bancos e cartões",
+    hint: "Contas, importação e saúde dos dados",
+    icon: (s) => <Landmark size={s} />,
+    tabs: [
+      { key: "contas", label: "Contas e cartões" },
+      { key: "saude", label: "Saúde dos dados" },
     ],
   },
-  {
-    label: "Conta",
-    items: [
-      { key: "contas", label: "Bancos e cartões", hint: "Contas, cartões e importação", icon: (s) => <Landmark size={s} /> },
-      { key: "etiquetas", label: "Etiquetas", hint: "Agrupe gastos do seu jeito", icon: (s) => <Tags size={s} /> },
-      { key: "saude", label: "Saúde dos dados", hint: "O que está atualizado", icon: (s) => <Activity size={s} /> },
-      { key: "ajustes", label: "Configurações", hint: "Perfil, família e privacidade", icon: (s) => <Settings size={s} /> },
-    ],
-  },
+  { key: "ajustes", label: "Configurações", hint: "Perfil, família e privacidade", icon: (s) => <Settings size={s} />, tabs: [{ key: "ajustes", label: "Configurações" }] },
 ];
 
-export const PAGE_TITLES: Record<string, string> = Object.fromEntries(NAV.flatMap((g) => g.items).map((n) => [n.key, n.label]));
+/** Seção de uma tela (a aba "pagar" pertence a "Planejar"). */
+export function sectionOf(page: string) {
+  return NAV.find((n) => n.tabs.some((t) => t.key === page)) ?? NAV[0];
+}
 
-/** Barra inferior do celular; o resto fica em "Mais". */
-export const BOTTOM_KEYS = ["inicio", "transacoes", "nia"] as const;
+export const PAGE_TITLES: Record<string, string> = Object.fromEntries(
+  NAV.flatMap((n) => n.tabs.map((t) => [t.key, n.tabs.length > 1 ? `${n.label} · ${t.label}` : n.label])),
+);
+
+/** Barra inferior do celular (com o "+" no meio); o resto fica no menu do perfil. */
+export const BOTTOM_KEYS = ["inicio", "transacoes", "orcamento", "familia"] as const;

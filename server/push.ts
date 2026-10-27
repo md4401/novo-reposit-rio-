@@ -25,16 +25,18 @@ export function vapidKeys() {
 /** Envia o resumo para quem já passou do horário escolhido e ainda não recebeu hoje.
  *  Pode ser chamado várias vezes: cada pessoa recebe no máximo uma vez por dia. */
 export async function sendDueDigests(appUrl: string) {
-  const due = await query<{ id: string; pending: string }>(
+  const due = await query<{ id: string; pending: string; bills: string }>(
     `UPDATE profiles p SET last_digest_on = (now() AT TIME ZONE p.timezone)::date
       WHERE NOT p.is_demo AND p.notify_digest
         AND extract(hour FROM now() AT TIME ZONE p.timezone) >= p.digest_hour
         AND (p.last_digest_on IS NULL OR p.last_digest_on < (now() AT TIME ZONE p.timezone)::date)
         AND EXISTS (SELECT 1 FROM push_subscriptions s WHERE s.profile_id = p.id)
       RETURNING p.id,
-        (SELECT count(*) FROM transactions t WHERE t.profile_id = p.id AND t.status = 'pending' AND NOT t.ignored) AS pending`,
+        (SELECT count(*) FROM transactions t WHERE t.profile_id = p.id AND t.status = 'pending' AND NOT t.ignored) AS pending,
+        (SELECT count(*) FROM payables b WHERE b.profile_id = p.id AND b.active
+            AND b.due_on - b.remind_days <= (now() AT TIME ZONE p.timezone)::date) AS bills`,
   );
-  const withPending = due.filter((d) => num(d.pending) > 0);
+  const withPending = due.filter((d) => num(d.pending) > 0 || num(d.bills) > 0);
   if (!withPending.length) return { checked: due.length, sent: 0 };
   const { publicKey, privateKey } = await vapidKeys();
   webpush.setVapidDetails(appUrl, publicKey, privateKey);
@@ -46,13 +48,9 @@ export async function sendDueDigests(appUrl: string) {
   const gone: string[] = [];
   await Promise.all(
     subs.map(async (s) => {
-      const n = num(withPending.find((d) => d.id === s.profile_id)?.pending);
+      const d = withPending.find((x) => x.id === s.profile_id);
       // Texto genérico: a notificação aparece na tela bloqueada, sem lojas nem valores
-      const payload = JSON.stringify({
-        title: "ninho. • resumo do dia",
-        body: `Você tem ${n} compra${n > 1 ? "s" : ""} para revisar.`,
-        url: "/#/transacoes?filtro=pendentes",
-      });
+      const payload = JSON.stringify({ title: "ninho. • resumo do dia", ...digestText(num(d?.pending), num(d?.bills)) });
       try {
         await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: 6 * 3600 });
         sent++;
@@ -65,4 +63,14 @@ export async function sendDueDigests(appUrl: string) {
   );
   if (gone.length) await batch([q(`DELETE FROM push_subscriptions WHERE id = ANY($1::uuid[])`, [gone])]);
   return { checked: due.length, sent };
+}
+
+export function digestText(pending: number, bills: number) {
+  const parts: string[] = [];
+  if (pending) parts.push(`${pending} compra${pending > 1 ? "s" : ""} para revisar`);
+  if (bills) parts.push(`${bills} conta${bills > 1 ? "s" : ""} vencendo`);
+  return {
+    body: `Você tem ${parts.join(" e ")}.`,
+    url: pending ? "/#/transacoes?filtro=pendentes" : "/#/pagar",
+  };
 }

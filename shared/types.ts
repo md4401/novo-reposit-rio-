@@ -24,6 +24,9 @@ export type Account = {
   /** Cartão de crédito: gastos do mês nesta conta */
   monthSpentCents: number;
   history: { month: string; balanceCents: number }[];
+  /** Cartão: dia de fechamento e de vencimento da fatura */
+  closingDay: number | null;
+  dueDay: number | null;
 };
 
 export type Me = {
@@ -51,7 +54,7 @@ export type Transaction = {
   direction: Direction;
   status: TxStatus;
   classifiedBy: ClassifiedBy | null;
-  source: "manual" | "csv" | "ofx" | "voice" | "receipt" | "demo";
+  source: "manual" | "csv" | "ofx" | "voice" | "receipt" | "demo" | "notification" | "allowance";
   accountId: string | null;
   accountName: string | null;
   method: string | null;
@@ -250,8 +253,11 @@ export type Budget = {
   categoryId: string;
   limitCents: number;
   spentCents: number;
-  /** gasto ÷ limite (0 a 1+) */
+  /** gasto ÷ limite do mês (com o acumulado, se houver) */
   ratio: number;
+  rollover: boolean;
+  /** Sobra (+) ou falta (−) dos meses anteriores somada ao limite */
+  carryCents: number;
 };
 export type BudgetsPayload = {
   month: string;
@@ -282,4 +288,42 @@ export type MonthReport = {
   family: MonthTotals;
   goals: { name: string; icon: string; savedCents: number; targetCents: number; scope: Scope }[];
   budgets: BudgetSummary;
+};
+
+export type CardInvoice = {
+  accountId: string;
+  accountName: string;
+  closingOn: string;
+  dueOn: string;
+  totalCents: number;
+  /** closed: fechada, esperando pagamento; open: recebendo compras; future: só parcelas já previstas */
+  status: "closed" | "open" | "future";
+  installmentsCents: number;
+};
+
+export type Payable = {
+  id: string;
+  name: string;
+  categoryId: string;
+  amountCents: number;
+  dueOn: string;
+  recurrence: "once" | "monthly" | "yearly";
+  remindDays: number;
+  accountId: string | null;
+  seasonal: boolean;
+  daysLeft: number;
+  /** Sazonal: quanto guardar por mês até vencer */
+  monthlySavingCents: number | null;
+  status: "overdue" | "soon" | "ok";
+};
+
+export type ForecastPayload = {
+  startCents: number;
+  /** Algum saldo de conta foi informado (sem isso a previsão parte de zero) */
+  knownBalance: boolean;
+  series: { on: string; balanceCents: number }[];
+  events: { on: string; label: string; amountCents: number; kind: "bill" | "card" | "income" | "subscription" }[];
+  lowest: { on: string; balanceCents: number };
+  firstNegative: string | null;
+  endCents: number;
 };

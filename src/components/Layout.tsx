@@ -4,6 +4,7 @@ import {
   ArrowLeftRight,
   Bell,
   Bot,
+  CalendarClock,
   Eye,
   EyeOff,
   House,
@@ -17,6 +18,7 @@ import {
   Settings,
   Sparkles,
   Target,
+  TrendingUp,
   Users,
   Wallet,
 } from "lucide-react";
@@ -35,6 +37,8 @@ const MAIN: NavItem[] = [
   { key: "familia", label: "Nossa família", icon: <Users size={17} /> },
   { key: "transacoes", label: "Transações", icon: <ArrowLeftRight size={17} /> },
   { key: "orcamento", label: "Orçamento", icon: <PiggyBank size={17} /> },
+  { key: "pagar", label: "Contas a pagar", icon: <CalendarClock size={17} /> },
+  { key: "previsao", label: "Saldo previsto", icon: <TrendingUp size={17} /> },
   { key: "casa", label: "Contas da casa", icon: <Receipt size={17} /> },
   { key: "metas", label: "Metas e objetivos", icon: <Target size={17} /> },
 ];

@@ -3,7 +3,7 @@
 import { CATEGORY_BY_ID } from "../shared/categories.js";
 import { formatMoney } from "../shared/money.js";
 import { normalizeMerchant } from "../shared/merchant.js";
-import { addMonths, isDateKey, monthLabel, monthOf, todayKey } from "../shared/time.js";
+import { addMonths, daysBetween as daysBetweenKeys, isDateKey, monthLabel, monthOf, todayKey } from "../shared/time.js";
 import type {
   Account,
   Allocation,
@@ -51,6 +51,7 @@ import {
 } from "./finance.js";
 import {
   bool,
+  type Body,
   cents,
   clientIp,
   dateKey,
@@ -74,6 +75,7 @@ import { changePassword, createResetCode, requestReset, resetWithCode } from "./
 import { sendDueDigests, vapidKeys } from "./push.js";
 import { deleteReceipt, receiptImage, saveReceipt } from "./receipts.js";
 import { buildReport, createReportLink, redeemReportLink, reportPdf } from "./report.js";
+import { cardInvoices, deletePayable, listPayables, loadForecast, payablesDue, payPayable, savePayable, type PayableInput } from "./planning.js";
 import { importStatement } from "./statement-import.js";
 
 type Ctx = { request: Request; url: URL; params: string[] };
@@ -196,7 +198,7 @@ async function loadMe(user: SessionUser): Promise<Me> {
         [user.household_id],
       ),
       q(
-        `SELECT id, name, kind, institution, last4, active, last_synced_at FROM financial_accounts
+        `SELECT id, name, kind, institution, last4, active, last_synced_at, closing_day, due_day FROM financial_accounts
           WHERE profile_id = $1 ORDER BY active DESC, created_at, name, id`,
         [user.id],
       ),
@@ -260,6 +262,8 @@ function mapAccount(a: Record<string, unknown>, balance: Pick<Account, "balanceC
     last4: (a.last4 as string | null) ?? null,
     active: Boolean(a.active),
     lastSyncedAt: a.last_synced_at ? new Date(a.last_synced_at as string).toISOString() : null,
+    closingDay: (a.closing_day as number | null) ?? null,
+    dueDay: (a.due_day as number | null) ?? null,
   };
 }
 
@@ -313,15 +317,45 @@ function currentMonth(user: SessionUser) {
 route("GET", "overview", async ({ request, url }) => {
   const user = await requireUser(request);
   const month = monthParam(url, currentMonth(user));
-  const [family, mine, recent, alerts, budgets] = await Promise.all([
+  const today = todayKey(user.timezone);
+  const [family, mine, recent, alerts, budgets, due, invoices] = await Promise.all([
     familyNumbers(user, month, 7),
     personalNumbers(user, month, 2),
     listTransactions(user, { limit: 6 }),
     loadAlerts(user),
     listBudgets(user, month),
+    payablesDue(user, today),
+    cardInvoices(user, today),
   ]);
   const budgetSummary = summarize([...budgets.personal, ...budgets.family]);
   const insights: Insight[] = [];
+  if (due.length) {
+    const first = due[0];
+    insights.push({
+      id: "payables",
+      icon: first.status === "overdue" ? "🚨" : "📅",
+      title: due.length === 1 ? `${first.name}: ${first.status === "overdue" ? "venceu" : first.daysLeft === 0 ? "vence hoje" : `vence em ${first.daysLeft} dia(s)`}` : `${due.length} contas vencendo`,
+      text: `${formatMoney(due.reduce((sum, p) => sum + p.amountCents, 0))} para pagar. Toque em “Paguei” quando quitar.`,
+      page: "pagar",
+    });
+  }
+  const invoiceDue = invoices.find((i) => i.status !== "future" && i.totalCents > 0 && daysBetweenKeys(today, i.dueOn) <= 5);
+  if (invoiceDue)
+    insights.push({
+      id: `invoice-${invoiceDue.accountId}`,
+      icon: "💳",
+      title: `Fatura ${invoiceDue.accountName}: ${formatMoney(invoiceDue.totalCents)}`,
+      text: `Vence ${invoiceDue.dueOn.slice(8, 10)}/${invoiceDue.dueOn.slice(5, 7)}${invoiceDue.status === "open" ? " (ainda aberta)" : ""}.`,
+      page: "pagar",
+    });
+  if (["11", "12"].includes(today.slice(5, 7)) && insights.length < 3)
+    insights.push({
+      id: "decimo-terceiro",
+      icon: "🎁",
+      title: "13º salário chegando",
+      text: "Antes de gastar, separe para IPVA, IPTU e material escolar do começo do ano. Veja as contas sazonais em “Contas a pagar”.",
+      page: "pagar",
+    });
   const overBudget = [...budgets.personal, ...budgets.family].sort((a, b) => b.ratio - a.ratio)[0];
   if (overBudget && overBudget.ratio >= 0.8)
     insights.push({
@@ -599,8 +633,8 @@ route("PATCH", "accounts/:id", async ({ request, params }) => {
   const user = await requireUser(request);
   const body = await readJson(request);
   const id = uuid(params[0]);
-  const current = await one<{ name: string; active: boolean; balance_cents: string | null; balance_on: string | null }>(
-    `SELECT name, active, balance_cents, balance_on::text AS balance_on FROM financial_accounts WHERE id = $1 AND profile_id = $2`,
+  const current = await one<{ name: string; active: boolean; balance_cents: string | null; balance_on: string | null; closing_day: number | null; due_day: number | null }>(
+    `SELECT name, active, balance_cents, balance_on::text AS balance_on, closing_day, due_day FROM financial_accounts WHERE id = $1 AND profile_id = $2`,
     [id, user.id],
   );
   if (!current) throw new HttpError(404, "Conta não encontrada");
@@ -616,8 +650,11 @@ route("PATCH", "accounts/:id", async ({ request, params }) => {
       balanceOn = body.balanceOn ? dateKey(body.balanceOn, "data do saldo") : todayKey(user.timezone);
     }
   }
+  const cardDay = (key: "closingDay" | "dueDay", currentValue: number | null) =>
+    body[key] === undefined ? currentValue : body[key] === null ? null : int(body, key, 1, 31, key === "closingDay" ? "dia do fechamento" : "dia do vencimento");
   const row = await one(
-    `UPDATE financial_accounts SET name = $3, active = $4, balance_cents = $5, balance_on = $6 WHERE id = $1 AND profile_id = $2 RETURNING *`,
+    `UPDATE financial_accounts SET name = $3, active = $4, balance_cents = $5, balance_on = $6, closing_day = $7, due_day = $8
+      WHERE id = $1 AND profile_id = $2 RETURNING *`,
     [
       id,
       user.id,
@@ -625,6 +662,8 @@ route("PATCH", "accounts/:id", async ({ request, params }) => {
       body.active === undefined ? current.active : bool(body, "active"),
       balanceCents,
       balanceOn,
+      cardDay("closingDay", current.closing_day),
+      cardDay("dueDay", current.due_day),
     ],
   );
   return json((await withBalances(user, [row!]))[0]);
@@ -1021,18 +1060,19 @@ route("PUT", "budgets", async ({ request, url }) => {
   const categoryId = str(body, "categoryId", { max: 40, label: "categoria" })!;
   if (CATEGORY_BY_ID.get(categoryId)?.kind !== "expense") throw new HttpError(400, "Escolha uma categoria de gasto");
   const limit = cents(body.limitCents, "limite");
+  const rollover = body.rollover === true;
   if (scope === "family" && user.role !== "admin") throw new HttpError(403, "Só quem administra a família define o orçamento da casa");
   if (scope === "personal")
     await query(
-      `INSERT INTO budgets (household_id, owner_id, scope, category_id, limit_cents) VALUES ($1, $2, 'personal', $3, $4)
-       ON CONFLICT (owner_id, category_id) WHERE scope = 'personal' DO UPDATE SET limit_cents = $4, updated_at = now()`,
-      [user.household_id, user.id, categoryId, limit],
+      `INSERT INTO budgets (household_id, owner_id, scope, category_id, limit_cents, rollover) VALUES ($1, $2, 'personal', $3, $4, $5)
+       ON CONFLICT (owner_id, category_id) WHERE scope = 'personal' DO UPDATE SET limit_cents = $4, rollover = $5, updated_at = now()`,
+      [user.household_id, user.id, categoryId, limit, rollover],
     );
   else
     await query(
-      `INSERT INTO budgets (household_id, owner_id, scope, category_id, limit_cents) VALUES ($1, NULL, 'family', $2, $3)
-       ON CONFLICT (household_id, category_id) WHERE scope = 'family' DO UPDATE SET limit_cents = $3, updated_at = now()`,
-      [user.household_id, categoryId, limit],
+      `INSERT INTO budgets (household_id, owner_id, scope, category_id, limit_cents, rollover) VALUES ($1, NULL, 'family', $2, $3, $4)
+       ON CONFLICT (household_id, category_id) WHERE scope = 'family' DO UPDATE SET limit_cents = $3, rollover = $4, updated_at = now()`,
+      [user.household_id, categoryId, limit, rollover],
     );
   const result: BudgetsPayload = await listBudgets(user, monthParam(url, currentMonth(user)));
   return json(result);
@@ -1047,6 +1087,66 @@ route("DELETE", "budgets/:id", async ({ request, params, url }) => {
   );
   if (!row) throw new HttpError(404, "Orçamento não encontrado");
   return json(await listBudgets(user, monthParam(url, currentMonth(user))));
+});
+
+// ===========================================================================
+// Fatura do cartão, contas a pagar e saldo previsto
+
+route("GET", "invoices", async ({ request }) => {
+  const user = await requireUser(request);
+  return json(await cardInvoices(user, todayKey(user.timezone)));
+});
+
+function payableInput(body: Body): PayableInput {
+  return {
+    name: str(body, "name", { max: 60, label: "nome da conta" })!,
+    categoryId: str(body, "categoryId", { max: 40, label: "categoria" })!,
+    amountCents: cents(body.amountCents),
+    dueOn: dateKey(body.dueOn, "vencimento"),
+    recurrence: oneOf(body.recurrence ?? "monthly", ["once", "monthly", "yearly"] as const, "repetição"),
+    remindDays: body.remindDays === undefined ? 3 : int(body, "remindDays", 0, 60, "aviso"),
+    accountId: body.accountId ? uuid(body.accountId, "conta") : null,
+    seasonal: body.seasonal === true,
+  };
+}
+
+route("GET", "payables", async ({ request }) => {
+  const user = await requireUser(request);
+  return json(await listPayables(user, todayKey(user.timezone)));
+});
+
+route("POST", "payables", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  await savePayable(user, payableInput(body));
+  return json(await listPayables(user, todayKey(user.timezone)), 201);
+});
+
+route("PATCH", "payables/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  await savePayable(user, payableInput(body), uuid(params[0]));
+  return json(await listPayables(user, todayKey(user.timezone)));
+});
+
+route("POST", "payables/:id/pay", async ({ request, params }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  const today = todayKey(user.timezone);
+  await payPayable(user, uuid(params[0]), body.amountCents === undefined ? null : cents(body.amountCents), body.paidOn ? dateKey(body.paidOn) : today);
+  return json(await listPayables(user, today));
+});
+
+route("DELETE", "payables/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await deletePayable(user, uuid(params[0]));
+  return json(await listPayables(user, todayKey(user.timezone)));
+});
+
+route("GET", "forecast", async ({ request, url }) => {
+  const user = await requireUser(request);
+  const days = Math.min(90, Math.max(7, Number(url.searchParams.get("days") ?? 30) || 30));
+  return json(await loadForecast(user, todayKey(user.timezone), days));
 });
 
 // ===========================================================================

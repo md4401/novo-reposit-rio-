@@ -69,6 +69,59 @@ function BalanceModal({ account }: { account: Account }) {
   );
 }
 
+function CardDaysModal({ account }: { account: Account }) {
+  const { refreshMe, toast, closeModal } = useApp();
+  const [closingDay, setClosingDay] = useState(account.closingDay ?? 1);
+  const [dueDay, setDueDay] = useState(account.dueDay ?? 10);
+  const [busy, setBusy] = useState(false);
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await api(`accounts/${account.id}`, { method: "PATCH", body: { closingDay, dueDay } });
+      await refreshMe();
+      toast("Datas da fatura salvas.");
+      closeModal();
+    } catch (err) {
+      toast((err as Error).message);
+      setBusy(false);
+    }
+  }
+  const days = Array.from({ length: 31 }, (_, i) => i + 1);
+  return (
+    <form onSubmit={save}>
+      <ModalHeader title={`Fatura do ${account.name}`} subtitle="Veja as datas no app do cartão. O ninho calcula a fatura atual e as próximas." />
+      <div className="grid-even" style={{ gap: 10, marginTop: 0 }}>
+        <div className="field">
+          <label htmlFor="cd-close">Dia do fechamento</label>
+          <select id="cd-close" value={closingDay} onChange={(e) => setClosingDay(Number(e.target.value))}>
+            {days.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="cd-due">Dia do vencimento</label>
+          <select id="cd-due" value={dueDay} onChange={(e) => setDueDay(Number(e.target.value))}>
+            {days.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div className="modal-actions">
+        <button type="submit" className="btn dark" disabled={busy}>
+          {busy && <Spinner />} Salvar
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function Sparkline({ points }: { points: { month: string; balanceCents: number }[] }) {
   if (points.length < 2) return null;
   const values = points.map((p) => p.balanceCents);
@@ -125,9 +178,12 @@ export function AccountsPage() {
                   {a.institution ? ` · ${a.institution}` : ""} · atualizada {relativeDays(a.lastSyncedAt)}
                 </p>
                 {a.kind === "credit_card" ? (
-                  <p className="account-balance">
+                  <button type="button" className="account-balance link-like" onClick={() => openModal(<CardDaysModal account={a} />)}>
                     Gastos do mês: <Money cents={a.monthSpentCents} />
-                  </p>
+                    <span className="muted" style={{ fontWeight: 600, marginLeft: 8 }}>
+                      {a.closingDay && a.dueDay ? `fecha dia ${a.closingDay} · vence dia ${a.dueDay}` : "informar datas da fatura"}
+                    </span>
+                  </button>
                 ) : a.currentBalanceCents !== null ? (
                   <button type="button" className="account-balance link-like" onClick={() => openModal(<BalanceModal account={a} />)}>
                     Saldo hoje: <Money cents={a.currentBalanceCents} className={a.currentBalanceCents < 0 ? "down" : ""} />

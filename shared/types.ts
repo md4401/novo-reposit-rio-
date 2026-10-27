@@ -37,6 +37,8 @@ export type Me = {
   /** Mensagens de voz gravadas e transcritas no servidor (Whisper) */
   voiceEnabled: boolean;
   hasDemoData: boolean;
+  /** Primeiros passos já dados (guia de boas-vindas da tela inicial) */
+  setup: { hasTransactions: boolean; hasBudget: boolean; hasGoal: boolean };
   today: string;
 };
 

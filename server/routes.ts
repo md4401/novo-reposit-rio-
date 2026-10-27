@@ -188,7 +188,7 @@ route("POST", "auth/logout", async ({ request }) => {
 });
 
 async function loadMe(user: SessionUser): Promise<Me> {
-  const [household, members, accounts, pending, demo, notify] = await batch(
+  const [household, members, accounts, pending, demo, notify, setup] = await batch(
     [
       q(`SELECT id, name, invite_code FROM households WHERE id = $1`, [user.household_id]),
       q(
@@ -207,6 +207,13 @@ async function loadMe(user: SessionUser): Promise<Me> {
         [user.id, user.household_id],
       ),
       q(`SELECT notify_digest FROM profiles WHERE id = $1`, [user.id]),
+      // Primeiros passos: só o que já existe (nada de valores)
+      q(
+        `SELECT EXISTS (SELECT 1 FROM transactions WHERE profile_id = $1) AS has_tx,
+                EXISTS (SELECT 1 FROM budgets WHERE owner_id = $1 OR (household_id = $2 AND scope = 'family')) AS has_budget,
+                EXISTS (SELECT 1 FROM financial_goals WHERE owner_id = $1 OR (household_id = $2 AND scope = 'family')) AS has_goal`,
+        [user.id, user.household_id],
+      ),
     ],
     { readOnly: true },
   );
@@ -239,6 +246,11 @@ async function loadMe(user: SessionUser): Promise<Me> {
     aiEnabled: aiEnabled(),
     voiceEnabled: transcriptionEnabled(),
     hasDemoData: Boolean(demo[0].has_demo),
+    setup: {
+      hasTransactions: Boolean(setup[0]?.has_tx),
+      hasBudget: Boolean(setup[0]?.has_budget),
+      hasGoal: Boolean(setup[0]?.has_goal),
+    },
     today: todayKey(user.timezone),
   };
 }

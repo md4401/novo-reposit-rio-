@@ -3,7 +3,7 @@ import { useState } from "react";
 import type { Personal } from "../../shared/types";
 import { CategoryBars, IncomeExpenseBars } from "../components/charts";
 import { TxRow } from "../components/TxRow";
-import { DemoFlag, ErrorBox, Heading, LinkButton, Metric, Money, Panel, PeriodControl, Skeleton } from "../components/ui";
+import { ErrorBox, Heading, LinkButton, Metric, Money, Panel, PeriodControl, Skeleton } from "../components/ui";
 import { navigate } from "../lib/router";
 import { useData } from "../lib/useData";
 import { ImportModal } from "../modals/AccountModals";
@@ -37,7 +37,6 @@ export function PersonalPage() {
           </>
         }
       />
-      <DemoFlag />
       <div className="filterbar">
         <PeriodControl month={month} onChange={setMonth} max={today} />
       </div>

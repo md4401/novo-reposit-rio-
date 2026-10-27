@@ -2,7 +2,7 @@ import { Camera, Download, FileUp, Plus, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Transaction } from "../../shared/types";
 import { TxList } from "../components/TxRow";
-import { DemoFlag, Empty, ErrorBox, Heading, Money, PeriodControl, Segmented, Skeleton } from "../components/ui";
+import { Empty, ErrorBox, Heading, Money, PeriodControl, Segmented, Skeleton } from "../components/ui";
 import { scopeLabel, txCategoryLabel, txScope } from "../lib/format";
 import type { Route } from "../lib/router";
 import { useData } from "../lib/useData";
@@ -91,7 +91,6 @@ export function TransactionsPage({ route }: { route: Route }) {
           </>
         }
       />
-      <DemoFlag />
       <div className="filterbar">
         <div className="search-wrap">
           <Search size={17} />

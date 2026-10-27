@@ -16,11 +16,11 @@ export function Money({ cents, sign, className }: { cents: number; sign?: "-" | 
   );
 }
 
-export function Heading({ title, subtitle, actions }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode }) {
+export function Heading({ title, subtitle, actions, eyebrow }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode; eyebrow?: ReactNode }) {
   return (
     <div className="heading">
       <div>
-        <div className="eyebrow">Seu espaço financeiro</div>
+        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
         <h1>{title}</h1>
         {subtitle && <p className="subtitle">{subtitle}</p>}
       </div>

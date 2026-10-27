@@ -2,7 +2,7 @@ import { Activity, ArrowLeftRight, Copy, PiggyBank, Receipt, Share2, ShieldCheck
 import { useState } from "react";
 import type { Family } from "../../shared/types";
 import { CategoryBars, IncomeExpenseBars } from "../components/charts";
-import { Avatar, DemoFlag, ErrorBox, Heading, LinkButton, Metric, Money, Panel, PeriodControl, Progress, Skeleton } from "../components/ui";
+import { Avatar, ErrorBox, Heading, LinkButton, Metric, Money, Panel, PeriodControl, Progress, Skeleton } from "../components/ui";
 import { navigate } from "../lib/router";
 import { useData } from "../lib/useData";
 import { useApp } from "../state";
@@ -37,7 +37,6 @@ export function FamilyPage() {
           </>
         }
       />
-      <DemoFlag />
       <div className="filterbar">
         <PeriodControl month={month} onChange={setMonth} max={today} />
       </div>

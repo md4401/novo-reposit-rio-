@@ -12,14 +12,17 @@ export function NewTransactionModal({
   proposal,
   source = "manual",
   receiptImage,
+  direction: initialDirection = "expense",
 }: {
   proposal?: Proposal;
   source?: "manual" | "voice" | "receipt";
   /** Foto da nota (já comprimida) para guardar junto com o lançamento */
   receiptImage?: string;
+  /** Começar como despesa ou receita (botão "Adicionar") */
+  direction?: Direction;
 }) {
   const { me, closeModal, toast, refreshMe } = useApp();
-  const [direction, setDirection] = useState<Direction>(proposal?.direction ?? "expense");
+  const [direction, setDirection] = useState<Direction>(proposal?.direction ?? initialDirection);
   const [description, setDescription] = useState(proposal?.description ?? "");
   const [amount, setAmount] = useState(proposal ? centsToInput(proposal.amountCents) : "");
   const [date, setDate] = useState(proposal?.occurredOn ?? me?.today ?? "");

@@ -1,6 +1,6 @@
 import { Lock, Plus, Trash2 } from "lucide-react";
 import type { Goal } from "../../shared/types";
-import { DemoFlag, Empty, ErrorBox, Heading, Money, Progress, Skeleton } from "../components/ui";
+import { Empty, ErrorBox, Heading, Money, Progress, Skeleton } from "../components/ui";
 import { api } from "../lib/api";
 import { useData } from "../lib/useData";
 import { ContributeModal, NewGoalModal } from "../modals/GoalModals";
@@ -31,7 +31,6 @@ export function GoalsPage() {
           </button>
         }
       />
-      <DemoFlag />
       {error && <ErrorBox message={error} onRetry={reload} />}
       {!data ? (
         <Skeleton height={220} />

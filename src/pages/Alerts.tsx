@@ -1,6 +1,6 @@
 import { Bot, Check, Repeat, ShieldCheck, TriangleAlert } from "lucide-react";
 import type { AlertsPayload, Recurring } from "../../shared/types";
-import { DemoFlag, Empty, ErrorBox, Heading, Metric, Money, Panel, Skeleton } from "../components/ui";
+import { Empty, ErrorBox, Heading, Metric, Money, Panel, Skeleton } from "../components/ui";
 import { api } from "../lib/api";
 import { category, dayLabel, monthLabel } from "../lib/format";
 import { navigate } from "../lib/router";
@@ -64,7 +64,6 @@ export function AlertsPage() {
           </button>
         }
       />
-      <DemoFlag />
       {error && <ErrorBox message={error} onRetry={reload} />}
       {!data ? (
         <Skeleton height={300} />

@@ -1,6 +1,7 @@
-import { ArrowLeftRight, Bell, CalendarCheck, ChevronRight, Plus, Wallet, Activity, TriangleAlert } from "lucide-react";
+import { ArrowLeftRight, Bell, CalendarCheck, ChevronRight, FileText, Wallet, Activity, TriangleAlert } from "lucide-react";
 import type { Overview } from "../../shared/types";
 import { CategoryDonut, IncomeExpenseBars } from "../components/charts";
+import { GettingStarted } from "../components/GettingStarted";
 import { TxRow } from "../components/TxRow";
 import { DemoFlag, ErrorBox, Heading, LinkButton, Metric, Money, Panel, Skeleton } from "../components/ui";
 import { monthLabel } from "../lib/format";
@@ -8,10 +9,20 @@ import { navigate } from "../lib/router";
 import { useData } from "../lib/useData";
 import { DigestModal } from "../modals/DigestModal";
 import { MonthReportModal } from "../modals/MonthReportModal";
-import { NewTransactionModal } from "../modals/NewTransactionModal";
 import { useApp } from "../state";
 
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+function greeting() {
+  const hour = new Date().getHours();
+  return hour < 5 ? "Boa noite" : hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
+}
+
+/** "Terça-feira, 27 de outubro" a partir de AAAA-MM-DD (sem fuso: é o dia da pessoa). */
+function longDate(key: string) {
+  const [y, m, d] = key.split("-").map(Number);
+  return capitalize(new Date(y, m - 1, d).toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" }));
+}
 
 /** O selo diz só o que o app sabe: orçamento (se houver) ou quanto sobrou. */
 function balanceFoot(data: Overview) {
@@ -37,20 +48,26 @@ export function HomePage() {
   return (
     <>
       <Heading
-        title={`Olá, ${first}! Que bom te ver. 👋`}
-        subtitle="Seu dinheiro, no seu ritmo. Confira o que acontece com suas finanças hoje."
+        eyebrow={me ? longDate(me.today) : undefined}
+        title={`${greeting()}, ${first}`}
+        subtitle="Veja como está o mês e o que precisa da sua atenção."
         actions={
           <>
-            <button type="button" className="btn ghost" onClick={() => openModal(<DigestModal />)}>
-              <Bell size={15} /> Resumo diário {pending > 0 && <span className="chip lime">{pending}</span>}
-            </button>
-            <button type="button" className="btn dark hide-mobile" onClick={() => openModal(<NewTransactionModal />)}>
-              <Plus size={16} /> Nova despesa
-            </button>
+            {pending > 0 && (
+              <button type="button" className="btn dark" onClick={() => openModal(<DigestModal />)}>
+                <Bell size={15} /> Revisar {pending} pendência{pending > 1 ? "s" : ""}
+              </button>
+            )}
+            {data && (
+              <button type="button" className="btn ghost" onClick={() => openModal(<MonthReportModal month={data.month} />)}>
+                <FileText size={15} /> Relatório do mês
+              </button>
+            )}
           </>
         }
       />
       <DemoFlag />
+      <GettingStarted />
       {error && <ErrorBox message={error} onRetry={reload} />}
       {data?.closingMonth && (
         <button type="button" className="notice info compact" style={{ width: "100%", textAlign: "left", marginBottom: 16 }} onClick={() => openModal(<MonthReportModal month={data.closingMonth!} />)}>
@@ -117,7 +134,13 @@ export function HomePage() {
                   </div>
                   <span className="chip green">↗ Visão mensal</span>
                 </div>
-                <IncomeExpenseBars series={data.familySeries} current={data.month} />
+                {data.familySeries.some((p) => p.incomeCents || p.expenseCents) ? (
+                  <IncomeExpenseBars series={data.familySeries} current={data.month} />
+                ) : (
+                  <p className="muted small" style={{ marginTop: 16 }}>
+                    O gráfico aparece quando houver receitas ou despesas marcadas como familiares.
+                  </p>
+                )}
               </Panel>
               <Panel title="Minhas transações recentes" action={<LinkButton onClick={() => navigate("transacoes")}>Ver todas</LinkButton>}>
                 {data.recent.length ? (
@@ -154,10 +177,7 @@ export function HomePage() {
             </div>
           </div>
 
-          <div className="split-heading">
-            <h2>Seu próximo passo</h2>
-          </div>
-          <div className="banner">
+          <div className="banner" style={{ marginTop: 17 }}>
             <div>
               <h2>Organizar ficou mais leve com a Nia. ✨</h2>
               <p>Converse por texto, fale uma compra (“gastei 80 no mercado”) ou revise suas pendências num lugar só.</p>

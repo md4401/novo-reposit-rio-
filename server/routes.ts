@@ -89,6 +89,21 @@ import {
 } from "./wealth.js";
 import { cardInvoices, deletePayable, listPayables, loadForecast, payablesDue, payPayable, savePayable, type PayableInput } from "./planning.js";
 import { importStatement } from "./statement-import.js";
+import {
+  abandonChallenge,
+  createWish,
+  deleteAllowance,
+  deleteWish,
+  listAllowances,
+  listChallenges,
+  listWishes,
+  markWishBought,
+  payDueAllowances,
+  setAllowance,
+  startChallenge,
+  toggleVote,
+  wishToGoal,
+} from "./together.js";
 
 type Ctx = { request: Request; url: URL; params: string[] };
 type Handler = (ctx: Ctx) => Promise<Response>;
@@ -1059,7 +1074,8 @@ route("POST", "push/unsubscribe", async ({ request }) => {
 async function cronDigest({ url }: Ctx) {
   await rateLimit("cron:digest", 30, 60);
   const appUrl = process.env.APP_URL ?? url.origin;
-  return json(await sendDueDigests(appUrl.startsWith("https://") ? appUrl : "https://ninho-financas-familia.vercel.app"));
+  const allowances = await payDueAllowances();
+  return json({ ...(await sendDueDigests(appUrl.startsWith("https://") ? appUrl : "https://ninho-financas-familia.vercel.app")), allowances });
 }
 route("POST", "cron/digest", cronDigest);
 route("GET", "cron/digest", cronDigest);
@@ -1106,6 +1122,87 @@ route("DELETE", "budgets/:id", async ({ request, params, url }) => {
   );
   if (!row) throw new HttpError(404, "Orçamento não encontrado");
   return json(await listBudgets(user, monthParam(url, currentMonth(user))));
+});
+
+// ===========================================================================
+// Lista de desejos, desafios e mesada
+
+route("GET", "wishes", async ({ request }) => json(await listWishes(await requireUser(request))));
+
+route("POST", "wishes", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  await rateLimit(`wishes:${user.id}`, 60, 60);
+  await createWish(user, str(body, "name", { max: 80, label: "o que querem comprar" })!, cents(body.priceCents, "preço"), str(body, "note", { max: 200, optional: true }));
+  return json(await listWishes(user), 201);
+});
+
+route("POST", "wishes/:id/vote", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await toggleVote(user, uuid(params[0]));
+  return json(await listWishes(user));
+});
+
+route("POST", "wishes/:id/goal", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await wishToGoal(user, uuid(params[0]));
+  return json(await listWishes(user));
+});
+
+route("POST", "wishes/:id/bought", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await markWishBought(user, uuid(params[0]));
+  return json(await listWishes(user));
+});
+
+route("DELETE", "wishes/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await deleteWish(user, uuid(params[0]));
+  return json(await listWishes(user));
+});
+
+route("GET", "challenges", async ({ request }) => {
+  const user = await requireUser(request);
+  return json(await listChallenges(user, todayKey(user.timezone)));
+});
+
+route("POST", "challenges", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  const today = todayKey(user.timezone);
+  await startChallenge(user, oneOf(body.kind, ["no_delivery", "organized", "spend_less", "no_spend_day"] as const, "desafio"), today);
+  return json(await listChallenges(user, today), 201);
+});
+
+route("POST", "challenges/:id/abandon", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await abandonChallenge(user, uuid(params[0]));
+  return json(await listChallenges(user, todayKey(user.timezone)));
+});
+
+route("GET", "allowances", async ({ request }) => {
+  const user = await requireUser(request);
+  return json(await listAllowances(user, todayKey(user.timezone)));
+});
+
+route("PUT", "allowances", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  const frequency = oneOf(body.frequency, ["weekly", "monthly"] as const, "frequência");
+  await setAllowance(user, {
+    memberId: uuid(body.memberId, "integrante"),
+    amountCents: cents(body.amountCents, "valor da mesada"),
+    frequency,
+    payDay: int(body, "payDay", 0, 28, "dia"),
+    limitCents: body.limitCents ? cents(body.limitCents, "limite") : null,
+  });
+  return json(await listAllowances(user, todayKey(user.timezone)));
+});
+
+route("DELETE", "allowances/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await deleteAllowance(user, uuid(params[0]));
+  return json(await listAllowances(user, todayKey(user.timezone)));
 });
 
 // ===========================================================================

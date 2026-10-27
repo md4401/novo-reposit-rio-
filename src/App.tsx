@@ -6,6 +6,7 @@ import { AlertsPage } from "./pages/Alerts";
 import { AssistantPage } from "./pages/Assistant";
 import { AuthPage } from "./pages/Auth";
 import { BudgetsPage } from "./pages/Budgets";
+import { ChallengesPage } from "./pages/Challenges";
 import { FamilyPage } from "./pages/Family";
 import { ForecastPage } from "./pages/Forecast";
 import { GoalsPage } from "./pages/Goals";
@@ -15,6 +16,7 @@ import { HouseBillsPage } from "./pages/HouseBills";
 import { PayablesPage } from "./pages/Payables";
 import { PersonalPage } from "./pages/Personal";
 import { WealthPage } from "./pages/Wealth";
+import { WishesPage } from "./pages/Wishes";
 import { SettingsPage } from "./pages/Settings";
 import { TagsPage } from "./pages/Tags";
 import { TaxPage } from "./pages/Tax";
@@ -50,6 +52,8 @@ export function App() {
     patrimonio: <WealthPage />,
     ir: <TaxPage />,
     etiquetas: <TagsPage />,
+    desejos: <WishesPage />,
+    desafios: <ChallengesPage />,
     casa: <HouseBillsPage />,
     metas: <GoalsPage />,
     nia: <AssistantPage />,

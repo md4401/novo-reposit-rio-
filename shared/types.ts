@@ -359,3 +359,43 @@ export type DebtPlan = {
   snowball: { months: number; interestCents: number; feasible: boolean; order: { id: string; name: string; paidOffMonth: number }[] };
   avalanche: { months: number; interestCents: number; feasible: boolean; order: { id: string; name: string; paidOffMonth: number }[] };
 };
+
+export type Wish = {
+  id: string;
+  name: string;
+  priceCents: number;
+  note: string | null;
+  status: "open" | "goal" | "bought";
+  goalId: string | null;
+  votes: number;
+  votedByMe: boolean;
+  createdBy: string | null;
+  canDelete: boolean;
+};
+
+export type Challenge = {
+  id: string;
+  kind: "no_delivery" | "organized" | "spend_less" | "no_spend_day";
+  title: string;
+  icon: string;
+  text: string;
+  startsOn: string;
+  endsOn: string;
+  status: "active" | "won" | "lost" | "abandoned";
+  progress: number;
+  detail: string;
+};
+
+export type Allowance = {
+  id: string;
+  memberId: string;
+  memberName: string;
+  amountCents: number;
+  frequency: "weekly" | "monthly";
+  payDay: number;
+  limitCents: number | null;
+  lastPaidOn: string | null;
+  /** Para quem recebe: gastos do mês, para comparar com o limite */
+  spentThisMonthCents: number | null;
+  isMe: boolean;
+};

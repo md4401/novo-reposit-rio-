@@ -7,6 +7,7 @@ import {
   CalendarClock,
   Eye,
   FileText,
+  Gift,
   EyeOff,
   House,
   Landmark,
@@ -22,6 +23,7 @@ import {
   Tags,
   Target,
   TrendingUp,
+  Trophy,
   Users,
   Wallet,
 } from "lucide-react";
@@ -48,10 +50,12 @@ const MAIN: NavItem[] = [
   { key: "transacoes", label: "Transações", icon: <ArrowLeftRight size={17} /> },
   { key: "casa", label: "Contas da casa", icon: <Receipt size={17} /> },
   { key: "metas", label: "Metas e objetivos", icon: <Target size={17} /> },
+  { key: "desejos", label: "Lista de desejos", icon: <Gift size={17} /> },
 ];
 const SMART: NavItem[] = [
   { key: "nia", label: "Assistente Nia", icon: <Bot size={17} /> },
   { key: "alertas", label: "Assinaturas e alertas", icon: <Repeat size={17} /> },
+  { key: "desafios", label: "Desafios", icon: <Trophy size={17} /> },
   { key: "saude", label: "Saúde dos dados", icon: <Activity size={17} /> },
 ];
 const MORE: NavItem[] = [

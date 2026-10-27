@@ -84,3 +84,16 @@ describe("desafios", () => {
     expect(challengeProgress("spend_less", "2026-10-01", "2026-10-31", "2026-10-15", [tx("2026-10-02", "a")], { previousMonthCents: 2000 }).status).toBe("lost");
   });
 });
+
+import { lastDueDate } from "../server/together";
+describe("mesada", () => {
+  it("mensal: dia de pagamento deste mês ou do anterior", () => {
+    expect(lastDueDate("monthly", 5, "2026-10-27")).toBe("2026-10-05");
+    expect(lastDueDate("monthly", 28, "2026-10-27")).toBe("2026-09-28");
+  });
+  it("semanal: último dia da semana escolhido", () => {
+    // 2026-10-27 é terça (2); sábado = 6
+    expect(lastDueDate("weekly", 6, "2026-10-27")).toBe("2026-10-24");
+    expect(lastDueDate("weekly", 2, "2026-10-27")).toBe("2026-10-27");
+  });
+});

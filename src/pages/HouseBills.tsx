@@ -215,7 +215,16 @@ export function HouseBillsPage() {
         <Skeleton />
       ) : data.length === 0 ? (
         <Panel>
-          <Empty icon="🧾" title="Nenhuma conta neste mês" text="Crie a conta de luz, água ou internet e escolha quem divide." />
+          <Empty
+            icon="🧾"
+            title="Nenhuma conta neste mês"
+            text="Crie a conta de luz, água ou internet e escolha quem divide."
+            action={
+              <button type="button" className="btn dark small" onClick={() => openModal(<BillModal month={month} />)}>
+                <Plus size={14} /> Nova conta da casa
+              </button>
+            }
+          />
         </Panel>
       ) : (
         <>

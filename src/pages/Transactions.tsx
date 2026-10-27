@@ -1,6 +1,7 @@
 import { CalendarRange, Download, FileUp, Lock, Plus, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Tag, Transaction } from "../../shared/types";
+import { ReviewHelp } from "../components/help";
 import { TxList } from "../components/TxRow";
 import { Empty, ErrorBox, Heading, Money, PeriodControl, Skeleton } from "../components/ui";
 import { scopeLabel, txCategoryLabel, txScope } from "../lib/format";
@@ -63,6 +64,7 @@ export function TransactionsPage({ route }: { route: Route }) {
   const out = items.filter((t) => t.direction === "expense" && !t.ignored).reduce((s, t) => s + t.amountCents, 0);
   const inc = items.filter((t) => t.direction === "income" && !t.ignored).reduce((s, t) => s + t.amountCents, 0);
 
+  const narrowed = filter !== "all" || !!q || !!tag;
   const filters: [Filter, string][] = [
     ["all", "Todas"],
     ["pending", `A revisar${me?.pendingCount ? ` · ${me.pendingCount}` : ""}`],
@@ -119,6 +121,9 @@ export function TransactionsPage({ route }: { route: Route }) {
             {label}
           </button>
         ))}
+        <span className="chips-help">
+          <ReviewHelp />
+        </span>
         {(tags.data?.length ?? 0) > 0 && (
           <select className="tag-filter" aria-label="Filtrar por etiqueta" value={tag} onChange={(e) => setTag(e.target.value)}>
             <option value="">Todas as etiquetas</option>
@@ -138,11 +143,27 @@ export function TransactionsPage({ route }: { route: Route }) {
           <Empty
             icon="🧾"
             title={filter === "pending" ? "Nada para revisar" : "Nenhuma transação encontrada"}
-            text={filter === "pending" ? "Tudo classificado. Bom trabalho!" : "Registre uma despesa ou importe o extrato do seu banco (CSV ou OFX)."}
+            text={
+              filter === "pending" ? "Tudo classificado. Bom trabalho!" : narrowed ? "Nada com esse filtro ou busca." : "Registre uma despesa ou importe o extrato do seu banco (CSV ou OFX)."
+            }
             action={
-              <button type="button" className="btn dark small" onClick={() => openModal(<ImportModal />)}>
-                <FileUp size={14} /> Importar extrato
-              </button>
+              !narrowed ? (
+                <button type="button" className="btn dark small" onClick={() => openModal(<QuickAddSheet />)}>
+                  <Plus size={14} /> Adicionar
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn ghost small"
+                  onClick={() => {
+                    setFilter("all");
+                    setSearch("");
+                    setTag("");
+                  }}
+                >
+                  Ver todas
+                </button>
+              )
             }
           />
         </div>

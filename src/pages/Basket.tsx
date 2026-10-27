@@ -49,6 +49,11 @@ export function BasketPage() {
             icon="🧺"
             title="A cesta ainda está vazia"
             text="Leia as notas fiscais das compras da casa (marcadas como da família). Quando um produto aparecer em duas notas, o ninho mostra se ficou mais caro ou mais barato."
+            action={
+              <button type="button" className="btn dark small" onClick={() => openModal(<ReceiptModal />)}>
+                <Camera size={14} /> Ler uma nota fiscal
+              </button>
+            }
           />
         </Panel>
       ) : (

@@ -50,7 +50,7 @@ export function ChallengesPage() {
         {!data ? (
           <Skeleton />
         ) : data.length === 0 ? (
-          <Empty icon="🏁" title="Nenhum desafio ainda" />
+          <Empty icon="🏁" title="Nenhum desafio ainda" text="Toque em “Aceitar” num dos desafios acima para começar." />
         ) : (
           data.map((c) => (
             <div className="budget-row" key={c.id}>

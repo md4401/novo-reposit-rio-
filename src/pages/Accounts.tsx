@@ -1,6 +1,7 @@
 import { CreditCard, FileUp, Landmark, Plus, PiggyBank, Wallet } from "lucide-react";
 import { useState } from "react";
 import type { Account, AccountKind } from "../../shared/types";
+import { BalanceHelp } from "../components/help";
 import { Heading, ModalHeader, Money, Panel, Spinner, Toggle } from "../components/ui";
 import { api } from "../lib/api";
 import { centsToInput, parseMoney, relativeDays } from "../lib/format";
@@ -163,7 +164,13 @@ export function AccountsPage() {
         }
       />
       <div className="grid-2" style={{ marginTop: 0 }}>
-        <Panel title="Suas contas e cartões">
+        <Panel
+          title={
+            <h2>
+              Suas contas e cartões <BalanceHelp />
+            </h2>
+          }
+        >
           {accounts.length === 0 && <p className="muted small">Nenhuma conta ainda. Adicione a conta corrente e o cartão que você mais usa.</p>}
           {accounts.map((a) => (
             <div className="status-item" key={a.id} style={{ opacity: a.active ? 1 : 0.55 }}>

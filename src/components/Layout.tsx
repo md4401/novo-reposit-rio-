@@ -1,18 +1,19 @@
 // Estrutura: menu lateral com 8 seções (computador) e barra inferior com "+" no centro (celular).
 // As telas de cada seção aparecem como abas no topo da página.
 import { Bell, Bot, Eye, EyeOff, Lock, Plus, X } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { BOTTOM_KEYS, NAV, PAGE_TITLES, sectionOf, type NavItem } from "../lib/nav";
 import { navigate } from "../lib/router";
 import { DigestModal } from "../modals/DigestModal";
 import { MoreSheet, QuickAddSheet } from "../modals/MenuSheets";
+import { markWelcomeSeen, welcomeSeen, WelcomeModal } from "../modals/WelcomeModal";
 import { useApp } from "../state";
 import { Avatar } from "./ui";
 
 const BOTTOM = BOTTOM_KEYS.map((key) => NAV.find((n) => n.key === key)!);
 const BOTTOM_LABEL: Record<string, string> = { inicio: "Início", transacoes: "Transações", orcamento: "Planejar", familia: "Casa" };
 
-// Aviso de uma vez só para quem já usava o app antes do menu novo
+// Aviso de uma vez só para quem já usava o app antes do menu novo (quem está testando com exemplo não conhecia o antigo)
 const NEWS_KEY = "ninho.novidades.menu8";
 function readSeen() {
   try {
@@ -27,6 +28,15 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
   const pending = me?.pendingCount ?? 0;
   const section = sectionOf(page);
   const [seenNews, setSeenNews] = useState(readSeen);
+
+  // Primeira vez numa conta sem lançamentos: boas-vindas (marcadas como vistas ao abrir, mesmo se fechar no X)
+  const profileId = me?.profile.id;
+  const fresh = me ? !me.setup.hasTransactions : false;
+  useEffect(() => {
+    if (!profileId || !fresh || welcomeSeen(profileId)) return;
+    markWelcomeSeen(profileId);
+    openModal(<WelcomeModal />);
+  }, [profileId, fresh, openModal]);
 
   const go = (key: string) => navigate(key === "inicio" ? "" : key);
   const quickAdd = () => openModal(<QuickAddSheet />);
@@ -135,7 +145,7 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
           </div>
         </header>
         <div className="content">
-          {!seenNews && me?.setup.hasTransactions && (
+          {!seenNews && me?.setup.hasTransactions && !me.hasDemoData && (
             <div className="news-bar" role="status">
               <span>
                 <b>O menu ficou mais simples:</b> 8 seções, e as telas de cada uma viram abas no topo. No celular, o menu completo abre pela sua foto, no canto de cima.

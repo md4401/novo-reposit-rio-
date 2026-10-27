@@ -206,6 +206,7 @@ export function AssistantPage() {
   }
 
   const pending = me?.pendingCount ?? 0;
+  const talking = messages.some((m) => m.role === "user");
   return (
     <>
       <Heading
@@ -246,6 +247,16 @@ export function AssistantPage() {
                   <Spinner size={14} /> Pensando…
                 </div>
               )}
+              {data && !talking && !sending && (
+                <div className="chat-suggest">
+                  <span>Experimente:</span>
+                  {QUICK.map((q) => (
+                    <button key={q} type="button" className="quick" onClick={() => send(q)}>
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <form
               className="chat-footer"
@@ -281,13 +292,16 @@ export function AssistantPage() {
               </button>
             </form>
           </div>
-          <div className="chat-quick">
-            {QUICK.map((q) => (
-              <button key={q} type="button" className="quick" onClick={() => send(q)}>
-                {q}
-              </button>
-            ))}
-          </div>
+          {/* Com a conversa em andamento, as sugestões ficam abaixo do campo (só no computador: no celular sairiam da tela) */}
+          {talking && (
+            <div className="chat-quick hide-mobile">
+              {QUICK.map((q) => (
+                <button key={q} type="button" className="quick" onClick={() => send(q)}>
+                  {q}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="stack">
           <Panel title="O que a Nia pode fazer?">

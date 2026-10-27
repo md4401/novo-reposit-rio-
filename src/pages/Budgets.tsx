@@ -158,6 +158,13 @@ export function BudgetsPage() {
               icon="🎯"
               title="Nenhum limite ainda"
               text={tab === "personal" ? "Comece por uma categoria em que você gasta muito, como Alimentação." : "Ex.: Moradia, Alimentação e Limpeza da casa."}
+              action={
+                editable ? (
+                  <button type="button" className="btn dark small" onClick={() => openModal(<BudgetModal scope={tab} month={month} />)}>
+                    <Plus size={14} /> Criar o primeiro limite
+                  </button>
+                ) : undefined
+              }
             />
           ) : (
             <>

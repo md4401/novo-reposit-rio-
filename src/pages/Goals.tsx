@@ -36,7 +36,16 @@ export function GoalsPage() {
         <Skeleton height={220} />
       ) : data.length === 0 ? (
         <div className="list-box">
-          <Empty icon="🎯" title="Nenhuma meta ainda" text="Crie uma meta pessoal ou da família, como uma reserva de emergência ou uma viagem." />
+          <Empty
+            icon="🎯"
+            title="Nenhuma meta ainda"
+            text="Crie uma meta pessoal ou da família, como uma reserva de emergência ou uma viagem."
+            action={
+              <button type="button" className="btn dark small" onClick={() => openModal(<NewGoalModal />)}>
+                <Plus size={14} /> Criar a primeira meta
+              </button>
+            }
+          />
         </div>
       ) : (
         <div className="goals">

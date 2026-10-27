@@ -84,7 +84,16 @@ export function WishesPage() {
         <Skeleton />
       ) : data.length === 0 ? (
         <Panel>
-          <Empty icon="🎁" title="Nenhum desejo ainda" text="Adicione algo que a família quer comprar e votem juntos." />
+          <Empty
+            icon="🎁"
+            title="Nenhum desejo ainda"
+            text="Adicione algo que a família quer comprar e votem juntos."
+            action={
+              <button type="button" className="btn dark small" onClick={() => openModal(<WishModal />)}>
+                <Plus size={14} /> Novo desejo
+              </button>
+            }
+          />
         </Panel>
       ) : (
         <div className="stack">

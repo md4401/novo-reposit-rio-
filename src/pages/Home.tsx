@@ -3,6 +3,7 @@ import { CalendarClock, CircleCheck, CreditCard, FileText, House, Repeat, Chevro
 import { useState, type ReactNode } from "react";
 import type { Insight, Overview, UpcomingItem } from "../../shared/types";
 import { CategoryDonut } from "../components/charts";
+import { BalanceHelp, LeftoverHelp } from "../components/help";
 import { GettingStarted } from "../components/GettingStarted";
 import { Glyph } from "../components/icons";
 import { TxRow } from "../components/TxRow";
@@ -170,14 +171,18 @@ function MonthCard({ data, view, onView }: { data: Overview; view: View; onView:
           </b>
         </div>
         <div>
-          <span>Sobrou</span>
+          <span>
+            Sobrou <LeftoverHelp />
+          </span>
           <b className={t.balanceCents < 0 ? "down-light" : ""}>
             <Money cents={t.balanceCents} />
           </b>
         </div>
         {view === "me" && data.forecastEndOfMonthCents !== null && (
           <div>
-            <span>Saldo previsto no fim do mês</span>
+            <span>
+              Saldo previsto no fim do mês <BalanceHelp />
+            </span>
             <b className={data.forecastEndOfMonthCents < 0 ? "down-light" : ""}>
               <Money cents={data.forecastEndOfMonthCents} />
             </b>

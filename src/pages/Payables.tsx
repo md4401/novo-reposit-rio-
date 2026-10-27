@@ -261,7 +261,16 @@ export function PayablesPage() {
             {!payables.data ? (
               <Skeleton />
             ) : list.length === 0 ? (
-              <Empty icon="📅" title="Nenhuma conta cadastrada" text="Cadastre aluguel, luz, internet… e também IPVA, IPTU e material escolar." />
+              <Empty
+                icon="📅"
+                title="Nenhuma conta cadastrada"
+                text="Cadastre aluguel, luz, internet… e também IPVA, IPTU e material escolar."
+                action={
+                  <button type="button" className="btn dark small" onClick={() => openModal(<PayableModal />)}>
+                    <Plus size={14} /> Nova conta a pagar
+                  </button>
+                }
+              />
             ) : (
               list.map((p) => (
                 <div className="payable-row" key={p.id}>

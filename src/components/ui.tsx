@@ -1,6 +1,7 @@
 // Componentes básicos reaproveitados pelas telas.
-import { ChevronLeft, ChevronRight, Info, LoaderCircle, X } from "lucide-react";
-import type { ReactNode } from "react";
+import { ChevronLeft, ChevronRight, CircleHelp, Info, LoaderCircle, X } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import type { Transaction } from "../../shared/types";
 import { formatMoney, initials, monthLabel } from "../lib/format";
 import { useApp } from "../state";
@@ -73,6 +74,62 @@ export function Panel({ title, action, children, className }: { title?: ReactNod
       )}
       {children}
     </section>
+  );
+}
+
+/** "?" ao lado de um termo: abre uma explicação curta; fecha ao tocar fora, rolar ou apertar Esc. */
+export function Help({ title, children }: { title: string; children: ReactNode }) {
+  const [pos, setPos] = useState<{ left: number; top: number; up: boolean } | null>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  const pop = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!pos) return;
+    const openedAt = Date.now();
+    const close = (e: Event) => {
+      if (e.type === "keydown" && (e as KeyboardEvent).key !== "Escape") return;
+      // O toque no "?" pode rolar a faixa onde ele está: essa rolagem não fecha
+      if (e.type === "scroll" && Date.now() - openedAt < 400) return;
+      if (e.type === "pointerdown" && (pop.current?.contains(e.target as Node) || button.current?.contains(e.target as Node))) return;
+      setPos(null);
+    };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", close);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", close);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [pos]);
+
+  const toggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (pos) return setPos(null);
+    const r = button.current!.getBoundingClientRect();
+    const width = Math.min(280, window.innerWidth - 24);
+    const left = Math.max(12, Math.min(r.left + r.width / 2 - width / 2, window.innerWidth - width - 12));
+    // Abre para cima quando não cabe embaixo
+    const up = r.bottom + 180 > window.innerHeight && r.top > 200;
+    setPos({ left, top: up ? r.top - 8 : r.bottom + 8, up });
+  };
+
+  return (
+    <>
+      <button ref={button} type="button" className="help-btn" onClick={toggle} aria-label={`O que é “${title}”?`} aria-expanded={!!pos}>
+        <CircleHelp size={14} />
+      </button>
+      {pos &&
+        createPortal(
+          <div ref={pop} className={`help-pop ${pos.up ? "up" : ""}`} role="tooltip" style={{ left: pos.left, top: pos.top }}>
+            <b>{title}</b>
+            <div>{children}</div>
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
 

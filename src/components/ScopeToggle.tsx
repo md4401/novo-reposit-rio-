@@ -1,6 +1,7 @@
 // Pessoal ou Família: o conceito central do app, em dois botões (no lugar de um campo de seleção).
 import { Lock, Users } from "lucide-react";
 import type { Scope } from "../../shared/types";
+import { ScopeHelp } from "./help";
 
 const HINT: Record<Scope, string> = {
   personal: "Só você vê.",
@@ -39,7 +40,11 @@ export function ScopeToggle({
         {option("personal", <Lock size={14} />, "Pessoal")}
         {option("family", <Users size={14} />, "Família")}
       </div>
-      {!compact && <span className="hint">{disabled ? "Escolha a categoria para definir." : HINT[value]}</span>}
+      {!compact && (
+        <span className="hint">
+          {disabled ? "Escolha a categoria para definir." : HINT[value]} <ScopeHelp />
+        </span>
+      )}
     </div>
   );
 }

@@ -114,7 +114,7 @@ function BillModal({ month }: { month: string }) {
 }
 
 function BillCard({ bill, month }: { bill: HouseBill; month: string }) {
-  const { toast } = useApp();
+  const { toast, confirm } = useApp();
   const [busy, setBusy] = useState(false);
   const mine = bill.shares.find((s) => s.isMe);
   const paid = bill.shares.filter((s) => s.paid).reduce((s, x) => s + x.amountCents, 0);
@@ -177,7 +177,7 @@ function BillCard({ bill, month }: { bill: HouseBill; month: string }) {
             type="button"
             className="btn ghost small danger-text"
             disabled={busy}
-            onClick={() => window.confirm(`Apagar “${bill.name}”? Os lançamentos já feitos continuam no financeiro de cada um.`) && run(`bills/${bill.id}`, "Conta apagada.", undefined, "DELETE")}
+            onClick={async () => (await confirm({ title: `Apagar “${bill.name}”?`, text: "Os lançamentos já feitos continuam no financeiro de cada um.", confirmLabel: "Apagar", danger: true })) && run(`bills/${bill.id}`, "Conta apagada.", undefined, "DELETE")}
           >
             <Trash2 size={13} /> Apagar
           </button>
@@ -205,7 +205,7 @@ export function HouseBillsPage() {
           <>
             <PeriodControl month={month} onChange={setMonth} max={next} />
             <button type="button" className="btn dark" onClick={() => openModal(<BillModal month={month} />)}>
-              <Plus size={15} /> Nova conta
+              <Plus size={15} /> Nova conta da casa
             </button>
           </>
         }

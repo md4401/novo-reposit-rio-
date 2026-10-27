@@ -7,11 +7,11 @@ import { ContributeModal, NewGoalModal } from "../modals/GoalModals";
 import { useApp } from "../state";
 
 export function GoalsPage() {
-  const { openModal, toast } = useApp();
+  const { openModal, toast, confirm } = useApp();
   const { data, error, reload } = useData<Goal[]>("goals");
 
   async function remove(g: Goal) {
-    if (!window.confirm(`Apagar a meta “${g.name}”?`)) return;
+    if (!(await confirm({ title: `Apagar a meta “${g.name}”?`, text: "As contribuições já feitas deixam de contar para ela.", confirmLabel: "Apagar", danger: true }))) return;
     try {
       await api(`goals/${g.id}`, { method: "DELETE" });
       toast("Meta apagada.");

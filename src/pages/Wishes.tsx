@@ -55,7 +55,7 @@ function WishModal() {
 }
 
 export function WishesPage() {
-  const { me, openModal, toast } = useApp();
+  const { me, openModal, toast, confirm } = useApp();
   const { data, error, reload } = useData<Wish[]>("wishes");
   const members = (me?.household.members ?? []).filter((m) => !m.isDemo).length;
 
@@ -125,7 +125,7 @@ export function WishesPage() {
                   </button>
                 )}
                 {w.canDelete && (
-                  <button type="button" className="btn ghost small danger-text" onClick={() => window.confirm(`Apagar “${w.name}”?`) && void run(`wishes/${w.id}`, "Desejo apagado.", "DELETE")}>
+                  <button type="button" className="btn ghost small danger-text" onClick={async () => (await confirm({ title: `Apagar “${w.name}”?`, confirmLabel: "Apagar", danger: true })) && void run(`wishes/${w.id}`, "Desejo apagado.", "DELETE")}>
                     <Trash2 size={13} /> Apagar
                   </button>
                 )}

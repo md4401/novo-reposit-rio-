@@ -66,7 +66,7 @@ export const NAV: NavGroup[] = [
   {
     label: "Conta",
     items: [
-      { key: "contas", label: "Contas e extratos", hint: "Bancos, cartões e importação", icon: (s) => <Landmark size={s} /> },
+      { key: "contas", label: "Bancos e cartões", hint: "Contas, cartões e importação", icon: (s) => <Landmark size={s} /> },
       { key: "etiquetas", label: "Etiquetas", hint: "Agrupe gastos do seu jeito", icon: (s) => <Tags size={s} /> },
       { key: "saude", label: "Saúde dos dados", hint: "O que está atualizado", icon: (s) => <Activity size={s} /> },
       { key: "ajustes", label: "Configurações", hint: "Perfil, família e privacidade", icon: (s) => <Settings size={s} /> },

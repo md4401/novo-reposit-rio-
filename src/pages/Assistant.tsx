@@ -90,7 +90,7 @@ function ProposalCard({ message, onSaved, saved }: { message: NiaMessage; saved:
 }
 
 export function AssistantPage() {
-  const { me, openModal, toast } = useApp();
+  const { me, openModal, toast, confirm } = useApp();
   const { data, error, reload } = useData<NiaMessage[]>("nia");
   const [messages, setMessages] = useState<NiaMessage[]>([]);
   const [text, setText] = useState("");
@@ -201,7 +201,7 @@ export function AssistantPage() {
   }
 
   async function clear() {
-    if (!window.confirm("Apagar toda a conversa com a Nia?")) return;
+    if (!(await confirm({ title: "Apagar toda a conversa com a Nia?", text: "As compras que você já lançou continuam.", confirmLabel: "Apagar", danger: true }))) return;
     setMessages(await api<NiaMessage[]>("nia/clear", { body: {} }));
   }
 
@@ -213,7 +213,7 @@ export function AssistantPage() {
         subtitle="Um jeito natural de entender e organizar suas finanças."
         actions={
           <button type="button" className="btn ghost" onClick={() => openModal(<DigestModal />)}>
-            <Bell size={15} /> Pendências do dia {pending > 0 && <span className="chip lime">{pending}</span>}
+            <Bell size={15} /> A revisar {pending > 0 && <span className="chip lime">{pending}</span>}
           </button>
         }
       />
@@ -322,7 +322,7 @@ export function AssistantPage() {
             </div>
             <p className="muted small">transações precisam da sua atenção.</p>
             <button type="button" className="btn primary block" style={{ marginTop: 16 }} onClick={() => openModal(<DigestModal />)}>
-              Revisar pendências <ChevronRight size={14} />
+              Revisar compras <ChevronRight size={14} />
             </button>
           </Panel>
           <div className="privacy-line" style={{ marginTop: 0 }}>

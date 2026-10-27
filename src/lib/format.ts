@@ -5,13 +5,13 @@ export { formatMoney, formatMoneyShort, parseMoney } from "../../shared/money";
 export { dayLabel, monthLabel, monthShort, addMonths } from "../../shared/time";
 
 export function category(id: string | null | undefined) {
-  if (id === "_pendente" || !id) return { id: "_pendente", name: "A confirmar", icon: "❔", color: "#e2c56b", kind: "expense" as const };
+  if (id === "_pendente" || !id) return { id: "_pendente", name: "Sem categoria", icon: "❔", color: "#e2c56b", kind: "expense" as const };
   return CATEGORY_BY_ID.get(id) ?? { id, name: id, icon: "🧾", color: "#94aaa0", kind: "expense" as const };
 }
 
 /** Rótulo de categoria de uma transação ("Múltiplas categorias" quando dividida). */
 export function txCategoryLabel(t: Transaction) {
-  if (t.allocations.length === 0) return "A confirmar";
+  if (t.allocations.length === 0) return "Sem categoria";
   if (t.allocations.length > 1) return "Múltiplas categorias";
   return category(t.allocations[0].categoryId).name;
 }
@@ -23,7 +23,7 @@ export function txScope(t: Transaction): "family" | "personal" | "mixed" | null 
 }
 
 export function scopeLabel(scope: "family" | "personal" | "mixed" | null) {
-  return scope === "family" ? "Familiar" : scope === "mixed" ? "Pessoal + familiar" : scope === "personal" ? "Pessoal" : "—";
+  return scope === "family" ? "Família" : scope === "mixed" ? "Pessoal + família" : scope === "personal" ? "Pessoal" : "—";
 }
 
 /** "150,00" para preencher campos de valor */

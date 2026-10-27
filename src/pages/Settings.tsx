@@ -28,7 +28,7 @@ function initialTab(): Tab {
 }
 
 export function SettingsPage() {
-  const { me, refreshMe, toast, hidden, toggleHidden, signOut, openModal } = useApp();
+  const { me, refreshMe, toast, hidden, toggleHidden, signOut, openModal, confirm } = useApp();
   const rules = useData<Rule[]>("rules");
   const [name, setName] = useState(me?.profile.name ?? "");
   const [household, setHousehold] = useState(me?.household.name ?? "");
@@ -75,8 +75,8 @@ export function SettingsPage() {
     }
   }
 
-  async function action(key: string, path: string, message: string, confirmText?: string) {
-    if (confirmText && !window.confirm(confirmText)) return;
+  async function action(key: string, path: string, message: string, ask?: { title: string; text?: string; confirmLabel: string }) {
+    if (ask && !(await confirm({ ...ask, danger: true }))) return;
     setBusy(key);
     try {
       await api(path, { body: {} });
@@ -93,11 +93,12 @@ export function SettingsPage() {
     const member = me!.household.members.find((m) => m.id === memberId);
     if (
       kind === "remove" &&
-      !window.confirm(
-        member?.isDemo
-          ? `Remover ${member.name} (exemplo) da família?`
-          : `Remover ${member?.name} da família? A pessoa continua com a conta e os dados dela, mas numa família só dela.`,
-      )
+      !(await confirm({
+        title: `Remover ${member?.name}${member?.isDemo ? " (exemplo)" : ""} da família?`,
+        text: member?.isDemo ? undefined : "A pessoa continua com a conta e os dados dela, mas numa família só dela.",
+        confirmLabel: "Remover",
+        danger: true,
+      }))
     )
       return;
     setBusy(memberId);
@@ -114,7 +115,13 @@ export function SettingsPage() {
   }
 
   async function leave() {
-    if (!window.confirm(`Sair de ${me!.household.name}? Seus dados vão com você para uma família nova, só sua. Suas partes familiares deixam de contar aqui.`)) return;
+    const ok = await confirm({
+      title: `Sair de ${me!.household.name}?`,
+      text: "Seus dados vão com você para uma família nova, só sua. Suas partes familiares deixam de contar aqui.",
+      confirmLabel: "Sair da família",
+      danger: true,
+    });
+    if (!ok) return;
     await action("leave", "household/leave", "Você saiu da família. Seus dados continuam com você.");
   }
 
@@ -146,7 +153,12 @@ export function SettingsPage() {
 
   async function toggleRule(r: Rule, active: boolean) {
     await api(`rules/${r.id}`, { method: "PATCH", body: { active } });
-    toast(active ? "Regra ligada." : "Regra desligada: esse estabelecimento volta a pedir revisão.");
+    if (active) toast("Regra ligada.");
+    else
+      toast("Regra desligada: esse estabelecimento volta para “A revisar”.", {
+        label: "Desfazer",
+        run: () => void api(`rules/${r.id}`, { method: "PATCH", body: { active: true } }).catch(() => toast("Não foi possível desfazer.")),
+      });
   }
 
   async function deleteRule(r: Rule) {
@@ -315,7 +327,7 @@ export function SettingsPage() {
                     <h4>Conversa com a Nia</h4>
                     <p>Fica guardada só para você.</p>
                   </div>
-                  <button type="button" className="btn ghost small" disabled={busy === "nia"} onClick={() => action("nia", "nia/clear", "Conversa apagada.", "Apagar toda a conversa com a Nia?")}>
+                  <button type="button" className="btn ghost small" disabled={busy === "nia"} onClick={() => action("nia", "nia/clear", "Conversa apagada.", { title: "Apagar toda a conversa com a Nia?", text: "As compras que você já lançou continuam.", confirmLabel: "Apagar" })}>
                     Apagar
                   </button>
                 </div>
@@ -352,7 +364,7 @@ export function SettingsPage() {
                       type="button"
                       className="btn danger"
                       disabled={busy === "demo"}
-                      onClick={() => action("demo", "demo/clear", "Dados de exemplo removidos.", "Remover todos os dados de exemplo?")}
+                      onClick={() => action("demo", "demo/clear", "Dados de exemplo removidos.", { title: "Remover todos os dados de exemplo?", text: "Seus lançamentos reais ficam.", confirmLabel: "Remover" })}
                     >
                       {busy === "demo" && <Spinner />} Remover dados de exemplo
                     </button>
@@ -396,7 +408,7 @@ export function SettingsPage() {
                     <h4>Notificação do resumo</h4>
                     <p>
                       {notificationsSupported()
-                        ? "Um aviso por dia, no horário escolhido, quando houver compras para revisar — em vez de um aviso por compra."
+                        ? "Um aviso por dia, no horário escolhido, quando houver compras a revisar — em vez de um aviso por compra."
                         : "Este navegador não recebe notificações. Instale o app para receber o resumo."}
                     </p>
                   </div>

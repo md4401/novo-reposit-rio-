@@ -10,7 +10,12 @@ import { UpdateModal } from "./modals/UpdateModal";
 import { api, getToken, onLogout, setToken } from "./lib/api";
 import { clearCache } from "./lib/useData";
 
-type Toast = { id: number; text: string };
+/** Botão opcional no aviso (ex.: "Desfazer"). */
+export type ToastAction = { label: string; run: () => void };
+type Toast = { id: number; text: string; action?: ToastAction };
+
+/** Pergunta de confirmação do próprio app (no lugar do window.confirm do navegador). */
+export type ConfirmOptions = { title: string; text?: string; confirmLabel?: string; danger?: boolean };
 
 type AppState = {
   me: Me | null;
@@ -20,7 +25,9 @@ type AppState = {
   signOut: () => Promise<void>;
   hidden: boolean;
   toggleHidden: () => void;
-  toast: (text: string) => void;
+  toast: (text: string, action?: ToastAction) => void;
+  /** Abre a confirmação por cima de tudo (inclusive de uma janela aberta) e diz o que a pessoa escolheu. */
+  confirm: (options: ConfirmOptions) => Promise<boolean>;
   openModal: (node: ReactNode) => void;
   closeModal: (after?: () => void) => void;
 };
@@ -107,11 +114,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const toast = useCallback((text: string) => {
+  const toast = useCallback((text: string, action?: ToastAction) => {
     window.clearTimeout(toastTimer.current);
-    setToastState({ id: Date.now(), text });
-    toastTimer.current = window.setTimeout(() => setToastState(null), 3800);
+    setToastState({ id: Date.now(), text, action });
+    // Com "Desfazer" o aviso fica um pouco mais, para dar tempo de tocar
+    toastTimer.current = window.setTimeout(() => setToastState(null), action ? 7000 : 3800);
   }, []);
+
+  const [confirmState, setConfirmState] = useState<(ConfirmOptions & { resolve: (ok: boolean) => void }) | null>(null);
+  const confirm = useCallback((options: ConfirmOptions) => new Promise<boolean>((resolve) => setConfirmState({ ...options, resolve })), []);
+  const answer = useCallback(
+    (ok: boolean) => {
+      confirmState?.resolve(ok);
+      setConfirmState(null);
+    },
+    [confirmState],
+  );
+  useEffect(() => {
+    if (!confirmState) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && answer(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [confirmState, answer]);
 
   // Janela aberta = uma entrada no histórico: o botão "voltar" do Android fecha a janela.
   const openModal = useCallback((node: ReactNode) => {
@@ -220,7 +244,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [signedIn, toast, openModal]);
 
   return (
-    <Ctx.Provider value={{ me, loadingMe, refreshMe, signIn, signOut, hidden, toggleHidden, toast, openModal, closeModal }}>
+    <Ctx.Provider value={{ me, loadingMe, refreshMe, signIn, signOut, hidden, toggleHidden, toast, confirm, openModal, closeModal }}>
       {children}
       {modal && (
         <div
@@ -234,9 +258,45 @@ export function AppProvider({ children }: { children: ReactNode }) {
           <div className="modal">{modal}</div>
         </div>
       )}
+      {confirmState && (
+        <div
+          className="modal-overlay confirm-layer"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="confirm-title"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) answer(false);
+          }}
+        >
+          <div className="modal confirm-box">
+            <h2 id="confirm-title">{confirmState.title}</h2>
+            {confirmState.text && <p>{confirmState.text}</p>}
+            <div className="modal-actions">
+              <button type="button" className="btn ghost" onClick={() => answer(false)}>
+                Cancelar
+              </button>
+              <button type="button" className={`btn ${confirmState.danger ? "danger" : "dark"}`} autoFocus onClick={() => answer(true)}>
+                {confirmState.confirmLabel ?? "Confirmar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {toastState && (
         <div className="toast" role="status" aria-live="polite" key={toastState.id}>
-          {toastState.text}
+          <span>{toastState.text}</span>
+          {toastState.action && (
+            <button
+              type="button"
+              className="toast-action"
+              onClick={() => {
+                toastState.action!.run();
+                setToastState(null);
+              }}
+            >
+              {toastState.action.label}
+            </button>
+          )}
         </div>
       )}
     </Ctx.Provider>

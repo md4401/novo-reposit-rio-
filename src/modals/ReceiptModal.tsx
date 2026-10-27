@@ -7,6 +7,7 @@ import { ModalHeader, Spinner } from "../components/ui";
 import { api } from "../lib/api";
 import { category, dayLabel, formatMoney } from "../lib/format";
 import { useApp } from "../state";
+import { ScopeToggle } from "../components/ScopeToggle";
 import { NewTransactionModal } from "./NewTransactionModal";
 
 const EXAMPLE: ReceiptItem[] = [
@@ -156,11 +157,8 @@ export function ReceiptModal({ initialImage }: { initialImage?: string } = {}) {
             </div>
           )}
           <div className="field" style={{ marginTop: 12, marginBottom: 0 }}>
-            <label htmlFor="r-scope">Visibilidade dos itens</label>
-            <select id="r-scope" value={scope} onChange={(e) => setScope(e.target.value as "personal" | "family")}>
-              <option value="family">🏠 Familiar</option>
-              <option value="personal">🔒 Pessoal</option>
-            </select>
+            <span className="field-label">Quem vê os itens</span>
+            <ScopeToggle value={scope} onChange={setScope} label="Quem vê os itens" />
           </div>
           {file && !example && (
             <label className="check-line" style={{ marginTop: 10, marginBottom: 0 }}>

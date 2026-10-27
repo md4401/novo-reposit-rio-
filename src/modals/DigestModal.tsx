@@ -19,7 +19,7 @@ export function DigestModal() {
       />
       <div className="panel" style={{ background: "var(--soft)", boxShadow: "none", padding: 15 }}>
         <div className="eyebrow" style={{ marginBottom: 2 }}>
-          Compras aguardando revisão
+          A revisar
         </div>
         <div style={{ fontSize: 33, fontWeight: 850, margin: "4px 0" }} className="num">
           {loading && !data ? <Spinner size={22} /> : String(pending.length).padStart(2, "0")}

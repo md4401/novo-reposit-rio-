@@ -9,7 +9,7 @@ import { useData } from "../lib/useData";
 import { useApp } from "../state";
 
 export function TagsPage() {
-  const { toast } = useApp();
+  const { toast, confirm } = useApp();
   const { data, error, reload } = useData<Tag[]>("tags");
   const [name, setName] = useState("");
 
@@ -25,7 +25,7 @@ export function TagsPage() {
   }
 
   async function remove(t: Tag) {
-    if (!window.confirm(`Apagar a etiqueta “${t.name}”? Os lançamentos continuam.`)) return;
+    if (!(await confirm({ title: `Apagar a etiqueta “${t.name}”?`, text: "Os lançamentos continuam; só perdem a etiqueta.", confirmLabel: "Apagar", danger: true }))) return;
     await api(`tags/${t.id}`, { method: "DELETE" });
   }
 

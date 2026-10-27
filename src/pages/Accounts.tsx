@@ -149,12 +149,12 @@ export function AccountsPage() {
   return (
     <>
       <Heading
-        title="Contas e extratos"
+        title="Bancos e cartões"
         subtitle="Cadastre suas contas e cartões e importe o extrato do banco (CSV ou OFX)."
         actions={
           <>
             <button type="button" className="btn ghost" onClick={() => openModal(<NewAccountModal />)}>
-              <Plus size={15} /> Nova conta
+              <Plus size={15} /> Adicionar banco ou cartão
             </button>
             <button type="button" className="btn dark" onClick={() => openModal(<ImportModal />)}>
               <FileUp size={15} /> Importar extrato

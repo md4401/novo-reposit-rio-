@@ -84,15 +84,26 @@ export function LinkButton({ children, onClick }: { children: ReactNode; onClick
   );
 }
 
+/** Na lista só aparece o que pede atenção; de onde veio a categoria fica no detalhe (classificationNote). */
 export function StatusChip({ t }: { t: Transaction }) {
   if (t.ignored) return <span className="chip gray">Ignorada</span>;
-  if (t.status === "pending") return <span className="chip amber">Revisar</span>;
-  if (t.direction === "transfer") return <span className="chip gray">Transferência</span>;
-  if (t.status === "auto") {
-    const label = t.classifiedBy === "rule" ? "Regra" : t.classifiedBy === "history" ? "Histórico" : t.classifiedBy === "ai" ? "IA" : "Sugestão";
-    return <span className="chip green">{label}</span>;
-  }
-  return <span className="chip blue">Confirmada</span>;
+  if (t.status === "pending") return <span className="chip amber">A revisar</span>;
+  return null;
+}
+
+/** De onde veio a categoria, em uma frase (mostrado em "Organizar compra"). */
+export function classificationNote(t: Transaction) {
+  if (t.ignored) return "Ignorada: guardada, mas fora dos totais.";
+  if (t.status === "pending") return "Ainda sem categoria: escolha abaixo.";
+  if (t.status === "confirmed") return "Categoria confirmada por você.";
+  const by = t.classifiedBy;
+  return by === "rule"
+    ? "Classificada pela sua regra automática. Confira e salve se estiver certo."
+    : by === "history"
+      ? "Classificada pelo seu histórico com este estabelecimento."
+      : by === "ai"
+        ? "Sugestão da IA. Confira antes de salvar."
+        : "Sugestão automática pelas palavras da descrição. Confira.";
 }
 
 export function Avatar({ name, color, large }: { name: string; color: string; large?: boolean }) {

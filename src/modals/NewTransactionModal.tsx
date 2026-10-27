@@ -7,6 +7,7 @@ import { api } from "../lib/api";
 import { createTransaction } from "../lib/offline";
 import { category, centsToInput, formatMoney, parseMoney } from "../lib/format";
 import { useApp } from "../state";
+import { ScopeToggle } from "../components/ScopeToggle";
 
 export function NewTransactionModal({
   proposal,
@@ -67,7 +68,7 @@ export function NewTransactionModal({
       closeModal();
       toast(
         created.status === "pending"
-          ? "Lançamento salvo. Ele ficou nas pendências para você classificar."
+          ? "Lançamento salvo. Ele ficou em “A revisar” para você escolher a categoria."
           : `${direction === "income" ? "Receita" : "Despesa"} registrada: ${created.allocations.length > 1 ? "várias categorias" : category(created.allocations[0]?.categoryId).name}.`,
       );
     } catch (err) {
@@ -139,11 +140,8 @@ export function NewTransactionModal({
             </select>
           </div>
           <div className="field">
-            <label htmlFor="nt-scope">Visibilidade</label>
-            <select id="nt-scope" value={scope} onChange={(e) => setScope(e.target.value as Scope)} disabled={categoryId === "auto"}>
-              <option value="personal">🔒 Pessoal — só eu</option>
-              <option value="family">🏠 Familiar — entra nos totais da casa</option>
-            </select>
+            <span className="field-label">Quem vê</span>
+            <ScopeToggle value={scope} onChange={setScope} disabled={categoryId === "auto"} />
           </div>
         </div>
       )}

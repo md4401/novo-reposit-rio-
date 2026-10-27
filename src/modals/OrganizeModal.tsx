@@ -3,11 +3,12 @@ import { Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { categoriesFor } from "../../shared/categories";
 import type { Allocation, Direction, Goal, Scope, Tag, Transaction } from "../../shared/types";
-import { ModalHeader, Spinner } from "../components/ui";
+import { classificationNote, ModalHeader, Spinner } from "../components/ui";
 import { api, apiBlobUrl } from "../lib/api";
 import { useData } from "../lib/useData";
 import { category, centsToInput, dayLabel, formatMoney, parseMoney } from "../lib/format";
 import { useApp } from "../state";
+import { ScopeToggle } from "../components/ScopeToggle";
 import { CategoryIcon } from "../components/icons";
 
 type Row = { categoryId: string; value: string; scope: Scope };
@@ -68,7 +69,7 @@ function TagPicker({ transaction }: { transaction: Transaction }) {
 }
 
 function ReceiptPreview({ id }: { id: string }) {
-  const { toast } = useApp();
+  const { toast, confirm } = useApp();
   const [url, setUrl] = useState<string | null>(null);
   const [gone, setGone] = useState(false);
   useEffect(() => {
@@ -82,7 +83,7 @@ function ReceiptPreview({ id }: { id: string }) {
   }, [id]);
   if (gone) return null;
   async function remove() {
-    if (!window.confirm("Apagar a foto desta nota? A compra continua.")) return;
+    if (!(await confirm({ title: "Apagar a foto desta nota?", text: "A compra continua lançada; só a foto sai.", confirmLabel: "Apagar", danger: true }))) return;
     await api(`receipts/${id}`, { method: "DELETE" });
     setGone(true);
     toast("Foto apagada.");
@@ -105,7 +106,7 @@ function ReceiptPreview({ id }: { id: string }) {
 }
 
 export function OrganizeModal({ transaction: t }: { transaction: Transaction }) {
-  const { closeModal, toast, refreshMe } = useApp();
+  const { closeModal, toast, refreshMe, confirm } = useApp();
   const goals = useData<Goal[]>("goals");
   const [goalId, setGoalId] = useState(t.goalId ?? "");
   const [goalAlways, setGoalAlways] = useState(false);
@@ -188,13 +189,23 @@ export function OrganizeModal({ transaction: t }: { transaction: Transaction }) 
 
   async function remove() {
     const imported = !manual;
-    if (!window.confirm(imported ? "Ignorar esta movimentação? Ela continua guardada, mas sai dos totais." : "Excluir este lançamento?")) return;
+    const ok = await confirm(
+      imported
+        ? { title: "Ignorar esta movimentação?", text: "Ela continua guardada, mas sai dos totais. Dá para desfazer.", confirmLabel: "Ignorar" }
+        : { title: "Excluir este lançamento?", text: "Não dá para desfazer.", confirmLabel: "Excluir", danger: true },
+    );
+    if (!ok) return;
     setSaving(true);
     try {
       await api(`transactions/${t.id}`, { method: "DELETE" });
       await refreshMe();
       closeModal();
-      toast(imported ? "Movimentação ignorada." : "Lançamento excluído.");
+      if (imported)
+        toast("Movimentação ignorada.", {
+          label: "Desfazer",
+          run: () => void api(`transactions/${t.id}`, { method: "PATCH", body: { ignored: false } }).then(() => refreshMe()).catch(() => toast("Não foi possível desfazer.")),
+        });
+      else toast("Lançamento excluído.");
     } catch (e) {
       setError((e as Error).message);
       setSaving(false);
@@ -219,6 +230,7 @@ export function OrganizeModal({ transaction: t }: { transaction: Transaction }) 
         title="Organizar compra"
         subtitle={`${t.description} • ${dayLabel(t.occurredOn)} • ${formatMoney(t.amountCents)}${t.method ? ` · ${t.method}` : ""}${t.accountName ? ` · ${t.accountName}` : ""}`}
       />
+      <p className={`class-note ${t.status === "pending" ? "pending" : ""}`}>{classificationNote(t)}</p>
       {error && <div className="form-error">{error}</div>}
 
       <div className="segmented" style={{ marginBottom: 14 }}>
@@ -273,7 +285,7 @@ export function OrganizeModal({ transaction: t }: { transaction: Transaction }) 
           )}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
             <h3>Categorias</h3>
-            <span className={`chip ${t.status === "pending" ? "amber" : "lime"}`}>{t.status === "pending" ? "Aguardando revisão" : "Editável"}</span>
+            <span className={`chip ${t.status === "pending" ? "amber" : "lime"}`}>{t.status === "pending" ? "A revisar" : "Editável"}</span>
           </div>
           {rows.map((r, i) => (
             <div className="alloc-row" key={i}>
@@ -285,10 +297,7 @@ export function OrganizeModal({ transaction: t }: { transaction: Transaction }) 
                 ))}
               </select>
               <input aria-label={`Valor ${i + 1}`} inputMode="decimal" value={r.value} onChange={(e) => update(i, { value: e.target.value })} />
-              <select aria-label={`Visibilidade ${i + 1}`} value={r.scope} onChange={(e) => update(i, { scope: e.target.value as Scope })}>
-                <option value="personal">🔒 Pessoal</option>
-                <option value="family">🏠 Familiar</option>
-              </select>
+              <ScopeToggle compact value={r.scope} onChange={(scope) => update(i, { scope })} label={`Quem vê a parte ${i + 1}`} />
               <button type="button" className="remove" aria-label="Remover categoria" disabled={rows.length === 1} onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}>
                 <X size={16} />
               </button>

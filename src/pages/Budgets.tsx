@@ -70,12 +70,12 @@ function BudgetModal({ scope, budget, month }: { scope: "personal" | "family"; b
 }
 
 function BudgetRow({ b, editable, month }: { b: Budget; editable: boolean; month: string }) {
-  const { openModal, toast } = useApp();
+  const { openModal, toast, confirm } = useApp();
   const c = category(b.categoryId);
   const limit = b.limitCents + b.carryCents;
   const left = limit - b.spentCents;
   async function remove() {
-    if (!window.confirm(`Apagar o limite de ${c.name}?`)) return;
+    if (!(await confirm({ title: `Apagar o limite de ${c.name}?`, confirmLabel: "Apagar", danger: true }))) return;
     try {
       await api(`budgets/${b.id}?month=${month}`, { method: "DELETE" });
       toast("Limite apagado.");

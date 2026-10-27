@@ -65,9 +65,9 @@ export function TransactionsPage({ route }: { route: Route }) {
 
   const filters: [Filter, string][] = [
     ["all", "Todas"],
-    ["pending", `Pendentes${me?.pendingCount ? ` · ${me.pendingCount}` : ""}`],
-    ["family", "Familiares"],
-    ["personal", "Pessoais"],
+    ["pending", `A revisar${me?.pendingCount ? ` · ${me.pendingCount}` : ""}`],
+    ["family", "Família"],
+    ["personal", "Pessoal"],
     ["ignored", "Ignoradas"],
   ];
 
@@ -137,7 +137,7 @@ export function TransactionsPage({ route }: { route: Route }) {
         <div className="list-box">
           <Empty
             icon="🧾"
-            title={filter === "pending" ? "Nenhuma pendência" : "Nenhuma transação encontrada"}
+            title={filter === "pending" ? "Nada para revisar" : "Nenhuma transação encontrada"}
             text={filter === "pending" ? "Tudo classificado. Bom trabalho!" : "Registre uma despesa ou importe o extrato do seu banco (CSV ou OFX)."}
             action={
               <button type="button" className="btn dark small" onClick={() => openModal(<ImportModal />)}>

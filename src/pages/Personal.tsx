@@ -48,7 +48,7 @@ export function PersonalPage() {
           <div className="cards">
             <Metric label="Gastos do mês" dark icon={<Wallet size={17} />} value={<Money cents={data.totals.expenseCents} />} foot="Histórico completo é privado" />
             <Metric
-              label="Compras para revisar"
+              label="A revisar"
               icon={<Bell size={17} />}
               value={String(data.counts.pending)}
               foot={data.counts.pending ? "Aguardando sua classificação" : "Nada pendente"}
@@ -71,7 +71,7 @@ export function PersonalPage() {
               <Panel title="Categorias do mês">
                 <CategoryBars categories={data.categories} />
                 <p className="muted" style={{ fontSize: 11, marginTop: 14 }}>
-                  Inclui partes pessoais e familiares das suas compras. “A confirmar” são pendências.
+                  Inclui partes pessoais e da família das suas compras. “Sem categoria” são as compras a revisar.
                 </p>
               </Panel>
               <Panel title="Minhas entradas e saídas">

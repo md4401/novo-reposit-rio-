@@ -9,7 +9,7 @@ import { useApp } from "../state";
 const WEEKDAYS = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
 
 export function AllowanceModal({ member, current }: { member: Member; current?: Allowance }) {
-  const { toast, closeModal } = useApp();
+  const { toast, closeModal, confirm } = useApp();
   const [value, setValue] = useState(current ? centsToInput(current.amountCents) : "");
   const [frequency, setFrequency] = useState<Allowance["frequency"]>(current?.frequency ?? "monthly");
   const [payDay, setPayDay] = useState(current?.payDay ?? 5);
@@ -32,7 +32,7 @@ export function AllowanceModal({ member, current }: { member: Member; current?: 
   }
 
   async function stop() {
-    if (!current || !window.confirm("Parar a mesada? As já pagas continuam.")) return;
+    if (!current || !(await confirm({ title: "Parar a mesada?", text: "As mesadas já pagas continuam lançadas.", confirmLabel: "Parar", danger: true }))) return;
     await api(`allowances/${current.id}`, { method: "DELETE" });
     toast("Mesada parada.");
     closeModal();

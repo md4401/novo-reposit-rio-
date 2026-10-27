@@ -227,7 +227,7 @@ function InvoiceRow({ i }: { i: CardInvoice }) {
 }
 
 export function PayablesPage() {
-  const { me, openModal, toast } = useApp();
+  const { me, openModal, toast, confirm } = useApp();
   const payables = useData<Payable[]>("payables");
   const invoices = useData<CardInvoice[]>("invoices");
   const cards = (me?.accounts ?? []).filter((a) => a.kind === "credit_card" && a.active);
@@ -238,7 +238,7 @@ export function PayablesPage() {
   const seasonal = list.filter((p) => p.monthlySavingCents);
 
   async function remove(p: Payable) {
-    if (!window.confirm(`Apagar “${p.name}”? Os pagamentos já lançados continuam.`)) return;
+    if (!(await confirm({ title: `Apagar “${p.name}”?`, text: "Os pagamentos já lançados continuam.", confirmLabel: "Apagar", danger: true }))) return;
     await api(`payables/${p.id}`, { method: "DELETE" });
     toast("Conta apagada.");
   }
@@ -250,7 +250,7 @@ export function PayablesPage() {
         subtitle="Vencimentos, faturas do cartão e gastos do ano — com aviso antes de vencer."
         actions={
           <button type="button" className="btn dark" onClick={() => openModal(<PayableModal />)}>
-            <Plus size={15} /> Nova conta
+            <Plus size={15} /> Nova conta a pagar
           </button>
         }
       />
@@ -291,12 +291,12 @@ export function PayablesPage() {
         </div>
         <div className="stack">
           <Panel title="Faturas do cartão">
-            {cards.length === 0 && <p className="muted small">Cadastre seu cartão em “Contas e extratos” para acompanhar a fatura.</p>}
+            {cards.length === 0 && <p className="muted small">Cadastre seu cartão em “Bancos e cartões” para acompanhar a fatura.</p>}
             {withoutDays.length > 0 && (
               <button type="button" className="notice info compact" style={{ width: "100%", textAlign: "left", marginBottom: 10 }} onClick={() => navigate("contas")}>
                 <CreditCard size={16} />
                 <span>
-                  Informe o <b>dia de fechamento e de vencimento</b> de {withoutDays.map((c) => c.name).join(", ")} em Contas e extratos.
+                  Informe o <b>dia de fechamento e de vencimento</b> de {withoutDays.map((c) => c.name).join(", ")} em Bancos e cartões.
                 </span>
               </button>
             )}

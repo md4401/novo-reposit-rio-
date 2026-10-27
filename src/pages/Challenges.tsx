@@ -10,7 +10,7 @@ import { useApp } from "../state";
 import { Glyph } from "../components/icons";
 
 export function ChallengesPage() {
-  const { toast } = useApp();
+  const { toast, confirm } = useApp();
   const { data, error, reload } = useData<Challenge[]>("challenges");
   const active = new Set((data ?? []).filter((c) => c.status === "active").map((c) => c.kind));
   const won = (data ?? []).filter((c) => c.status === "won").length;
@@ -71,7 +71,7 @@ export function ChallengesPage() {
               </div>
               {c.status === "active" && (
                 <div className="budget-actions">
-                  <button type="button" className="icon-btn" aria-label="Desistir" onClick={() => window.confirm("Desistir deste desafio?") && void api(`challenges/${c.id}/abandon`, { body: {} })}>
+                  <button type="button" className="icon-btn" aria-label="Desistir" onClick={async () => (await confirm({ title: "Desistir deste desafio?", confirmLabel: "Desistir", danger: true })) && void api(`challenges/${c.id}/abandon`, { body: {} })}>
                     <X size={14} />
                   </button>
                 </div>

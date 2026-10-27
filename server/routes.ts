@@ -147,6 +147,7 @@ import {
   sharedLegacies,
   type DocumentInput,
 } from "./protection.js";
+import { addGuardian, guardianInfo, guardianSummary, incomeOverview, kidSummary, removeGuardian, setMemberMode } from "./care.js";
 
 type Ctx = { request: Request; url: URL; params: string[] };
 type Handler = (ctx: Ctx) => Promise<Response>;
@@ -361,6 +362,12 @@ route("PATCH", "me", async ({ request }) => {
   const digestHour = body.digestHour === undefined ? user.digest_hour : int(body, "digestHour", 0, 23, "horário do resumo");
   const queries = [q(`UPDATE profiles SET name = $2, digest_hour = $3 WHERE id = $1`, [user.id, name, digestHour])];
   if (body.notifyDigest !== undefined) queries.push(q(`UPDATE profiles SET notify_digest = $2 WHERE id = $1`, [user.id, bool(body, "notifyDigest")]));
+  if (body.incomeMode !== undefined)
+    queries.push(q(`UPDATE profiles SET income_mode = $2 WHERE id = $1`, [user.id, oneOf(body.incomeMode, ["fixed", "variable"] as const, "tipo de renda")]));
+  if (body.selfSalaryCents !== undefined)
+    queries.push(q(`UPDATE profiles SET self_salary_cents = $2 WHERE id = $1`, [user.id, body.selfSalaryCents === null ? null : cents(body.selfSalaryCents, "salário")]));
+  if (body.uiMode !== undefined)
+    queries.push(q(`UPDATE profiles SET ui_mode = $2 WHERE id = $1`, [user.id, oneOf(body.uiMode, ["full", "simple", "kid"] as const, "modo")]));
   if (body.householdName !== undefined) {
     if (user.role !== "admin") throw new HttpError(403, "Só quem administra a família pode mudar o nome dela");
     queries.push(q(`UPDATE households SET name = $2 WHERE id = $1`, [user.household_id, str(body, "householdName", { max: 60 })]));
@@ -1478,6 +1485,48 @@ route("DELETE", "legacy", async ({ request }) => {
 route("GET", "security", async ({ request }) => {
   const user = await requireUser(request);
   return json(await scamAlerts(user, todayKey(user.timezone)));
+});
+
+// ===========================================================================
+// Renda variável, acompanhamento consentido e modo criança
+
+route("GET", "income", async ({ request }) => {
+  const user = await requireUser(request);
+  return json(await incomeOverview(user, todayKey(user.timezone)));
+});
+
+route("GET", "guardians", async ({ request }) => json(await guardianInfo(await requireUser(request))));
+
+route("POST", "guardians", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  await addGuardian(user, uuid(body.guardianId, "pessoa"));
+  await audit(user.id, "guardian.added");
+  return json(await guardianInfo(user), 201);
+});
+
+route("DELETE", "guardians/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await removeGuardian(user, uuid(params[0]));
+  await audit(user.id, "guardian.removed");
+  return json(await guardianInfo(user));
+});
+
+route("GET", "guardians/:id/summary", async ({ request, params }) => {
+  const user = await requireUser(request);
+  return json(await guardianSummary(user, uuid(params[0]), todayKey(user.timezone)));
+});
+
+route("PUT", "household/members/:id/mode", async ({ request, params }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  await setMemberMode(user, uuid(params[0]), oneOf(body.mode, ["full", "simple", "kid"] as const, "modo"));
+  return json(await loadMe(user));
+});
+
+route("GET", "kid", async ({ request }) => {
+  const user = await requireUser(request);
+  return json(await kidSummary(user, todayKey(user.timezone)));
 });
 
 // ===========================================================================

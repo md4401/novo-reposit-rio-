@@ -539,3 +539,37 @@ export type LegacyMine = { content: string; trustedId: string | null; releaseMod
 export type LegacyShared = { ownerName: string; available: boolean; content: string | null; releaseMode: "now" | "inactive"; inactiveDays: number }[];
 
 export type ScamAlert = { id: string; occurredOn: string; description: string; amountCents: number; reason: string };
+
+export type IncomeOverview = {
+  mode: "fixed" | "variable";
+  selfSalaryCents: number | null;
+  suggestedCents: number | null;
+  averageCents: number;
+  months: { month: string; incomeCents: number; diffCents: number; bufferCents: number }[];
+};
+
+export type GuardianInfo = {
+  /** Quem me acompanha (eu autorizei) */
+  guardians: { id: string; name: string }[];
+  /** Quem eu acompanho (me autorizaram) */
+  watching: { id: string; name: string }[];
+};
+
+export type GuardianSummary = {
+  name: string;
+  month: string;
+  incomeCents: number;
+  expenseCents: number;
+  previousExpenseCents: number;
+  pendingCount: number;
+  bills: { name: string; amountCents: number; dueOn: string; status: "overdue" | "soon" | "ok" }[];
+  alerts: { reason: string; amountCents: number; occurredOn: string }[];
+};
+
+export type KidSummary = {
+  month: string;
+  allowanceCents: number;
+  spentCents: number;
+  leftCents: number;
+  goals: { id: string; name: string; icon: string; savedCents: number; targetCents: number }[];
+};

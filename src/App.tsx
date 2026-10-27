@@ -27,6 +27,9 @@ import { ReservePage } from "./pages/Reserve";
 import { DocumentsPage } from "./pages/Documents";
 import { LegacyPage } from "./pages/Legacy";
 import { SecurityPage } from "./pages/Security";
+import { IncomePage } from "./pages/Income";
+import { GuardianPage } from "./pages/Guardian";
+import { KidHomePage } from "./pages/KidHome";
 import { SettingsPage } from "./pages/Settings";
 import { SharePage } from "./pages/Share";
 import { TagsPage } from "./pages/Tags";
@@ -53,7 +56,7 @@ export function App() {
   if (!me) return <AuthPage />;
 
   const pages: Record<string, React.ReactNode> = {
-    inicio: <HomePage />,
+    inicio: me.profile.uiMode === "kid" ? <KidHomePage /> : <HomePage />,
     meu: <PersonalPage />,
     familia: <FamilyPage />,
     transacoes: <TransactionsPage route={route} key={route.query.toString()} />,
@@ -75,6 +78,8 @@ export function App() {
     documentos: <DocumentsPage />,
     legado: <LegacyPage />,
     seguranca: <SecurityPage />,
+    renda: <IncomePage />,
+    acompanhar: <GuardianPage id={route.query.get("id") ?? ""} key={route.query.get("id")} />,
     compartilhar: <SharePage />,
     casa: <HouseBillsPage />,
     metas: <GoalsPage />,

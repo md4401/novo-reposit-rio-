@@ -1,5 +1,5 @@
 // Estrutura: menu lateral (computador) e barra inferior + gaveta (celular), como no protótipo.
-import { Activity, ArrowLeftRight, Banknote, Bell, Bot, CalendarClock, Eye, EyeOff, FileText, FolderLock, Gift, HandCoins, Handshake, HeartHandshake, House, Landmark, LifeBuoy, Lock, Menu, MessagesSquare, PiggyBank, Plus, Receipt, Repeat, Scale, Settings, ShieldAlert, ShoppingBasket, Sparkles, Tags, Target, Ticket, TrendingUp, Trophy, Users, Wallet } from "lucide-react";
+import { Activity, ArrowLeftRight, Banknote, Bell, Bot, Briefcase, CalendarClock, Eye, EyeOff, FileText, FolderLock, Gift, HandCoins, Handshake, HeartHandshake, House, Landmark, LifeBuoy, Lock, Menu, MessagesSquare, PiggyBank, Plus, Receipt, Repeat, Scale, Settings, ShieldAlert, ShoppingBasket, Sparkles, Tags, Target, Ticket, TrendingUp, Trophy, Users, Wallet } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { navigate } from "../lib/router";
 import { DigestModal } from "../modals/DigestModal";
@@ -15,6 +15,7 @@ const PLAN: NavItem[] = [
   { key: "previsao", label: "Saldo previsto", icon: <TrendingUp size={17} /> },
   { key: "patrimonio", label: "Patrimônio e dívidas", icon: <Scale size={17} /> },
   { key: "ir", label: "Imposto de Renda", icon: <FileText size={17} /> },
+  { key: "renda", label: "Renda variável", icon: <Briefcase size={17} /> },
 ];
 const MAIN: NavItem[] = [
   { key: "inicio", label: "Visão geral", icon: <House size={17} /> },
@@ -51,7 +52,28 @@ const MORE: NavItem[] = [
   { key: "ajustes", label: "Configurações", icon: <Settings size={17} /> },
 ];
 
-export const PAGE_TITLES: Record<string, string> = Object.fromEntries([...MAIN, ...TOGETHER, ...PLAN, ...CARE, ...SMART, ...MORE].map((n) => [n.key, n.label]));
+export const PAGE_TITLES: Record<string, string> = {
+  ...Object.fromEntries([...MAIN, ...TOGETHER, ...PLAN, ...CARE, ...SMART, ...MORE].map((n) => [n.key, n.label])),
+  acompanhar: "Acompanhar",
+};
+
+// Modo simples (letras maiores, poucas telas) e modo criança
+const SIMPLE: NavItem[] = [
+  { key: "inicio", label: "Início", icon: <House size={17} /> },
+  { key: "transacoes", label: "Meus lançamentos", icon: <ArrowLeftRight size={17} /> },
+  { key: "pagar", label: "Contas a pagar", icon: <CalendarClock size={17} /> },
+  { key: "seguranca", label: "Golpes e segurança", icon: <ShieldAlert size={17} /> },
+  { key: "nia", label: "Falar com a Nia", icon: <Bot size={17} /> },
+  { key: "ajustes", label: "Configurações", icon: <Settings size={17} /> },
+];
+const KID: NavItem[] = [
+  { key: "inicio", label: "Meu dinheiro", icon: <House size={17} /> },
+  { key: "metas", label: "Cofrinhos", icon: <PiggyBank size={17} /> },
+  { key: "desafios", label: "Desafios", icon: <Trophy size={17} /> },
+  { key: "transacoes", label: "O que gastei", icon: <ArrowLeftRight size={17} /> },
+  { key: "nia", label: "Nia", icon: <Bot size={17} /> },
+  { key: "ajustes", label: "Configurações", icon: <Settings size={17} /> },
+];
 
 const BOTTOM: NavItem[] = [
   { key: "inicio", label: "Início", icon: <House size={20} /> },
@@ -63,7 +85,10 @@ const BOTTOM: NavItem[] = [
 export function Layout({ page, children }: { page: string; children: ReactNode }) {
   const { me, hidden, toggleHidden, openModal, toast } = useApp();
   const [drawer, setDrawer] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const pending = me?.pendingCount ?? 0;
+  const mode = me?.profile.uiMode ?? "full";
+  const reduced = mode !== "full" && !showAll;
 
   useEffect(() => setDrawer(false), [page]);
 
@@ -83,7 +108,7 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
   const showFab = ["inicio", "meu", "transacoes"].includes(page);
 
   return (
-    <div className="app">
+    <div className={`app ${mode}`}>
       <div className={`drawer-overlay ${drawer ? "open" : ""}`} onClick={() => setDrawer(false)} />
       <aside className={`sidebar ${drawer ? "open" : ""}`} aria-label="Menu">
         <div className="brand">
@@ -95,28 +120,39 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
             <div className="brand-sub">FINANÇAS EM FAMÍLIA</div>
           </div>
         </div>
-        <div className="group-label">PAINEL</div>
-        <nav className="nav">{MAIN.map(navButton)}</nav>
-        <div className="group-label" style={{ marginTop: 24 }}>
-          ENTRE NÓS
-        </div>
-        <nav className="nav">{TOGETHER.map(navButton)}</nav>
-        <div className="group-label" style={{ marginTop: 24 }}>
-          PLANEJAMENTO
-        </div>
-        <nav className="nav">{PLAN.map(navButton)}</nav>
-        <div className="group-label" style={{ marginTop: 24 }}>
-          PROTEÇÃO
-        </div>
-        <nav className="nav">{CARE.map(navButton)}</nav>
-        <div className="group-label" style={{ marginTop: 24 }}>
-          INTELIGÊNCIA
-        </div>
-        <nav className="nav">{SMART.map(navButton)}</nav>
-        <div className="group-label" style={{ marginTop: 24 }}>
-          CONTA
-        </div>
-        <nav className="nav">{MORE.map(navButton)}</nav>
+        {reduced ? (
+          <nav className="nav">{(mode === "kid" ? KID : SIMPLE).map(navButton)}</nav>
+        ) : (
+          <>
+          <div className="group-label">PAINEL</div>
+          <nav className="nav">{MAIN.map(navButton)}</nav>
+          <div className="group-label" style={{ marginTop: 24 }}>
+            ENTRE NÓS
+          </div>
+          <nav className="nav">{TOGETHER.map(navButton)}</nav>
+          <div className="group-label" style={{ marginTop: 24 }}>
+            PLANEJAMENTO
+          </div>
+          <nav className="nav">{PLAN.map(navButton)}</nav>
+          <div className="group-label" style={{ marginTop: 24 }}>
+            PROTEÇÃO
+          </div>
+          <nav className="nav">{CARE.map(navButton)}</nav>
+          <div className="group-label" style={{ marginTop: 24 }}>
+            INTELIGÊNCIA
+          </div>
+          <nav className="nav">{SMART.map(navButton)}</nav>
+          <div className="group-label" style={{ marginTop: 24 }}>
+            CONTA
+          </div>
+          <nav className="nav">{MORE.map(navButton)}</nav>
+          </>
+        )}
+        {mode !== "full" && (
+          <button type="button" className="link" style={{ marginTop: 14 }} onClick={() => setShowAll((v) => !v)}>
+            {showAll ? "Mostrar menos" : "Ver todas as telas"}
+          </button>
+        )}
         <div className="sidebar-bottom">
           <div className="sidebar-tip hide-mobile">
             <div className="tip-star">

@@ -542,3 +542,7 @@ button.insight:hover { background: #f0f5ec; }
 /* Três valores lado a lado no celular: a fonte encolhe para caber "R$ 12.345,67" */
 .cards.three .val { font-size: clamp(13px, 3.9vw, 26px); letter-spacing: -0.4px; }
 .row { display: flex; align-items: center; }
+/* Modo simples: letras e botões maiores */
+.app.simple .content { zoom: 1.15; }
+.app.simple .nav-btn { font-size: 15px; padding-block: 12px; }
+.app.kid .content { zoom: 1.08; }

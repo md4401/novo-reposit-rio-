@@ -1,4 +1,4 @@
-import { Bell, Bot, Camera, Check, FileUp, Lock, Wallet } from "lucide-react";
+import { Bell, Bot, Camera, Check, FileText, FileUp, Lock, Wallet } from "lucide-react";
 import { useState } from "react";
 import type { Personal } from "../../shared/types";
 import { CategoryBars, IncomeExpenseBars } from "../components/charts";
@@ -8,6 +8,7 @@ import { navigate } from "../lib/router";
 import { useData } from "../lib/useData";
 import { ImportModal } from "../modals/AccountModals";
 import { DigestModal } from "../modals/DigestModal";
+import { MonthReportModal } from "../modals/MonthReportModal";
 import { ReceiptModal } from "../modals/ReceiptModal";
 import { useApp } from "../state";
 
@@ -24,6 +25,9 @@ export function PersonalPage() {
         subtitle="Um espaço só seu. Suas transações não aparecem para outras pessoas."
         actions={
           <>
+            <button type="button" className="btn ghost" onClick={() => openModal(<MonthReportModal month={month} />)}>
+              <FileText size={15} /> Relatório do mês
+            </button>
             <button type="button" className="btn ghost" onClick={() => openModal(<ReceiptModal />)}>
               <Camera size={15} /> Ler nota fiscal
             </button>

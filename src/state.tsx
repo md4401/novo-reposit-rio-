@@ -2,6 +2,8 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Me } from "../shared/types";
 import { checkUpdate } from "./lib/native";
+import { syncNativeReminder } from "./lib/notifications";
+import { flushOutbox } from "./lib/offline";
 import { api, getToken, onLogout, setToken } from "./lib/api";
 import { clearCache } from "./lib/useData";
 
@@ -144,6 +146,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // App Android desatualizado: avisa uma vez por abertura
   const signedIn = Boolean(me);
+  // APK: mantém o lembrete diário agendado no horário escolhido
+  const reminder = me ? `${me.notifyDigest}:${me.profile.digestHour}` : "";
+  useEffect(() => {
+    if (!me) return;
+    void syncNativeReminder(me.notifyDigest, me.profile.digestHour);
+  }, [reminder]);
+  // Envia o que ficou guardado sem internet (ao entrar e quando a conexão volta)
+  useEffect(() => {
+    if (!signedIn) return;
+    const flush = () =>
+      void flushOutbox().then((n) => {
+        if (n > 0) {
+          toast(`${n} lançamento${n > 1 ? "s" : ""} feito${n > 1 ? "s" : ""} sem internet ${n > 1 ? "foram enviados" : "foi enviado"}.`);
+          void refreshMe();
+        }
+      });
+    flush();
+    window.addEventListener("online", flush);
+    return () => window.removeEventListener("online", flush);
+  }, [signedIn, toast, refreshMe]);
   useEffect(() => {
     if (!signedIn) return;
     void checkUpdate().then(

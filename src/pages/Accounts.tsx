@@ -1,8 +1,9 @@
 import { CreditCard, FileUp, Landmark, Plus, PiggyBank, Wallet } from "lucide-react";
-import type { AccountKind } from "../../shared/types";
-import { Heading, Panel, Toggle } from "../components/ui";
+import { useState } from "react";
+import type { Account, AccountKind } from "../../shared/types";
+import { Heading, ModalHeader, Money, Panel, Spinner, Toggle } from "../components/ui";
 import { api } from "../lib/api";
-import { relativeDays } from "../lib/format";
+import { centsToInput, parseMoney, relativeDays } from "../lib/format";
 import { ImportModal, KIND_LABEL, NewAccountModal } from "../modals/AccountModals";
 import { useApp } from "../state";
 
@@ -13,6 +14,74 @@ const ICON: Record<AccountKind, React.ReactNode> = {
   cash: <Wallet size={18} />,
   other: <Landmark size={18} />,
 };
+
+function BalanceModal({ account }: { account: Account }) {
+  const { refreshMe, toast, closeModal } = useApp();
+  const [value, setValue] = useState(account.currentBalanceCents !== null ? centsToInput(account.currentBalanceCents) : "");
+  const [on, setOn] = useState(new Date().toISOString().slice(0, 10));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function save(balanceCents: number | null) {
+    setBusy(true);
+    try {
+      await api(`accounts/${account.id}`, { method: "PATCH", body: { balanceCents, balanceOn: on } });
+      await refreshMe();
+      toast(balanceCents === null ? "Saldo removido." : "Saldo atualizado.");
+      closeModal();
+    } catch (err) {
+      setError((err as Error).message);
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        const cents = parseMoney(value.replace("−", "-"));
+        if (cents === null) return setError("Informe o saldo, ex.: 1.250,00 (ou -200,00 se estiver negativo)");
+        void save(cents);
+      }}
+    >
+      <ModalHeader title={`Saldo de ${account.name}`} subtitle="Olhe o saldo no app do banco e informe aqui. O ninho atualiza com os lançamentos seguintes." />
+      {error && <div className="form-error">{error}</div>}
+      <div className="field">
+        <label htmlFor="bal-value">Saldo (R$)</label>
+        <input id="bal-value" inputMode="decimal" required placeholder="Ex.: 1.250,00" value={value} onChange={(e) => setValue(e.target.value)} />
+      </div>
+      <div className="field">
+        <label htmlFor="bal-on">Saldo do dia</label>
+        <input id="bal-on" type="date" required value={on} onChange={(e) => setOn(e.target.value)} />
+        <span className="hint">Lançamentos depois desta data entram no cálculo do saldo de hoje.</span>
+      </div>
+      <div className="modal-actions">
+        {account.balanceCents !== null && (
+          <button type="button" className="btn ghost" disabled={busy} onClick={() => void save(null)}>
+            Remover saldo
+          </button>
+        )}
+        <button type="submit" className="btn dark" disabled={busy}>
+          {busy && <Spinner />} Salvar
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function Sparkline({ points }: { points: { month: string; balanceCents: number }[] }) {
+  if (points.length < 2) return null;
+  const values = points.map((p) => p.balanceCents);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = max - min || 1;
+  const d = points.map((p, i) => `${(i / (points.length - 1)) * 100},${28 - ((p.balanceCents - min) / span) * 24}`).join(" ");
+  return (
+    <svg className="sparkline" viewBox="0 0 100 30" preserveAspectRatio="none" role="img" aria-label="Evolução do saldo nos últimos 6 meses">
+      <polyline points={d} fill="none" stroke="currentColor" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
 
 export function AccountsPage() {
   const { me, openModal, refreshMe, toast } = useApp();
@@ -55,6 +124,22 @@ export function AccountsPage() {
                   {KIND_LABEL[a.kind]}
                   {a.institution ? ` · ${a.institution}` : ""} · atualizada {relativeDays(a.lastSyncedAt)}
                 </p>
+                {a.kind === "credit_card" ? (
+                  <p className="account-balance">
+                    Gastos do mês: <Money cents={a.monthSpentCents} />
+                  </p>
+                ) : a.currentBalanceCents !== null ? (
+                  <button type="button" className="account-balance link-like" onClick={() => openModal(<BalanceModal account={a} />)}>
+                    Saldo hoje: <Money cents={a.currentBalanceCents} className={a.currentBalanceCents < 0 ? "down" : ""} />
+                    <Sparkline points={a.history} />
+                  </button>
+                ) : (
+                  a.active && (
+                    <button type="button" className="link" onClick={() => openModal(<BalanceModal account={a} />)}>
+                      Informar saldo
+                    </button>
+                  )
+                )}
               </div>
               {a.active && a.kind !== "cash" && (
                 <button type="button" className="btn ghost small" onClick={() => openModal(<ImportModal accountId={a.id} />)}>
@@ -84,8 +169,11 @@ export function AccountsPage() {
           <div className="notice info">
             <Landmark size={18} />
             <div>
-              <h3>Conexão automática com bancos</h3>
-              <p>A sincronização automática (Open Finance, via Pluggy ou Belvo) fica para uma próxima fase: exige contrato com um provedor. Por enquanto, o extrato importado já cobre o essencial.</p>
+              <h3>Bancos reconhecidos</h3>
+              <p>
+                O ninho reconhece sozinho o CSV de Nubank (conta e cartão), Inter, C6 e Mercado Pago — e lê OFX de qualquer banco. A conexão
+                automática (Open Finance) depende de contrato com um provedor e fica para depois.
+              </p>
             </div>
           </div>
         </div>

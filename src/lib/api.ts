@@ -74,3 +74,11 @@ export async function api<T>(path: string, options: { method?: string; body?: un
   if (method !== "GET" && !options.silent) notifyChange();
   return data as T;
 }
+
+/** Arquivo privado (ex.: foto da nota): vem com o token, vira um endereço local blob:. */
+export async function apiBlobUrl(path: string): Promise<string> {
+  const token = getToken();
+  const response = await fetch(`${BASE}/api/${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  if (!response.ok) throw new ApiError(response.status, "Não foi possível abrir o arquivo.");
+  return URL.createObjectURL(await response.blob());
+}

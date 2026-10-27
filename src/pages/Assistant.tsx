@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { NiaMessage, Proposal } from "../../shared/types";
 import { ErrorBox, Heading, Panel, Spinner } from "../components/ui";
 import { api } from "../lib/api";
+import { createTransaction } from "../lib/offline";
 import { category, dayLabel, formatMoney } from "../lib/format";
 import { blobToDataUrl, recordingSupported, startRecording, type Recording } from "../lib/recorder";
 import { listen, speechSupported } from "../lib/speech";
@@ -32,10 +33,16 @@ function ProposalCard({ message, onSaved, saved }: { message: NiaMessage; saved:
   async function confirm() {
     setBusy(true);
     try {
-      await api("transactions", {
-        body: { description: p.description, amountCents: p.amountCents, direction: p.direction, occurredOn: p.occurredOn, allocations: p.allocations, source: "voice" },
+      const { queued } = await createTransaction({
+        description: p.description,
+        amountCents: p.amountCents,
+        direction: p.direction,
+        occurredOn: p.occurredOn,
+        allocations: p.allocations,
+        source: "voice",
       });
       onSaved(message.id);
+      if (queued) return toast("Sem internet: guardei no aparelho e envio quando a conexão voltar.");
       await refreshMe();
       toast("Lançamento salvo. ✅");
     } catch (e) {

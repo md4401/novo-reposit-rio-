@@ -11,6 +11,7 @@ import { aiEnabled, niaAnswer } from "./ai.js";
 import { loadAlerts } from "./alerts.js";
 import type { SessionUser } from "./auth.js";
 import { batch, num, q, query } from "./db.js";
+import { listBudgets } from "./budgets.js";
 import { familyNumbers, listGoals, personalNumbers } from "./finance.js";
 import { logError } from "./http.js";
 
@@ -45,11 +46,12 @@ function mapMessage(r: Record<string, unknown>): NiaMessage {
 async function buildContext(user: SessionUser) {
   const today = todayKey(user.timezone);
   const month = monthOf(today);
-  const [mine, family, alerts, goals, extra] = await Promise.all([
+  const [mine, family, alerts, goals, budgets, extra] = await Promise.all([
     personalNumbers(user, month, 2),
     familyNumbers(user, month, 2),
     loadAlerts(user),
     listGoals(user),
+    listBudgets(user, month),
     batch(
       [
         q(
@@ -91,12 +93,23 @@ async function buildContext(user: SessionUser) {
     metas: goals.map((g) => ({ nome: g.name, tipo: g.scope === "family" ? "familiar" : "pessoal", guardado: g.savedCents, alvo: g.targetCents })),
     familia_totais_mes: family.totals,
     familia_categorias_mes: family.categories.map((c) => ({ categoria: categoryName(c.categoryId), centavos: c.cents })),
+    orcamentos: [...budgets.personal, ...budgets.family].map((b) => ({
+      categoria: categoryName(b.categoryId),
+      tipo: b.scope === "family" ? "da casa" : "pessoal",
+      gasto: b.spentCents,
+      alvo: b.limitCents,
+    })),
+    compromissos_mes_que_vem: {
+      mes: monthLabel(alerts.commitments.month),
+      total: alerts.commitments.totalCents,
+      itens: alerts.commitments.items.map((i) => ({ nome: i.label, centavos: i.amountCents })),
+    },
   };
 }
 
 type Context = Awaited<ReturnType<typeof buildContext>>;
 
-const MONEY_KEY = /(cents|centavos|guardado|alvo|custo_recorrente_mensal|meus_gastos_mes_passado)$/i;
+const MONEY_KEY = /(cents|centavos|guardado|alvo|gasto|total|custo_recorrente_mensal|meus_gastos_mes_passado)$/i;
 
 /** Para a IA: valores já formatados em reais (o modelo erra ao converter centavos). */
 export function moneyForAi(value: unknown, key = ""): unknown {
@@ -114,8 +127,14 @@ function list(items: string[]) {
   return `${items.slice(0, -1).join(", ")} e ${items[items.length - 1]}`;
 }
 
-/** Respostas sem IA: intenções comuns respondidas com os números do banco. */
-export function ruleReply(question: string, ctx: Context): string {
+export const NIA_HELP =
+  "Posso ajudar com: seus gastos do mês, gastos por categoria, pendências, assinaturas, alertas, metas, orçamento, " +
+  "contas do próximo mês e o resumo da família. Para registrar uma compra, é só dizer, por exemplo: " +
+  "“comprei R$ 80 de comida e R$ 30 de limpeza no mercado”.";
+
+/** Intenções comuns respondidas direto com os números do banco (sem IA: nunca erra valor).
+ *  Devolve null quando a pergunta não é uma delas. */
+export function ruleReply(question: string, ctx: Context): string | null {
   const text = stripAccents(question.toLowerCase());
   const has = (re: RegExp) => re.test(text);
 
@@ -143,6 +162,21 @@ export function ruleReply(question: string, ctx: Context): string {
   if (has(/alerta|duplic|suspeit|estranh|fraude|cobranca (a mais|errada)/)) {
     if (ctx.alertas.length === 0) return "Nenhum alerta no momento: sem duplicidades nem gastos muito fora do seu padrão.";
     return `Tenho ${ctx.alertas.length} ponto(s) para você conferir: ${ctx.alertas.slice(0, 3).join(" • ")}`;
+  }
+  if (has(/orcamento|limite|estourei|estourou/)) {
+    if (ctx.orcamentos.length === 0) return "Você ainda não definiu orçamento. Em “Orçamento”, escolha um limite por categoria e eu aviso quando chegar perto.";
+    const items = [...ctx.orcamentos].sort((a, b) => b.gasto / b.alvo - a.gasto / a.alvo);
+    const over = items.filter((o) => o.gasto > o.alvo);
+    return (
+      (over.length ? `Atenção: ${over.length} categoria(s) passaram do limite. ` : "Tudo dentro do orçamento até agora. ") +
+      list(items.slice(0, 4).map((o) => `${o.categoria} (${o.tipo}): ${money(o.gasto)} de ${money(o.alvo)}`)) +
+      "."
+    );
+  }
+  if (has(/mes que vem|proximo mes|comprometid|parcela|vai vencer|vencimento/)) {
+    const c = ctx.compromissos_mes_que_vem;
+    if (c.itens.length === 0) return "Não encontrei contas fixas nem parcelas previstas para o mês que vem.";
+    return `Para ${c.mes} já estão previstos ${money(c.total)}: ` + list(c.itens.slice(0, 5).map((i) => `${i.nome} (${money(i.centavos)})`)) + ".";
   }
   if (has(/meta|objetivo|reserva|guardar|poupar|economizar|juntar/)) {
     if (ctx.metas.length === 0) return "Você ainda não tem metas. Que tal criar uma em “Metas e objetivos”?";
@@ -192,10 +226,7 @@ export function ruleReply(question: string, ctx: Context): string {
       (diff !== null ? ` Isso é ${Math.abs(diff)}% ${diff >= 0 ? "acima" : "abaixo"} do mês passado inteiro.` : "")
     );
   }
-  return (
-    "Posso ajudar com: seus gastos do mês, gastos por categoria, pendências, assinaturas, alertas, metas e o resumo da família. " +
-    "Para registrar uma compra, é só dizer, por exemplo: “comprei R$ 80 de comida e R$ 30 de limpeza no mercado”."
-  );
+  return null;
 }
 
 function describeProposal(p: Proposal) {
@@ -210,9 +241,10 @@ function describeProposal(p: Proposal) {
 
 export async function askNia(user: SessionUser, message: string): Promise<NiaMessage[]> {
   const today = todayKey(user.timezone);
+  // Só as perguntas anteriores: respostas antigas podem ter números desatualizados (ou errados)
   const history = (
     await query<{ role: "user" | "assistant"; content: string }>(
-      `SELECT role, content FROM ai_messages WHERE profile_id = $1 ORDER BY created_at DESC LIMIT 6`,
+      `SELECT role, content FROM ai_messages WHERE profile_id = $1 AND role = 'user' ORDER BY created_at DESC LIMIT 4`,
       [user.id],
     )
   ).reverse();
@@ -223,8 +255,9 @@ export async function askNia(user: SessionUser, message: string): Promise<NiaMes
     reply = describeProposal(proposal);
   } else {
     const ctx = await buildContext(user);
-    reply = ruleReply(message, ctx);
-    if (aiEnabled()) {
+    const direct = ruleReply(message, ctx);
+    reply = direct ?? NIA_HELP;
+    if (!direct && aiEnabled()) {
       try {
         const answer = await niaAnswer(message, moneyForAi(ctx), history);
         if (answer) reply = answer;

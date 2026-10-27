@@ -10,7 +10,9 @@ import {
   Landmark,
   Lock,
   Menu,
+  PiggyBank,
   Plus,
+  Receipt,
   Repeat,
   Settings,
   Sparkles,
@@ -32,6 +34,8 @@ const MAIN: NavItem[] = [
   { key: "meu", label: "Meu financeiro", icon: <Wallet size={17} /> },
   { key: "familia", label: "Nossa família", icon: <Users size={17} /> },
   { key: "transacoes", label: "Transações", icon: <ArrowLeftRight size={17} /> },
+  { key: "orcamento", label: "Orçamento", icon: <PiggyBank size={17} /> },
+  { key: "casa", label: "Contas da casa", icon: <Receipt size={17} /> },
   { key: "metas", label: "Metas e objetivos", icon: <Target size={17} /> },
 ];
 const SMART: NavItem[] = [

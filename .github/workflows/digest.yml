@@ -1,0 +1,18 @@
+# Resumo diário: de hora em hora pede ao servidor para avisar quem já passou do horário escolhido.
+# O endpoint é idempotente (cada pessoa recebe no máximo um aviso por dia) e não precisa de segredo.
+name: Resumo diário
+
+on:
+  schedule:
+    - cron: "7 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Disparar envio
+        run: curl -fsS --max-time 60 -X POST https://ninho-financas-familia.vercel.app/api/cron/digest

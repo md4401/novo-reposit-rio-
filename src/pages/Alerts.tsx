@@ -2,7 +2,7 @@ import { Bot, Check, Repeat, ShieldCheck, TriangleAlert } from "lucide-react";
 import type { AlertsPayload, Recurring } from "../../shared/types";
 import { DemoFlag, Empty, ErrorBox, Heading, Metric, Money, Panel, Skeleton } from "../components/ui";
 import { api } from "../lib/api";
-import { category, dayLabel } from "../lib/format";
+import { category, dayLabel, monthLabel } from "../lib/format";
 import { navigate } from "../lib/router";
 import { useData } from "../lib/useData";
 import { useApp } from "../state";
@@ -95,6 +95,36 @@ export function AlertsPage() {
               )}
             </div>
             <div className="stack">
+              <Panel title={`Já comprometido em ${monthLabel(data.commitments.month).split(" ")[0]}`}>
+                {data.commitments.items.length === 0 ? (
+                  <p className="muted small">Nenhuma assinatura, conta fixa ou parcela prevista para o mês que vem.</p>
+                ) : (
+                  <>
+                    <div className="budget-total">
+                      <span>{data.commitments.items.length} previstos</span>
+                      <b>
+                        <Money cents={data.commitments.totalCents} />
+                      </b>
+                    </div>
+                    {data.commitments.items.map((i, n) => (
+                      <div className="setting-row" key={n}>
+                        <div>
+                          <h4>{i.label}</h4>
+                          <p>
+                            {i.kind === "parcela" ? "Parcela" : i.kind === "conta" ? "Conta" : "Assinatura"} · {dayLabel(i.on)}
+                          </p>
+                        </div>
+                        <b className="num">
+                          <Money cents={i.amountCents} />
+                        </b>
+                      </div>
+                    ))}
+                    <p className="muted small" style={{ marginTop: 8 }}>
+                      Estimativa pelo valor da última cobrança. Use para planejar o orçamento do mês que vem.
+                    </p>
+                  </>
+                )}
+              </Panel>
               <Panel title="O que observar">
                 {data.alerts.length === 0 ? (
                   <Empty icon="🎉" title="Nenhum alerta" text="Sem aumentos, duplicidades ou gastos muito fora do seu padrão." />

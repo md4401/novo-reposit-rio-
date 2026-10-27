@@ -16,6 +16,14 @@ export type Account = {
   last4: string | null;
   active: boolean;
   lastSyncedAt: string | null;
+  /** Saldo informado pela pessoa e a data dele */
+  balanceCents: number | null;
+  balanceOn: string | null;
+  /** Saldo estimado hoje (informado + movimentações depois da data) */
+  currentBalanceCents: number | null;
+  /** Cartão de crédito: gastos do mês nesta conta */
+  monthSpentCents: number;
+  history: { month: string; balanceCents: number }[];
 };
 
 export type Me = {
@@ -23,6 +31,8 @@ export type Me = {
   household: { id: string; name: string; inviteCode: string; members: Member[] };
   accounts: Account[];
   pendingCount: number;
+  /** Quer receber a notificação do resumo diário */
+  notifyDigest: boolean;
   aiEnabled: boolean;
   /** Mensagens de voz gravadas e transcritas no servidor (Whisper) */
   voiceEnabled: boolean;
@@ -48,6 +58,10 @@ export type Transaction = {
   ignored: boolean;
   notes: string | null;
   allocations: Allocation[];
+  /** Meta para a qual este lançamento conta */
+  goalId: string | null;
+  /** Foto da nota fiscal guardada */
+  receiptId: string | null;
 };
 
 export type MonthTotals = { incomeCents: number; expenseCents: number; balanceCents: number };
@@ -66,6 +80,9 @@ export type Overview = {
   recent: Transaction[];
   insights: Insight[];
   dataWarning: boolean;
+  budgets: BudgetSummary;
+  /** Nos primeiros dias do mês: o mês que acabou de fechar */
+  closingMonth: string | null;
 };
 
 export type Personal = {
@@ -124,11 +141,19 @@ export type Alert = {
   transactionIds: string[];
 };
 
+export type Commitments = {
+  month: string;
+  totalCents: number;
+  items: { label: string; amountCents: number; kind: Recurring["kind"]; on: string }[];
+};
+
 export type AlertsPayload = {
   recurring: Recurring[];
   installments: Recurring[];
   alerts: Alert[];
   monthlyRecurringCents: number;
+  /** Já comprometido para o mês que vem */
+  commitments: Commitments;
 };
 
 export type SourceHealth = {
@@ -188,6 +213,10 @@ export type ImportResult = {
   duplicates: number;
   imported: number;
   committed: boolean;
+  /** Banco reconhecido pelo cabeçalho do CSV */
+  bank: string | null;
+  /** Fatura de cartão reconhecida: sinais invertidos automaticamente */
+  autoInverted: boolean;
 };
 
 export type Proposal = {
@@ -213,4 +242,44 @@ export type ReceiptReading = {
   totalCents: number;
   items: ReceiptItem[];
   match: { transactionId: string; description: string; occurredOn: string } | null;
+};
+
+export type Budget = {
+  id: string;
+  scope: Scope;
+  categoryId: string;
+  limitCents: number;
+  spentCents: number;
+  /** gasto ÷ limite (0 a 1+) */
+  ratio: number;
+};
+export type BudgetsPayload = {
+  month: string;
+  personal: Budget[];
+  family: Budget[];
+  /** Pode editar o orçamento da família */
+  canEditFamily: boolean;
+};
+export type BudgetSummary = { total: number; over: number; near: number };
+
+export type HouseBillShare = { profileId: string; name: string; amountCents: number; paid: boolean; isMe: boolean };
+export type HouseBill = {
+  id: string;
+  name: string;
+  categoryId: string;
+  amountCents: number;
+  dueOn: string;
+  shares: HouseBillShare[];
+  canDelete: boolean;
+};
+
+export type MonthReport = {
+  month: string;
+  totals: MonthTotals;
+  previousExpenseCents: number;
+  categories: CategoryTotal[];
+  biggest: { description: string; amountCents: number; occurredOn: string }[];
+  family: MonthTotals;
+  goals: { name: string; icon: string; savedCents: number; targetCents: number; scope: Scope }[];
+  budgets: BudgetSummary;
 };

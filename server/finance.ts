@@ -25,7 +25,9 @@ export const TX_SELECT = `
          t.classified_by, t.source, t.account_id, fa.name AS account_name, t.method, t.ignored, t.notes,
          coalesce((SELECT json_agg(json_build_object('categoryId', a.category_id, 'amountCents', a.amount_cents,
                                                      'scope', a.scope) ORDER BY a.position)
-                     FROM transaction_allocations a WHERE a.transaction_id = t.id), '[]') AS allocations
+                     FROM transaction_allocations a WHERE a.transaction_id = t.id), '[]') AS allocations,
+         (SELECT gc.goal_id FROM goal_contributions gc WHERE gc.transaction_id = t.id) AS goal_id,
+         (SELECT r.id FROM receipts r WHERE r.transaction_id = t.id ORDER BY r.created_at DESC LIMIT 1) AS receipt_id
     FROM transactions t
     LEFT JOIN financial_accounts fa ON fa.id = t.account_id`;
 
@@ -46,6 +48,8 @@ export function mapTransaction(r: Row): Transaction {
     ignored: Boolean(r.ignored),
     notes: (r.notes as string | null) ?? null,
     allocations: ((r.allocations as Allocation[]) ?? []).map((a) => ({ ...a, amountCents: num(a.amountCents) })),
+    goalId: (r.goal_id as string | null) ?? null,
+    receiptId: (r.receipt_id as string | null) ?? null,
   };
 }
 
@@ -154,14 +158,15 @@ export async function insertTransaction(
     classifiedBy: Transaction["classifiedBy"];
     allocations: Allocation[];
     notes?: string | null;
+    clientRef?: string | null;
   },
 ) {
   const id = randomUUID();
   const queries = [
     q(
       `INSERT INTO transactions (id, profile_id, account_id, occurred_on, description, merchant, amount_cents, direction,
-                                 status, classified_by, source, method, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+                                 status, classified_by, source, method, notes, client_ref)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
       [
         id,
         user.id,
@@ -176,6 +181,7 @@ export async function insertTransaction(
         input.source,
         input.method,
         input.notes ?? null,
+        input.clientRef ?? null,
       ],
     ),
   ];
@@ -183,7 +189,112 @@ export async function insertTransaction(
   if (input.accountId)
     queries.push(q(`UPDATE financial_accounts SET last_synced_at = now() WHERE id = $1 AND profile_id = $2`, [input.accountId, user.id]));
   await batch(queries);
+  await applyGoalRules(user.id, [id]);
   return id;
+}
+
+/** "Sempre que for este estabelecimento, conta para a meta": cria a contribuição ligada ao lançamento. */
+export async function applyGoalRules(profileId: string, transactionIds: string[]) {
+  if (!transactionIds.length) return;
+  await query(
+    `INSERT INTO goal_contributions (goal_id, profile_id, amount_cents, transaction_id)
+     SELECT gr.goal_id, t.profile_id, t.amount_cents, t.id
+       FROM transactions t
+       JOIN goal_rules gr ON gr.profile_id = t.profile_id AND gr.merchant = t.merchant
+       JOIN financial_goals g ON g.id = gr.goal_id
+       JOIN profiles p ON p.id = t.profile_id AND p.household_id = g.household_id
+      WHERE t.profile_id = $1 AND t.id = ANY($2::uuid[]) AND t.direction <> 'income' AND NOT t.ignored
+        AND (g.scope = 'family' OR g.owner_id = t.profile_id)
+     ON CONFLICT (transaction_id) WHERE transaction_id IS NOT NULL DO NOTHING`,
+    [profileId, transactionIds],
+  );
+}
+
+/** Liga (ou desliga) um lançamento a uma meta; o valor do lançamento vira a contribuição. */
+export async function linkGoal(user: SessionUser, tx: Transaction, goalId: string | null, always: boolean) {
+  if (goalId) {
+    const goal = await one(
+      `SELECT 1 FROM financial_goals WHERE id = $1 AND household_id = $2 AND (scope = 'family' OR owner_id = $3)`,
+      [goalId, user.household_id, user.id],
+    );
+    if (!goal) throw new HttpError(404, "Meta não encontrada");
+    if (tx.direction === "income") throw new HttpError(400, "Só gastos ou transferências podem ir para uma meta");
+  }
+  const queries = [q(`DELETE FROM goal_contributions WHERE transaction_id = $1 AND profile_id = $2`, [tx.id, user.id])];
+  if (goalId)
+    queries.push(
+      q(`INSERT INTO goal_contributions (goal_id, profile_id, amount_cents, transaction_id) VALUES ($1, $2, $3, $4)`, [
+        goalId,
+        user.id,
+        tx.amountCents,
+        tx.id,
+      ]),
+    );
+  if (always && goalId)
+    queries.push(
+      q(
+        `INSERT INTO goal_rules (profile_id, merchant, goal_id) VALUES ($1, $2, $3)
+         ON CONFLICT (profile_id, merchant) DO UPDATE SET goal_id = $3`,
+        [user.id, tx.merchant, goalId],
+      ),
+    );
+  if (!goalId) queries.push(q(`DELETE FROM goal_rules WHERE profile_id = $1 AND merchant = $2`, [user.id, tx.merchant]));
+  await batch(queries);
+}
+
+// ---------------------------------------------------------------------------
+// Saldos das contas
+
+/** Saldo de hoje = saldo informado + entradas − saídas depois da data informada.
+ *  Também devolve o saldo no fim de cada um dos últimos 6 meses. */
+export async function accountBalances(user: SessionUser, today: string) {
+  const rows = await query(
+    `SELECT fa.id, fa.kind, fa.balance_cents, fa.balance_on::text AS balance_on,
+            coalesce(sum(CASE WHEN t.inflow THEN t.amount_cents ELSE -t.amount_cents END)
+                     FILTER (WHERE t.occurred_on > fa.balance_on), 0) AS moved,
+            coalesce(sum(t.amount_cents) FILTER (WHERE t.direction = 'expense' AND t.occurred_on >= date_trunc('month', $2::date)), 0) AS month_spent
+       FROM financial_accounts fa
+       LEFT JOIN transactions t ON t.account_id = fa.id AND NOT t.ignored
+      WHERE fa.profile_id = $1
+      GROUP BY fa.id`,
+    [user.id, today],
+  );
+  const firstMonth = addMonths(today.slice(0, 7), -5);
+  const monthly = await query(
+    `SELECT t.account_id, to_char(t.occurred_on, 'YYYY-MM') AS month,
+            sum(CASE WHEN t.inflow THEN t.amount_cents ELSE -t.amount_cents END) AS net
+       FROM transactions t JOIN financial_accounts fa ON fa.id = t.account_id
+      WHERE fa.profile_id = $1 AND NOT t.ignored AND t.occurred_on >= $2
+      GROUP BY 1, 2`,
+    [user.id, `${firstMonth}-01`],
+  );
+  return new Map(
+    rows.map((r) => {
+      const known = r.balance_cents === null || r.balance_cents === undefined ? null : num(r.balance_cents);
+      const current = known === null ? null : known + num(r.moved);
+      // Volta mês a mês a partir do saldo de hoje
+      const history: { month: string; balanceCents: number }[] = [];
+      if (current !== null) {
+        let balance = current;
+        for (let i = 0; i < 6; i++) {
+          const month = addMonths(today.slice(0, 7), -i);
+          history.unshift({ month, balanceCents: balance });
+          const net = monthly.find((m) => m.account_id === r.id && m.month === month);
+          balance -= num(net?.net);
+        }
+      }
+      return [
+        r.id as string,
+        {
+          balanceCents: known,
+          balanceOn: (r.balance_on as string | null) ?? null,
+          currentBalanceCents: current,
+          monthSpentCents: num(r.month_spent),
+          history,
+        },
+      ];
+    }),
+  );
 }
 
 // ---------------------------------------------------------------------------

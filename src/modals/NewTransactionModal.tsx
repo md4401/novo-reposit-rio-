@@ -1,13 +1,23 @@
 // Registrar despesa ou receita à mão (ou confirmar uma proposta da Nia / nota fiscal).
 import { useState } from "react";
 import { categoriesFor } from "../../shared/categories";
-import type { Allocation, Direction, Proposal, Scope, Transaction } from "../../shared/types";
+import type { Allocation, Direction, Proposal, Scope } from "../../shared/types";
 import { ModalHeader, Spinner } from "../components/ui";
 import { api } from "../lib/api";
+import { createTransaction } from "../lib/offline";
 import { category, centsToInput, formatMoney, parseMoney } from "../lib/format";
 import { useApp } from "../state";
 
-export function NewTransactionModal({ proposal, source = "manual" }: { proposal?: Proposal; source?: "manual" | "voice" | "receipt" }) {
+export function NewTransactionModal({
+  proposal,
+  source = "manual",
+  receiptImage,
+}: {
+  proposal?: Proposal;
+  source?: "manual" | "voice" | "receipt";
+  /** Foto da nota (já comprimida) para guardar junto com o lançamento */
+  receiptImage?: string;
+}) {
   const { me, closeModal, toast, refreshMe } = useApp();
   const [direction, setDirection] = useState<Direction>(proposal?.direction ?? "expense");
   const [description, setDescription] = useState(proposal?.description ?? "");
@@ -30,17 +40,21 @@ export function NewTransactionModal({ proposal, source = "manual" }: { proposal?
       let allocations: Allocation[] | undefined;
       if (split && cents === proposal!.amountCents) allocations = split;
       else if (categoryId !== "auto") allocations = [{ categoryId, amountCents: cents, scope }];
-      const created = await api<Transaction>("transactions", {
-        body: {
-          description: description.trim(),
-          amountCents: cents,
-          direction,
-          occurredOn: date,
-          accountId: accountId || null,
-          allocations,
-          source,
-        },
+      const { tx: created, queued } = await createTransaction({
+        description: description.trim(),
+        amountCents: cents,
+        direction,
+        occurredOn: date,
+        accountId: accountId || null,
+        allocations,
+        source,
       });
+      if (!created || queued) {
+        closeModal();
+        toast("Sem internet: guardei no aparelho e envio sozinho quando a conexão voltar.");
+        return;
+      }
+      if (receiptImage) await api("receipts", { body: { image: receiptImage, transactionId: created.id }, silent: true }).catch(() => undefined);
       await refreshMe();
       closeModal();
       toast(

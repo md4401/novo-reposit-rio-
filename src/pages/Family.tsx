@@ -1,4 +1,4 @@
-import { Activity, ArrowLeftRight, Copy, Share2, ShieldCheck, Target, TriangleAlert, Wallet } from "lucide-react";
+import { Activity, ArrowLeftRight, Copy, PiggyBank, Receipt, Share2, ShieldCheck, Target, TriangleAlert, Wallet } from "lucide-react";
 import { useState } from "react";
 import type { Family } from "../../shared/types";
 import { CategoryBars, IncomeExpenseBars } from "../components/charts";
@@ -24,9 +24,17 @@ export function FamilyPage() {
         title="Nossa família"
         subtitle="O que importa para a casa, sem expor as finanças individuais."
         actions={
-          <button type="button" className="btn ghost" onClick={() => navigate("saude")}>
-            <Activity size={15} /> Ver saúde dos dados
-          </button>
+          <>
+            <button type="button" className="btn ghost" onClick={() => navigate("casa")}>
+              <Receipt size={15} /> Contas da casa
+            </button>
+            <button type="button" className="btn ghost" onClick={() => navigate("orcamento")}>
+              <PiggyBank size={15} /> Orçamento da casa
+            </button>
+            <button type="button" className="btn ghost" onClick={() => navigate("saude")}>
+              <Activity size={15} /> Saúde dos dados
+            </button>
+          </>
         }
       />
       <DemoFlag />

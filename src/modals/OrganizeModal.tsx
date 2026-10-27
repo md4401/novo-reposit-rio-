@@ -1,10 +1,11 @@
 // "Organizar compra": dividir em categorias (cada parte pessoal ou familiar), fechando centavo por centavo.
 import { Plus, Trash2, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { categoriesFor } from "../../shared/categories";
-import type { Allocation, Direction, Scope, Transaction } from "../../shared/types";
+import type { Allocation, Direction, Goal, Scope, Transaction } from "../../shared/types";
 import { ModalHeader, Spinner } from "../components/ui";
-import { api } from "../lib/api";
+import { api, apiBlobUrl } from "../lib/api";
+import { useData } from "../lib/useData";
 import { category, centsToInput, dayLabel, formatMoney, parseMoney } from "../lib/format";
 import { useApp } from "../state";
 
@@ -12,8 +13,48 @@ type Row = { categoryId: string; value: string; scope: Scope };
 
 const QUICK = ["alimentacao", "compras", "saude", "transporte", "lazer", "moradia", "outros"];
 
+function ReceiptPreview({ id }: { id: string }) {
+  const { toast } = useApp();
+  const [url, setUrl] = useState<string | null>(null);
+  const [gone, setGone] = useState(false);
+  useEffect(() => {
+    let local: string | null = null;
+    apiBlobUrl(`receipts/${id}`)
+      .then((u) => setUrl((local = u)))
+      .catch(() => setGone(true));
+    return () => {
+      if (local) URL.revokeObjectURL(local);
+    };
+  }, [id]);
+  if (gone) return null;
+  async function remove() {
+    if (!window.confirm("Apagar a foto desta nota? A compra continua.")) return;
+    await api(`receipts/${id}`, { method: "DELETE" });
+    setGone(true);
+    toast("Foto apagada.");
+  }
+  return (
+    <div className="receipt-preview">
+      <div className="panel-title">
+        <h2 style={{ fontSize: 14 }}>📸 Nota fiscal</h2>
+        <button type="button" className="btn ghost small" onClick={remove}>
+          Apagar foto
+        </button>
+      </div>
+      {url ? (
+        <img src={url} alt="Foto da nota fiscal" />
+      ) : (
+        <Spinner />
+      )}
+    </div>
+  );
+}
+
 export function OrganizeModal({ transaction: t }: { transaction: Transaction }) {
   const { closeModal, toast, refreshMe } = useApp();
+  const goals = useData<Goal[]>("goals");
+  const [goalId, setGoalId] = useState(t.goalId ?? "");
+  const [goalAlways, setGoalAlways] = useState(false);
   const manual = t.source !== "csv" && t.source !== "ofx";
   const [direction, setDirection] = useState<Direction>(t.direction);
   const [description, setDescription] = useState(t.description);
@@ -66,6 +107,10 @@ export function OrganizeModal({ transaction: t }: { transaction: Transaction }) 
       if (manual) {
         body.description = description;
         body.amountCents = totalCents;
+      }
+      if (goalId !== (t.goalId ?? "") || goalAlways) {
+        body.goalId = goalId || null;
+        body.goalAlways = goalAlways;
       }
       const result = await api<{ learnedRule: { merchant: string; categoryId: string; applied: number } | null }>(`transactions/${t.id}`, {
         method: "PATCH",
@@ -215,6 +260,28 @@ export function OrganizeModal({ transaction: t }: { transaction: Transaction }) 
           </div>
         </>
       )}
+
+      {direction !== "income" && (goals.data?.length ?? 0) > 0 && (
+        <div className="field" style={{ marginTop: 14 }}>
+          <label htmlFor="o-goal">Conta para uma meta?</label>
+          <select id="o-goal" value={goalId} onChange={(e) => setGoalId(e.target.value)}>
+            <option value="">Não</option>
+            {goals.data!.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.icon} {g.name} ({g.scope === "family" ? "família" : "pessoal"})
+              </option>
+            ))}
+          </select>
+          {goalId && (
+            <label className="check-line" style={{ marginTop: 8 }}>
+              <input type="checkbox" checked={goalAlways} onChange={(e) => setGoalAlways(e.target.checked)} />
+              <span>Sempre que for “{t.merchant}”, contar para esta meta</span>
+            </label>
+          )}
+        </div>
+      )}
+
+      {t.receiptId && <ReceiptPreview id={t.receiptId} />}
 
       <div className="modal-actions" style={{ justifyContent: "space-between" }}>
         {t.ignored ? (

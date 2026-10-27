@@ -59,3 +59,29 @@ describe("extratos", () => {
     expect(() => parseCsv("a,b\n1,2\n")).toThrow(/Data/);
   });
 });
+
+describe("bancos reconhecidos pelo CSV", () => {
+  it("Nubank cartão: compras positivas viram despesas (inverte)", () => {
+    const r = parseStatement("Nubank_2026-10.csv", "date,title,amount\n2026-10-01,Padaria Real,12.50\n2026-10-02,Pagamento recebido,-300.00\n2026-10-03,Uber,23.90\n");
+    expect(r.bank).toEqual({ name: "Nubank (cartão)", creditCard: true });
+  });
+  it("Nubank conta: não inverte", () => {
+    const r = parseStatement("NU_conta.csv", "Data,Valor,Identificador,Descrição\n01/10/2026,-45.90,abc,Compra no débito - Mercado\n05/10/2026,3000.00,def,Transferência recebida\n");
+    expect(r.bank).toEqual({ name: "Nubank (conta)", creditCard: false });
+    expect(r.rows[0].signedCents).toBe(-4590);
+  });
+  it("C6 cartão: usa o valor em reais e não a coluna em dólar", () => {
+    const csv = "Data de Compra;Nome no Cartão;Final do Cartão;Categoria;Descrição;Parcela;Valor (em US$);Cotação (em R$);Valor (em R$)\n05/10/2026;MARIA S;1234;Mercado;SUPERMERCADO X;Única;0;0;150,30\n";
+    const r = parseStatement("c6.csv", csv);
+    expect(r.bank?.name).toBe("C6 (cartão)");
+    expect(r.rows[0].signedCents).toBe(15030);
+    expect(r.rows[0].description).toBe("SUPERMERCADO X");
+  });
+  it("cabeçalho de fatura com valores majoritariamente negativos: não inverte", () => {
+    const r = parseStatement("x.csv", "date,title,amount\n2026-10-01,Padaria,-12.50\n2026-10-02,Mercado,-30.00\n");
+    expect(r.bank?.creditCard).toBe(false);
+  });
+  it("banco desconhecido: sem detecção", () => {
+    expect(parseStatement("x.csv", "Data;Descrição;Valor\n01/10/2026;Mercado;-10,00\n").bank).toBeNull();
+  });
+});

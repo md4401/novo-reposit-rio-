@@ -5,10 +5,12 @@ import { AccountsPage } from "./pages/Accounts";
 import { AlertsPage } from "./pages/Alerts";
 import { AssistantPage } from "./pages/Assistant";
 import { AuthPage } from "./pages/Auth";
+import { BudgetsPage } from "./pages/Budgets";
 import { FamilyPage } from "./pages/Family";
 import { GoalsPage } from "./pages/Goals";
 import { HealthPage } from "./pages/Health";
 import { HomePage } from "./pages/Home";
+import { HouseBillsPage } from "./pages/HouseBills";
 import { PersonalPage } from "./pages/Personal";
 import { SettingsPage } from "./pages/Settings";
 import { TransactionsPage } from "./pages/Transactions";
@@ -37,6 +39,8 @@ export function App() {
     meu: <PersonalPage />,
     familia: <FamilyPage />,
     transacoes: <TransactionsPage route={route} key={route.query.toString()} />,
+    orcamento: <BudgetsPage />,
+    casa: <HouseBillsPage />,
     metas: <GoalsPage />,
     nia: <AssistantPage />,
     alertas: <AlertsPage />,

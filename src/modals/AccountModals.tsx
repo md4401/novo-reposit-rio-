@@ -176,7 +176,13 @@ export function ImportModal({ accountId: initial }: { accountId?: string }) {
         <span>{file ? file.name : "Escolher arquivo .csv ou .ofx"}</span>
         <input type="file" accept=".csv,.ofx,.txt,text/csv,application/x-ofx" onChange={(e) => void pick(e.target.files?.[0])} />
       </label>
-      {file && (
+      {file && preview?.bank && (
+        <div className="modal-note" style={{ marginTop: 12 }}>
+          🏦 Reconhecemos o formato <b>{preview.bank}</b>
+          {preview.autoInverted ? " — compras da fatura entram como gastos automaticamente." : "."}
+        </div>
+      )}
+      {file && !preview?.bank && (
         <label className="check-line" style={{ marginTop: 12 }}>
           <input
             type="checkbox"

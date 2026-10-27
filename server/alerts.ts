@@ -3,7 +3,7 @@ import type { AlertsPayload } from "../shared/types.js";
 import { todayKey } from "../shared/time.js";
 import type { SessionUser } from "./auth.js";
 import { batch, num, q } from "./db.js";
-import { detectAlerts, detectRecurring, monthlyRecurringCents, type TxLite } from "./insights.js";
+import { detectAlerts, detectRecurring, monthlyRecurringCents, nextMonthCommitments, type TxLite } from "./insights.js";
 
 export async function loadAlerts(user: SessionUser): Promise<AlertsPayload> {
   const today = todayKey(user.timezone);
@@ -32,5 +32,11 @@ export async function loadAlerts(user: SessionUser): Promise<AlertsPayload> {
   }));
   const { recurring, installments } = detectRecurring(transactions, today);
   const alerts = detectAlerts(transactions, recurring, today, new Set(dismissed.map((d) => d.alert_key as string)));
-  return { recurring, installments, alerts, monthlyRecurringCents: monthlyRecurringCents(recurring) };
+  return {
+    recurring,
+    installments,
+    alerts,
+    monthlyRecurringCents: monthlyRecurringCents(recurring),
+    commitments: nextMonthCommitments(recurring, installments, today),
+  };
 }

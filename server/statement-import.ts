@@ -7,7 +7,7 @@ import type { SessionUser } from "./auth.js";
 import { aiEnabled, classifyManyWithAi } from "./ai.js";
 import { classifyWith, loadClassifier } from "./classify.js";
 import { batch, one, q, query } from "./db.js";
-import { NO_ACCOUNT } from "./finance.js";
+import { applyGoalRules, NO_ACCOUNT } from "./finance.js";
 import { HttpError, logError } from "./http.js";
 import { ImportError, parseStatement } from "./importers.js";
 
@@ -43,8 +43,10 @@ export async function importStatement(
     ).map((r) => r.external_id),
   );
 
-  // Fatura de cartão em CSV costuma trazer compras positivas: a pessoa pode inverter.
-  const sign = input.invertSigns ? -1 : 1;
+  // Fatura de cartão em CSV costuma trazer compras positivas: o banco reconhecido decide;
+  // nos outros, a pessoa pode inverter.
+  const invert = parsed.bank ? parsed.bank.creditCard : input.invertSigns;
+  const sign = invert ? -1 : 1;
   const rows = parsed.rows.map((r) => {
     const signed = r.signedCents * sign;
     return {
@@ -74,6 +76,7 @@ export async function importStatement(
         status: c.status,
         classified_by: c.classifiedBy,
         external_id: r.externalId,
+        inflow: r.signedCents * sign > 0,
         category_id: c.allocation?.categoryId ?? null,
         scope: c.allocation?.scope ?? null,
       };
@@ -98,12 +101,12 @@ export async function importStatement(
         `WITH rows AS (
            SELECT * FROM json_to_recordset($2::json) AS x(id uuid, occurred_on date, description text, merchant text,
                   amount_cents bigint, direction text, status text, classified_by text, external_id text,
-                  category_id text, scope text)
+                  inflow boolean, category_id text, scope text)
          ),
          ins AS (
            INSERT INTO transactions (id, profile_id, account_id, occurred_on, description, merchant, amount_cents,
-                                     direction, status, classified_by, source, external_id)
-           SELECT id, $1, $3, occurred_on, description, merchant, amount_cents, direction, status, classified_by, $4, external_id
+                                     direction, status, classified_by, source, external_id, inflow)
+           SELECT id, $1, $3, occurred_on, description, merchant, amount_cents, direction, status, classified_by, $4, external_id, inflow
              FROM rows
            ON CONFLICT (profile_id, (coalesce(account_id, '00000000-0000-0000-0000-000000000000'::uuid)), external_id)
              WHERE external_id IS NOT NULL DO NOTHING
@@ -120,6 +123,7 @@ export async function importStatement(
       q(`UPDATE financial_accounts SET last_synced_at = now() WHERE id = $1`, [account.id]),
     ]);
     imported = Number(inserted[0]?.n ?? 0);
+    await applyGoalRules(user.id, records.map((r) => r.id));
     await logRun(user, input, parsed.format, "success", rows.length, imported, rows.length - imported, null);
   }
 
@@ -136,6 +140,8 @@ export async function importStatement(
     duplicates: rows.filter((r) => r.duplicate).length,
     imported,
     committed: input.commit,
+    bank: parsed.bank?.name ?? null,
+    autoInverted: Boolean(parsed.bank?.creditCard),
   };
 }
 

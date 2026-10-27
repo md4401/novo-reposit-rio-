@@ -17,7 +17,7 @@ marcar como *familiar*. Feito a partir do *Caderno de produto v0.3* (PDF do proj
 | **Meu financeiro** | Gastos do mês, categorias, entradas × saídas, regras automáticas. Tudo privado. |
 | **Nossa família** | Só agregados: nenhum extrato, loja ou nome de quem comprou. Metas da família e aviso genérico de dados incompletos. |
 | **Transações** | Busca, filtros (pendentes, familiares, pessoais, ignoradas), meses, exportação CSV. Toque para **dividir a compra em várias categorias**, cada parte pessoal ou familiar — a soma fecha centavo por centavo. |
-| **Importar extrato** | CSV (vários formatos de banco) e OFX, com prévia. **Reimportar não duplica** (chave de idempotência). Pagamento de fatura vira transferência, não gasto. |
+| **Importar extrato** | CSV e OFX, com prévia. Reconhece sozinho Nubank (conta e cartão), Inter, C6 e Mercado Pago (fatura de cartão entra com o sinal certo). **Reimportar não duplica** (chave de idempotência). Pagamento de fatura vira transferência, não gasto. |
 | **Classificação automática** | Regra da pessoa → histórico → palavras-chave → IA (opcional) → pendência. Depois de 2 confirmações iguais, o ninho **aprende uma regra** (que você pode desligar). |
 | **Resumo diário** | Todas as pendências num lote, com classificação em um toque. |
 | **Assistente Nia** | Responde com números calculados pelo banco (gastos, categorias, pendências, assinaturas, metas, família). Entende “comprei R$ 80 de comida e R$ 30 de limpeza no mercado” — digitado ou em **mensagem de voz** (transcrita pelo Whisper, você confere o texto antes de enviar) — e monta uma proposta para você **confirmar**. |
@@ -25,6 +25,15 @@ marcar como *familiar*. Feito a partir do *Caderno de produto v0.3* (PDF do proj
 | **Assinaturas e alertas** | Detecta assinaturas e contas recorrentes, **aumento de preço**, **possível cobrança duplicada** e **gasto fora do padrão** — só avisos, nada é apagado. |
 | **Saúde dos dados** | Atualização de cada conta, cobertura, classificação, divergências e histórico de importações. |
 | **Metas** | Pessoais e da família; na família todos veem o total, cada contribuição é privada. |
+| **Orçamento** | Limite mensal por categoria, pessoal ou da casa (definido por quem administra). Aviso a partir de 80% na visão geral e pela Nia. |
+| **Contas da casa** | Luz, internet, aluguel… divididos entre quem mora junto, centavo por centavo. Cada pessoa marca “Paguei minha parte” e a parte entra no financeiro dela como familiar. Dá para repetir no mês seguinte. |
+| **Saldos e compromissos** | Saldo informado da conta + lançamentos seguintes = saldo de hoje, com a evolução de 6 meses. “Já comprometido no mês que vem”: assinaturas, contas fixas e a próxima parcela. |
+| **Metas ligadas** | Um lançamento (ex.: Pix para a poupança) pode contar para uma meta — e, se quiser, sempre que for o mesmo estabelecimento. |
+| **Fechamento do mês** | “Seu mês em 5 números” e relatório em PDF (link de uso único que também funciona no APK). |
+| **Resumo diário** | Notificação no horário escolhido (Web Push no navegador; lembrete local no APK), só com a quantidade de pendências — nunca lojas ou valores. Disparo de hora em hora pelo GitHub Actions (`.github/workflows/digest.yml`). |
+| **Senha e conta** | Trocar senha; “Esqueci minha senha” com código (por e-mail, se o Resend estiver configurado, ou gerado por quem administra a família); papéis, remover integrante, sair da família e **apagar a conta** (LGPD). |
+| **Sem internet** | Lançamentos feitos offline ficam no aparelho e são enviados quando a conexão volta, sem duplicar. |
+| **Notas guardadas** | A foto da nota fiscal (comprimida no celular) fica guardada com a compra, visível só para o dono. |
 | **Privacidade** | Botão para ocultar valores, todas as consultas filtradas pelo dono, testes de isolamento. |
 
 ## Regras de dinheiro (garantidas no banco)
@@ -49,7 +58,7 @@ marcar como *familiar*. Feito a partir do *Caderno de produto v0.3* (PDF do proj
 
 Diferenças em relação ao caderno de produto (de propósito, para um protótipo grátis e testável no celular):
 Expo → React + Capacitor; Neon Auth → login próprio; Drizzle → SQL direto; Neon Functions → função na Vercel;
-Object Storage → fotos de nota não são guardadas (só lidas e descartadas). Detalhes em “Próximos passos”.
+Object Storage → fotos de nota guardadas comprimidas no próprio Postgres (só o dono acessa; limite de 300 por pessoa). Detalhes em “Próximos passos”.
 
 ## Estrutura
 
@@ -111,7 +120,5 @@ O áudio das mensagens de voz é transcrito e descartado na hora; a foto da nota
 
 ## Próximos passos (roadmap do caderno)
 
-- **F3**: notificação push do resumo diário (Web Push / FCM) no horário escolhido.
-- **F4**: guardar fotos de notas no Neon Object Storage com URLs temporárias.
 - **F5**: Open Finance (Pluggy/Belvo) com adaptadores — só depois de validar o app com extratos importados.
-- **F6**: recuperação de senha por e-mail, backups, auditoria de segurança e revisão LGPD.
+- **F6**: domínio próprio para o e-mail de recuperação, backups e revisão LGPD completa.

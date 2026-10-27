@@ -471,3 +471,48 @@ button.insight:hover { background: #f0f5ec; }
   .metric .val { font-size: 17px; }
   .check-grid { grid-template-columns: 1fr; }
 }
+
+/* Configurações: ações por integrante */
+.member-row { align-items: flex-start; }
+.member-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.btn.danger-text { color: var(--red); }
+
+/* Fechamento do mês */
+.report-numbers { display: grid; gap: 10px; }
+.report-numbers > div { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 2px 12px; padding: 12px 14px; border-radius: 14px; background: var(--soft); }
+.report-numbers span { color: var(--text2); font-size: 12.5px; }
+.report-numbers b { font-size: 16px; text-align: right; }
+.report-numbers small { grid-column: 1 / -1; font-size: 11.5px; color: var(--text2); text-align: right; }
+.report-numbers small.down { color: var(--red); }
+.report-numbers small.up { color: var(--green, #1e6650); }
+
+/* Orçamento */
+.budget-total { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 0 0 12px; border-bottom: 1px solid var(--line); margin-bottom: 6px; font-size: 13px; color: var(--text2); }
+.budget-total b { color: var(--text); font-size: 15px; }
+.budget-row { position: relative; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.budget-row:last-child { border-bottom: 0; }
+.budget-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; padding-right: 76px; }
+.budget-name { font-weight: 700; font-size: 14px; }
+.budget-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 7px; font-size: 12px; flex-wrap: wrap; }
+.budget-foot .down { color: var(--red); font-weight: 700; }
+.budget-actions { position: absolute; top: 9px; right: 0; display: flex; gap: 6px; }
+.budget-actions .icon-btn { width: 32px; height: 32px; }
+
+/* Contas da casa */
+.bill-head { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+.bill-head h3 { font-size: 15px; }
+.share-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 13px; }
+.share-line { display: flex; align-items: center; gap: 10px; padding: 4px 0; }
+.bill-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.hint.down { color: var(--red); }
+
+/* Saldo das contas */
+.account-balance { display: block; margin-top: 4px; font-size: 12.5px; font-weight: 700; color: var(--text); }
+.account-balance .num { white-space: nowrap; }
+.link-like { background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+.sparkline { display: inline-block; vertical-align: middle; width: 64px; height: 18px; margin-left: 8px; color: #4a9271; }
+.num.down { color: var(--red); }
+
+/* Foto da nota no "Organizar compra" */
+.receipt-preview { margin-top: 14px; padding: 12px; border-radius: 14px; background: var(--soft); }
+.receipt-preview img { display: block; width: 100%; max-height: 320px; object-fit: contain; border-radius: 10px; background: #fff; }

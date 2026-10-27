@@ -16,14 +16,23 @@ const EXAMPLE: ReceiptItem[] = [
   { name: "Sabonete", amountCents: 1200, categoryId: "higiene" },
 ];
 
-async function resize(file: File): Promise<string> {
+async function resize(file: File, maxSide = 1400, quality = 0.8): Promise<string> {
   const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, 1400 / Math.max(bitmap.width, bitmap.height));
+  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(bitmap.width * scale);
   canvas.height = Math.round(bitmap.height * scale);
   canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/jpeg", 0.8);
+  return canvas.toDataURL("image/jpeg", quality);
+}
+
+/** Versão leve para guardar (cerca de 100–300 KB). */
+async function forStorage(file: File) {
+  for (const [side, q] of [[1280, 0.6], [1000, 0.5], [800, 0.45]] as const) {
+    const url = await resize(file, side, q);
+    if (url.length * 0.75 < 650 * 1024) return url;
+  }
+  return null;
 }
 
 function groupByCategory(items: ReceiptItem[], scope: "personal" | "family"): Allocation[] {
@@ -42,6 +51,7 @@ export function ReceiptModal() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [scope, setScope] = useState<"personal" | "family">("family");
+  const [keepPhoto, setKeepPhoto] = useState(true);
   const ai = Boolean(me?.aiEnabled);
 
   function choose(f: File | undefined) {
@@ -75,15 +85,18 @@ export function ReceiptModal() {
     setBusy(true);
     try {
       await api(`transactions/${reading.match.transactionId}`, { method: "PATCH", body: { allocations: groupByCategory(items, scope) } });
+      const image = keepPhoto && file ? await forStorage(file) : null;
+      if (image) await api("receipts", { body: { image, transactionId: reading.match.transactionId }, silent: true }).catch(() => undefined);
       closeModal();
-      toast("Compra detalhada pela nota. O total de despesas continua o mesmo.");
+      toast(`Compra detalhada pela nota${image ? " e foto guardada" : ""}. O total de despesas continua o mesmo.`);
     } catch (e) {
       setError((e as Error).message);
       setBusy(false);
     }
   }
 
-  function createNew() {
+  async function createNew() {
+    const receiptImage = keepPhoto && file && !example ? ((await forStorage(file)) ?? undefined) : undefined;
     const proposal: Proposal = {
       description: reading?.merchant ?? (example ? "Mercado (exemplo)" : "Compra com nota fiscal"),
       amountCents: itemsSum,
@@ -91,7 +104,7 @@ export function ReceiptModal() {
       occurredOn: reading?.occurredOn ?? me?.today ?? "",
       allocations: groupByCategory(items, scope),
     };
-    closeModal(() => openModal(<NewTransactionModal proposal={proposal} source="receipt" />));
+    closeModal(() => openModal(<NewTransactionModal proposal={proposal} source="receipt" receiptImage={receiptImage} />));
   }
 
   return (
@@ -140,6 +153,12 @@ export function ReceiptModal() {
               <option value="personal">🔒 Pessoal</option>
             </select>
           </div>
+          {file && !example && (
+            <label className="check-line" style={{ marginTop: 10, marginBottom: 0 }}>
+              <input type="checkbox" checked={keepPhoto} onChange={(e) => setKeepPhoto(e.target.checked)} />
+              <span>Guardar a foto junto com a compra (só você vê)</span>
+            </label>
+          )}
         </div>
       )}
       <div className="modal-actions">
@@ -152,7 +171,7 @@ export function ReceiptModal() {
               {busy && <Spinner />} Vincular à compra
             </button>
           ) : (
-            <button type="button" className="btn dark" onClick={createNew}>
+            <button type="button" className="btn dark" onClick={() => void createNew()}>
               Registrar compra
             </button>
           )

@@ -1,10 +1,12 @@
-import { Copy, Download, LogOut, RefreshCw, Share2, Smartphone, Trash2 } from "lucide-react";
+import { Copy, Download, KeyRound, LogOut, RefreshCw, Share2, Smartphone, Trash2, UserMinus } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Me, Rule } from "../../shared/types";
 import { Avatar, Heading, Panel, Spinner, Toggle } from "../components/ui";
 import { api } from "../lib/api";
 import { category } from "../lib/format";
 import { checkUpdate, isNative, type UpdateInfo } from "../lib/native";
+import { disableNotifications, enableNotifications, notificationsSupported, syncNativeReminder } from "../lib/notifications";
+import { ChangePasswordModal, DeleteAccountModal, ResetCodeModal } from "../modals/SecurityModals";
 import { canInstall, isInstalled, onInstallChange, promptInstall } from "../lib/pwa";
 import { useData } from "../lib/useData";
 import { useApp } from "../state";
@@ -14,7 +16,7 @@ import { inviteText } from "./Family";
 const APK_URL = `${window.location.origin}/download/ninho.apk`;
 
 export function SettingsPage() {
-  const { me, refreshMe, toast, hidden, toggleHidden, signOut } = useApp();
+  const { me, refreshMe, toast, hidden, toggleHidden, signOut, openModal } = useApp();
   const rules = useData<Rule[]>("rules");
   const [name, setName] = useState(me?.profile.name ?? "");
   const [household, setHousehold] = useState(me?.household.name ?? "");
@@ -27,12 +29,13 @@ export function SettingsPage() {
   useEffect(() => void checkUpdate(true).then(setUpdate), []);
   if (!me) return null;
   const admin = me.profile.role === "admin";
+  const realMembers = me.household.members.filter((m) => !m.isDemo).length;
 
   async function saveProfile(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     try {
-      await api<Me>("me", { method: "PATCH", body: { name, digestHour: hour, ...(admin ? { householdName: household } : {}) } });
+      await api<Me>("me", { method: "PATCH", body: { name, ...(admin ? { householdName: household } : {}) } });
       await refreshMe();
       toast("Configurações salvas.");
     } catch (err) {
@@ -53,6 +56,61 @@ export function SettingsPage() {
       toast((err as Error).message);
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function memberAction(memberId: string, kind: "role" | "remove", role?: "admin" | "member") {
+    const member = me!.household.members.find((m) => m.id === memberId);
+    if (
+      kind === "remove" &&
+      !window.confirm(
+        member?.isDemo
+          ? `Remover ${member.name} (exemplo) da família?`
+          : `Remover ${member?.name} da família? A pessoa continua com a conta e os dados dela, mas numa família só dela.`,
+      )
+    )
+      return;
+    setBusy(memberId);
+    try {
+      if (kind === "role") await api(`household/members/${memberId}/role`, { body: { role } });
+      else await api(`household/members/${memberId}`, { method: "DELETE" });
+      await refreshMe();
+      toast(kind === "remove" ? "Integrante removido da família." : "Papel atualizado.");
+    } catch (err) {
+      toast((err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function leave() {
+    if (!window.confirm(`Sair de ${me!.household.name}? Seus dados vão com você para uma família nova, só sua. Suas partes familiares deixam de contar aqui.`)) return;
+    await action("leave", "household/leave", "Você saiu da família. Seus dados continuam com você.");
+  }
+
+  async function toggleNotifications(on: boolean) {
+    setBusy("notify");
+    try {
+      const problem = on ? await enableNotifications(hour) : (await disableNotifications(), null);
+      if (problem) toast(problem);
+      else toast(on ? `Pronto! Você recebe o resumo às ${String(hour).padStart(2, "0")}:00.` : "Notificação desligada.");
+      await refreshMe();
+    } catch (err) {
+      toast((err as Error).message || "Não foi possível ligar as notificações.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function saveHour(next: number) {
+    setHour(next);
+    try {
+      await api<Me>("me", { method: "PATCH", body: { digestHour: next }, silent: true });
+      await syncNativeReminder(me!.notifyDigest, next);
+      await refreshMe();
+      toast(`Resumo às ${String(next).padStart(2, "0")}:00.`);
+    } catch (err) {
+      toast((err as Error).message);
     }
   }
 
@@ -90,17 +148,6 @@ export function SettingsPage() {
                   <input id="s-house" maxLength={60} value={household} onChange={(e) => setHousehold(e.target.value)} />
                 </div>
               )}
-              <div className="field">
-                <label htmlFor="s-hour">Horário do resumo diário</label>
-                <select id="s-hour" value={hour} onChange={(e) => setHour(Number(e.target.value))}>
-                  {Array.from({ length: 24 }, (_, h) => (
-                    <option key={h} value={h}>
-                      {String(h).padStart(2, "0")}:00
-                    </option>
-                  ))}
-                </select>
-                <span className="hint">As compras em dúvida ficam juntas num lote só, em vez de um aviso por compra.</span>
-              </div>
               <button type="submit" className="btn dark" disabled={saving}>
                 {saving && <Spinner />} Salvar
               </button>
@@ -134,17 +181,85 @@ export function SettingsPage() {
             </div>
             <div style={{ marginTop: 16 }}>
               {me.household.members.map((m) => (
-                <div className="status-item" key={m.id}>
+                <div className="status-item member-row" key={m.id}>
                   <Avatar name={m.name} color={m.avatarColor} />
-                  <div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
                     <h4>
                       {m.name}
                       {m.isMe ? " (você)" : ""}
                     </h4>
                     <p>{m.isDemo ? "Integrante de exemplo" : m.role === "admin" ? "Administra a família" : "Integrante"}</p>
+                    {admin && !m.isMe && (
+                      <div className="member-actions">
+                        {!m.isDemo && (
+                          <>
+                            <button type="button" className="btn ghost small" disabled={busy === m.id} onClick={() => memberAction(m.id, "role", m.role === "admin" ? "member" : "admin")}>
+                              {m.role === "admin" ? "Tirar de administrador" : "Tornar administrador"}
+                            </button>
+                            <button type="button" className="btn ghost small" onClick={() => openModal(<ResetCodeModal memberId={m.id} name={m.name} />)}>
+                              <KeyRound size={13} /> Código de senha
+                            </button>
+                          </>
+                        )}
+                        <button type="button" className="btn ghost small danger-text" disabled={busy === m.id} onClick={() => memberAction(m.id, "remove")}>
+                          <UserMinus size={13} /> Remover
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
+              {realMembers > 1 && (
+                <button type="button" className="btn ghost small" style={{ marginTop: 12 }} disabled={busy === "leave"} onClick={leave}>
+                  <LogOut size={13} /> Sair desta família
+                </button>
+              )}
+            </div>
+          </Panel>
+
+          <Panel title="Resumo diário">
+            <div className="setting-row">
+              <div>
+                <h4>Notificação do resumo</h4>
+                <p>
+                  {notificationsSupported()
+                    ? "Um aviso por dia, no horário escolhido, quando houver compras para revisar — em vez de um aviso por compra."
+                    : "Este navegador não recebe notificações. Instale o app para receber o resumo."}
+                </p>
+              </div>
+              <Toggle on={me.notifyDigest} onChange={(v) => void toggleNotifications(v)} label="Notificação do resumo diário" />
+            </div>
+            <div className="field" style={{ marginTop: 6 }}>
+              <label htmlFor="s-hour">Horário</label>
+              <select id="s-hour" value={hour} onChange={(e) => void saveHour(Number(e.target.value))}>
+                {Array.from({ length: 24 }, (_, h) => (
+                  <option key={h} value={h}>
+                    {String(h).padStart(2, "0")}:00
+                  </option>
+                ))}
+              </select>
+              <span className="hint">O aviso diz só quantas compras esperam revisão — nunca lojas ou valores.</span>
+            </div>
+          </Panel>
+
+          <Panel title="Segurança da conta">
+            <div className="setting-row">
+              <div>
+                <h4>Senha</h4>
+                <p>Ao trocar, os outros aparelhos saem da conta.</p>
+              </div>
+              <button type="button" className="btn ghost small" onClick={() => openModal(<ChangePasswordModal />)}>
+                <KeyRound size={13} /> Trocar senha
+              </button>
+            </div>
+            <div className="setting-row">
+              <div>
+                <h4>Apagar minha conta</h4>
+                <p>Remove todos os seus dados do ninho (LGPD). Não dá para desfazer.</p>
+              </div>
+              <button type="button" className="btn danger small" onClick={() => openModal(<DeleteAccountModal />)}>
+                <Trash2 size={13} /> Apagar
+              </button>
             </div>
           </Panel>
 
@@ -271,7 +386,7 @@ export function SettingsPage() {
               <LogOut size={15} /> Sair da conta neste aparelho
             </button>
             <p className="footer-note" style={{ marginTop: 14 }}>
-              ninho. v0.1 · protótipo funcional · dados no Neon (São Paulo)
+              ninho. · dados guardados no Neon (São Paulo)
             </p>
           </Panel>
         </div>

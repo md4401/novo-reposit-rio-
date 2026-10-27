@@ -5,7 +5,87 @@ import { Spinner } from "../components/ui";
 import { api } from "../lib/api";
 import { useApp } from "../state";
 
-type Mode = "login" | "register";
+type Mode = "login" | "register" | "forgot";
+
+/** Esqueci a senha: código por e-mail (se configurado) ou gerado por quem administra a família. */
+function ForgotPassword({ initialEmail, onBack }: { initialEmail: string; onBack: () => void }) {
+  const { signIn } = useApp();
+  const [email, setEmail] = useState(initialEmail);
+  const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
+  const [step, setStep] = useState<"ask" | "code">("ask");
+  const [emailSent, setEmailSent] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function ask(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await api<{ emailEnabled: boolean }>("auth/forgot", { body: { email } });
+      setEmailSent(r.emailEnabled);
+      setStep("code");
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function reset(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const { token } = await api<{ token: string }>("auth/reset", { body: { email, code, password } });
+      await signIn(token);
+      window.location.hash = "#/";
+    } catch (err) {
+      setError((err as Error).message);
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="auth-card" onSubmit={step === "ask" ? ask : reset}>
+      <h2>Criar uma nova senha</h2>
+      {step === "ask" ? (
+        <p className="muted small">Informe seu e-mail. Você vai precisar de um código de 8 letras e números.</p>
+      ) : emailSent ? (
+        <p className="muted small">Se existir uma conta com esse e-mail, enviamos o código para ele. Ele vale por 30 minutos.</p>
+      ) : (
+        <div className="modal-note" style={{ marginBottom: 14 }}>
+          Peça o código para <b>quem administra a sua família</b>: em <b>Configurações → Família</b>, ao lado do seu nome, em <b>“Código de senha”</b>.
+        </div>
+      )}
+      {error && <div className="form-error">{error}</div>}
+      <div className="field">
+        <label htmlFor="fp-email">E-mail</label>
+        <input id="fp-email" type="email" required autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+      </div>
+      {step === "code" && (
+        <>
+          <div className="field">
+            <label htmlFor="fp-code">Código</label>
+            <input id="fp-code" required maxLength={12} placeholder="ABCD-EFGH" style={{ textTransform: "uppercase", letterSpacing: 2 }} value={code} onChange={(e) => setCode(e.target.value)} />
+          </div>
+          <div className="field">
+            <label htmlFor="fp-pass">Nova senha</label>
+            <input id="fp-pass" type="password" required minLength={8} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <span className="hint">Mínimo de 8 caracteres. Você sai dos outros aparelhos.</span>
+          </div>
+        </>
+      )}
+      <button type="submit" className="btn dark block" disabled={busy} style={{ minHeight: 48 }}>
+        {busy && <Spinner />} {step === "ask" ? "Continuar" : "Salvar nova senha e entrar"}
+      </button>
+      <button type="button" className="btn ghost block" style={{ marginTop: 10 }} onClick={step === "code" ? () => setStep("ask") : onBack}>
+        Voltar
+      </button>
+    </form>
+  );
+}
 
 export function AuthPage() {
   const { signIn } = useApp();
@@ -83,6 +163,9 @@ export function AuthPage() {
         </p>
       </section>
       <section className="auth-form">
+        {mode === "forgot" ? (
+          <ForgotPassword initialEmail={email} onBack={() => setMode("login")} />
+        ) : (
         <form className="auth-card" onSubmit={submit}>
           <h2>{mode === "login" ? "Que bom te ver de novo" : "Crie sua conta grátis"}</h2>
           <p className="muted small">{mode === "login" ? "Entre com seu e-mail e senha." : "Leva menos de um minuto."}</p>
@@ -152,7 +235,13 @@ export function AuthPage() {
           <button type="submit" className="btn dark block" disabled={busy} style={{ minHeight: 48 }}>
             {busy && <Spinner />} {mode === "login" ? "Entrar" : busy ? "Preparando seu ninho…" : "Criar conta"}
           </button>
+          {mode === "login" && (
+            <button type="button" className="btn ghost block" style={{ marginTop: 10 }} onClick={() => setMode("forgot")}>
+              Esqueci minha senha
+            </button>
+          )}
         </form>
+        )}
       </section>
     </div>
   );

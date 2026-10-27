@@ -12,6 +12,7 @@ export const CATEGORIES: Category[] = [
   { id: "higiene", name: "Higiene", icon: "🧴", color: "#c9e3b3", kind: "expense" },
   { id: "assinaturas", name: "Assinaturas", icon: "▶️", color: "#dce8d7", kind: "expense" },
   { id: "compras", name: "Compras", icon: "🛍️", color: "#7d9c8c", kind: "expense" },
+  { id: "bem-estar", name: "Bem-estar e academia", icon: "🏋️", color: "#86b8a0", kind: "expense" },
   { id: "lazer", name: "Lazer", icon: "🎬", color: "#e2c56b", kind: "expense" },
   { id: "educacao", name: "Educação", icon: "📚", color: "#5f8f7a", kind: "expense" },
   { id: "pets", name: "Pets", icon: "🐾", color: "#c4a982", kind: "expense" },

@@ -75,13 +75,34 @@ function splitLine(line: string, delimiter: string) {
   return cells;
 }
 
-const DATE_HEADERS = /^(data|date|dt|data lancamento|data da compra|data de lancamento|data movimento|dia)$/;
-const DESC_HEADERS = /(descri|historic|title|titulo|lancamento|estabelecimento|memo|detalhe|identificador|nome)/;
-const AMOUNT_HEADERS = /^(valor|amount|quantia|value|valor \(r\$\)|valor r\$|valor em r\$|montante)$/;
+const DATE_HEADERS = /^(data|date|dt|data lancamento|data da compra|data de compra|data de lancamento|data movimento|dia|release_date)$/;
+const DESC_HEADERS = /(descri|historic|title|titulo|lancamento|estabelecimento|memo|detalhe|identificador|^nome$|transaction_type)/;
+const AMOUNT_HEADERS = /^(valor|amount|quantia|value|valor \(r\$\)|valor \(em r\$\)|valor r\$|valor em r\$|montante|transaction_net_amount)$/;
+
+/** Bancos reconhecidos pelo cabeçalho do CSV. creditCard: fatura com compras positivas (o sinal é invertido). */
+const BANKS: { name: string; creditCard: boolean; test: (header: string[]) => boolean }[] = [
+  { name: "Nubank (cartão)", creditCard: true, test: (h) => h.join(",") === "date,title,amount" || h.join(",") === "date,category,title,amount" },
+  { name: "Nubank (conta)", creditCard: false, test: (h) => h.join(",") === "data,valor,identificador,descricao" },
+  { name: "Inter (cartão)", creditCard: true, test: (h) => h.includes("lancamento") && h.includes("categoria") && h.includes("tipo") && h.includes("valor") },
+  { name: "Inter (conta)", creditCard: false, test: (h) => h.includes("data lancamento") && h.includes("historico") && h.includes("saldo") },
+  { name: "C6 (cartão)", creditCard: true, test: (h) => h.includes("data de compra") && h.includes("final do cartao") },
+  { name: "Mercado Pago", creditCard: false, test: (h) => h.includes("release_date") && h.includes("transaction_net_amount") },
+];
+
+export type BankInfo = { name: string; creditCard: boolean };
+
+export function detectBank(header: string[]): BankInfo | null {
+  const found = BANKS.find((b) => b.test(header));
+  return found ? { name: found.name, creditCard: found.creditCard } : null;
+}
 const DEBIT_HEADERS = /(debito|saida|saidas|debit)/;
 const CREDIT_HEADERS = /(credito|entrada|entradas|credit)/;
 
 export function parseCsv(content: string): ParsedRow[] {
+  return parseCsvWithBank(content).rows;
+}
+
+export function parseCsvWithBank(content: string): { rows: ParsedRow[]; bank: BankInfo | null } {
   const lines = content.replace(/^﻿/, "").split(/\r?\n/).filter((l) => l.trim());
   if (lines.length < 2) throw new ImportError("O arquivo está vazio ou tem só o cabeçalho.");
 
@@ -136,7 +157,11 @@ export function parseCsv(content: string): ParsedRow[] {
     rows.push({ occurredOn, description: description.slice(0, 200), signedCents: signed });
   }
   if (rows.length === 0) throw new ImportError("Nenhuma movimentação válida encontrada no arquivo.");
-  return withStableIds(rows);
+  // Segurança extra: só trata como fatura (inverte) se a maioria dos valores vier positiva
+  const bank = detectBank(header);
+  const positives = rows.filter((r) => r.signedCents > 0).length;
+  const checked = bank?.creditCard && positives * 2 < rows.length ? { ...bank, creditCard: false } : bank;
+  return { rows: withStableIds(rows), bank: checked };
 }
 
 function ofxTag(block: string, tag: string) {
@@ -178,7 +203,11 @@ export function parseOfx(content: string): ParsedRow[] {
   return rows;
 }
 
-export function parseStatement(fileName: string, content: string) {
+export function parseStatement(fileName: string, content: string): { format: "csv" | "ofx"; rows: ParsedRow[]; bank: BankInfo | null } {
   const format = detectFormat(fileName, content);
-  return { format, rows: format === "ofx" ? parseOfx(content) : parseCsv(content) };
+  if (format === "ofx") {
+    // OFX de cartão (CREDITCARDMSGSRSV1) já vem com compras negativas: não inverte
+    return { format, rows: parseOfx(content), bank: null };
+  }
+  return { format, ...parseCsvWithBank(content) };
 }

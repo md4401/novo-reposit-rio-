@@ -7,6 +7,7 @@ import { addMonths, isDateKey, monthLabel, monthOf, todayKey } from "../shared/t
 import type {
   Account,
   Allocation,
+  BudgetsPayload,
   Family,
   Health,
   Insight,
@@ -34,12 +35,14 @@ import { classify, learnFromConfirmation } from "./classify.js";
 import { batch, num, one, q, query } from "./db.js";
 import { clearDemo, seedDemo } from "./demo.js";
 import {
+  accountBalances,
   allocationRows,
   assertAccount,
   familyNumbers,
   getTransaction,
   INSERT_ALLOCATIONS,
   insertTransaction,
+  linkGoal,
   listGoals,
   listTransactions,
   parseAllocations,
@@ -63,7 +66,14 @@ import {
   uuid,
   withCors,
 } from "./http.js";
+import { createBill, deleteBill, duplicateBill, listBills, payShare, unpayShare } from "./bills.js";
+import { listBudgets, summarize } from "./budgets.js";
+import { deleteAccount, leaveHousehold, removeMember, setRole } from "./household.js";
 import { askNia, listMessages } from "./nia.js";
+import { changePassword, createResetCode, requestReset, resetWithCode } from "./password.js";
+import { sendDueDigests, vapidKeys } from "./push.js";
+import { deleteReceipt, receiptImage, saveReceipt } from "./receipts.js";
+import { buildReport, createReportLink, redeemReportLink, reportPdf } from "./report.js";
 import { importStatement } from "./statement-import.js";
 
 type Ctx = { request: Request; url: URL; params: string[] };
@@ -178,7 +188,7 @@ route("POST", "auth/logout", async ({ request }) => {
 });
 
 async function loadMe(user: SessionUser): Promise<Me> {
-  const [household, members, accounts, pending, demo] = await batch(
+  const [household, members, accounts, pending, demo, notify] = await batch(
     [
       q(`SELECT id, name, invite_code FROM households WHERE id = $1`, [user.household_id]),
       q(
@@ -196,6 +206,7 @@ async function loadMe(user: SessionUser): Promise<Me> {
              OR EXISTS (SELECT 1 FROM profiles WHERE household_id = $2 AND is_demo) AS has_demo`,
         [user.id, user.household_id],
       ),
+      q(`SELECT notify_digest FROM profiles WHERE id = $1`, [user.id]),
     ],
     { readOnly: true },
   );
@@ -222,8 +233,9 @@ async function loadMe(user: SessionUser): Promise<Me> {
         isMe: m.id === user.id,
       })),
     },
-    accounts: accounts.map(mapAccount),
+    accounts: await withBalances(user, accounts),
     pendingCount: num(pending[0].n),
+    notifyDigest: Boolean(notify[0]?.notify_digest),
     aiEnabled: aiEnabled(),
     voiceEnabled: transcriptionEnabled(),
     hasDemoData: Boolean(demo[0].has_demo),
@@ -231,8 +243,16 @@ async function loadMe(user: SessionUser): Promise<Me> {
   };
 }
 
-function mapAccount(a: Record<string, unknown>): Account {
+async function withBalances(user: SessionUser, rows: Record<string, unknown>[]) {
+  const balances = await accountBalances(user, todayKey(user.timezone));
+  return rows.map((a) => mapAccount(a, balances.get(a.id as string)));
+}
+
+const NO_BALANCE = { balanceCents: null, balanceOn: null, currentBalanceCents: null, monthSpentCents: 0, history: [] };
+
+function mapAccount(a: Record<string, unknown>, balance: Pick<Account, "balanceCents" | "balanceOn" | "currentBalanceCents" | "monthSpentCents" | "history"> = NO_BALANCE): Account {
   return {
+    ...balance,
     id: a.id as string,
     name: a.name as string,
     kind: a.kind as Account["kind"],
@@ -251,6 +271,7 @@ route("PATCH", "me", async ({ request }) => {
   const name = body.name === undefined ? user.name : str(body, "name", { max: 60, label: "nome" })!;
   const digestHour = body.digestHour === undefined ? user.digest_hour : int(body, "digestHour", 0, 23, "horário do resumo");
   const queries = [q(`UPDATE profiles SET name = $2, digest_hour = $3 WHERE id = $1`, [user.id, name, digestHour])];
+  if (body.notifyDigest !== undefined) queries.push(q(`UPDATE profiles SET notify_digest = $2 WHERE id = $1`, [user.id, bool(body, "notifyDigest")]));
   if (body.householdName !== undefined) {
     if (user.role !== "admin") throw new HttpError(403, "Só quem administra a família pode mudar o nome dela");
     queries.push(q(`UPDATE households SET name = $2 WHERE id = $1`, [user.household_id, str(body, "householdName", { max: 60 })]));
@@ -292,13 +313,24 @@ function currentMonth(user: SessionUser) {
 route("GET", "overview", async ({ request, url }) => {
   const user = await requireUser(request);
   const month = monthParam(url, currentMonth(user));
-  const [family, mine, recent, alerts] = await Promise.all([
+  const [family, mine, recent, alerts, budgets] = await Promise.all([
     familyNumbers(user, month, 7),
     personalNumbers(user, month, 2),
     listTransactions(user, { limit: 6 }),
     loadAlerts(user),
+    listBudgets(user, month),
   ]);
+  const budgetSummary = summarize([...budgets.personal, ...budgets.family]);
   const insights: Insight[] = [];
+  const overBudget = [...budgets.personal, ...budgets.family].sort((a, b) => b.ratio - a.ratio)[0];
+  if (overBudget && overBudget.ratio >= 0.8)
+    insights.push({
+      id: `budget-${overBudget.id}`,
+      icon: overBudget.ratio > 1 ? "🚨" : "⚠️",
+      title: `${CATEGORY_BY_ID.get(overBudget.categoryId)?.name ?? "Categoria"}: ${Math.round(overBudget.ratio * 100)}% do orçamento${overBudget.scope === "family" ? " da casa" : ""}`,
+      text: `${formatMoney(overBudget.spentCents)} de ${formatMoney(overBudget.limitCents)} neste mês.`,
+      page: "orcamento",
+    });
   if (mine.counts.pending > 0)
     insights.push({
       id: "pending",
@@ -309,6 +341,14 @@ route("GET", "overview", async ({ request, url }) => {
     });
   const alert = alerts.alerts[0];
   if (alert) insights.push({ id: alert.key, icon: alert.type === "increase" ? "📈" : alert.type === "duplicate" ? "🔁" : "⚠️", title: alert.title, text: alert.text, page: "alertas" });
+  if (alerts.commitments.totalCents > 0 && insights.length < 2)
+    insights.push({
+      id: "commitments",
+      icon: "🗓️",
+      title: `${formatMoney(alerts.commitments.totalCents)} já comprometidos em ${monthLabel(alerts.commitments.month).split(" ")[0]}`,
+      text: `${alerts.commitments.items.length} assinaturas, contas e parcelas previstas para o mês que vem.`,
+      page: "alertas",
+    });
   if (alerts.recurring.length)
     insights.push({
       id: "recurring",
@@ -344,6 +384,9 @@ route("GET", "overview", async ({ request, url }) => {
     recent,
     insights: insights.slice(0, 3),
     dataWarning: family.dataWarning,
+    budgets: budgetSummary,
+    // Nos 7 primeiros dias do mês atual, oferece o fechamento do mês anterior
+    closingMonth: month === currentMonth(user) && Number(todayKey(user.timezone).slice(8, 10)) <= 7 ? addMonths(month, -1) : null,
   };
   return json(result);
 });
@@ -401,6 +444,12 @@ route("POST", "transactions", async ({ request }) => {
   const user = await requireUser(request);
   const body = await readJson(request);
   await rateLimit(`tx:${user.id}`, 120, 10); // cada lançamento sem categoria pode consultar a IA
+  // Lançamento feito sem internet e reenviado: devolve o que já foi gravado
+  const clientRef = str(body, "clientRef", { max: 64, optional: true });
+  if (clientRef) {
+    const existing = await one<{ id: string }>(`SELECT id FROM transactions WHERE profile_id = $1 AND client_ref = $2`, [user.id, clientRef]);
+    if (existing) return json(await getTransaction(user, existing.id), 200);
+  }
   const description = str(body, "description", { max: 120, label: "descrição" })!;
   const amountCents = cents(body.amountCents);
   const direction = oneOf(body.direction ?? "expense", ["expense", "income", "transfer"] as const, "tipo");
@@ -438,6 +487,7 @@ route("POST", "transactions", async ({ request }) => {
     classifiedBy,
     allocations,
     notes: str(body, "notes", { max: 300, optional: true }),
+    clientRef,
   });
   await audit(user.id, "transaction.created", "transaction", id, { source });
   return json(await getTransaction(user, id), 201);
@@ -486,6 +536,12 @@ route("PATCH", "transactions/:id", async ({ request, params }) => {
     throw error;
   }
   await audit(user.id, "transaction.updated", "transaction", tx.id, { allocations: allocations?.length ?? null, ignored });
+
+  if (body.goalId === undefined && amountCents !== tx.amountCents && tx.goalId)
+    await query(`UPDATE goal_contributions SET amount_cents = $2 WHERE transaction_id = $1 AND profile_id = $3`, [tx.id, amountCents, user.id]);
+  if (body.goalId !== undefined) {
+    await linkGoal(user, { ...tx, amountCents, direction }, body.goalId === null ? null : uuid(body.goalId, "meta"), body.goalAlways === true);
+  }
 
   let learned: { merchant: string; categoryId: string; scope: string; applied: number } | null = null;
   if (allocations && allocations.length === 1 && direction !== "transfer") {
@@ -543,15 +599,35 @@ route("PATCH", "accounts/:id", async ({ request, params }) => {
   const user = await requireUser(request);
   const body = await readJson(request);
   const id = uuid(params[0]);
-  const current = await one<{ name: string; active: boolean }>(`SELECT name, active FROM financial_accounts WHERE id = $1 AND profile_id = $2`, [id, user.id]);
+  const current = await one<{ name: string; active: boolean; balance_cents: string | null; balance_on: string | null }>(
+    `SELECT name, active, balance_cents, balance_on::text AS balance_on FROM financial_accounts WHERE id = $1 AND profile_id = $2`,
+    [id, user.id],
+  );
   if (!current) throw new HttpError(404, "Conta não encontrada");
-  const row = await one(`UPDATE financial_accounts SET name = $3, active = $4 WHERE id = $1 AND profile_id = $2 RETURNING *`, [
-    id,
-    user.id,
-    body.name === undefined ? current.name : str(body, "name", { max: 60 }),
-    body.active === undefined ? current.active : bool(body, "active"),
-  ]);
-  return json(mapAccount(row!));
+  // Saldo informado: aceita negativo (cheque especial); null apaga
+  let balanceCents = current.balance_cents === null ? null : num(current.balance_cents);
+  let balanceOn = current.balance_on;
+  if (body.balanceCents !== undefined) {
+    if (body.balanceCents === null) [balanceCents, balanceOn] = [null, null];
+    else {
+      const value = Number(body.balanceCents);
+      if (!Number.isInteger(value) || Math.abs(value) > 10_000_000_000) throw new HttpError(400, "Saldo inválido");
+      balanceCents = value;
+      balanceOn = body.balanceOn ? dateKey(body.balanceOn, "data do saldo") : todayKey(user.timezone);
+    }
+  }
+  const row = await one(
+    `UPDATE financial_accounts SET name = $3, active = $4, balance_cents = $5, balance_on = $6 WHERE id = $1 AND profile_id = $2 RETURNING *`,
+    [
+      id,
+      user.id,
+      body.name === undefined ? current.name : str(body, "name", { max: 60 }),
+      body.active === undefined ? current.active : bool(body, "active"),
+      balanceCents,
+      balanceOn,
+    ],
+  );
+  return json((await withBalances(user, [row!]))[0]);
 });
 
 route("POST", "import", async ({ request }) => {
@@ -812,6 +888,266 @@ route("POST", "nia/receipt", async ({ request }) => {
     match: match ? { transactionId: match.id, description: match.description, occurredOn: match.occurred_on } : null,
   };
   return json(result);
+});
+
+// ===========================================================================
+// Senha
+
+route("POST", "auth/forgot", async ({ request }) => {
+  const body = await readJson(request);
+  const email = str(body, "email", { max: 120, label: "e-mail" })!.toLowerCase();
+  return json(await requestReset(email, clientIp(request)));
+});
+
+route("POST", "auth/reset", async ({ request }) => {
+  const body = await readJson(request);
+  const email = str(body, "email", { max: 120, label: "e-mail" })!.toLowerCase();
+  const code = str(body, "code", { max: 20, label: "código" })!;
+  const password = str(body, "password", { max: 200, min: 8, label: "nova senha" })!;
+  return json({ token: await resetWithCode(email, code, password, request.headers.get("user-agent")) });
+});
+
+route("POST", "me/password", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  await changePassword(
+    user,
+    str(body, "current", { max: 200, label: "senha atual" })!,
+    str(body, "password", { max: 200, min: 8, label: "nova senha" })!,
+  );
+  await audit(user.id, "password.changed");
+  return json({ ok: true });
+});
+
+// ===========================================================================
+// Família: papéis, saída, remoção e exclusão da conta
+
+route("POST", "household/members/:id/role", async ({ request, params }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  await setRole(user, uuid(params[0]), oneOf(body.role, ["admin", "member"] as const, "papel"));
+  return json(await loadMe(user));
+});
+
+route("POST", "household/members/:id/reset-code", async ({ request, params }) => {
+  const user = await requireUser(request);
+  if (user.role !== "admin") throw new HttpError(403, "Só quem administra a família pode gerar o código");
+  const memberId = uuid(params[0]);
+  const target = await one(`SELECT 1 FROM profiles WHERE id = $1 AND household_id = $2 AND NOT is_demo AND id <> $3`, [
+    memberId,
+    user.household_id,
+    user.id,
+  ]);
+  if (!target) throw new HttpError(404, "Integrante não encontrado");
+  await rateLimit(`reset-code:${user.id}`, 10, 60);
+  await audit(user.id, "password.reset_code", "profile", memberId);
+  return json(await createResetCode(memberId, user.id));
+});
+
+route("DELETE", "household/members/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await removeMember(user, uuid(params[0]));
+  return json(await loadMe(user));
+});
+
+route("POST", "household/leave", async ({ request }) => {
+  const user = await requireUser(request);
+  await leaveHousehold(user);
+  return json(await loadMe((await requireUser(request))));
+});
+
+route("POST", "me/delete", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  await rateLimit(`delete-account:${user.id}`, 5, 15);
+  await deleteAccount(user, str(body, "password", { max: 200, label: "senha" })!);
+  return json({ ok: true });
+});
+
+// ===========================================================================
+// Notificações do resumo diário
+
+route("GET", "push/key", async () => json({ publicKey: (await vapidKeys()).publicKey }));
+
+route("POST", "push/subscribe", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  const endpoint = str(body, "endpoint", { max: 1000, label: "endereço" })!;
+  if (!/^https:\/\//.test(endpoint)) throw new HttpError(400, "Endereço de notificação inválido");
+  const keys = (body.keys ?? {}) as Record<string, unknown>;
+  const p256dh = str(keys, "p256dh", { max: 200 })!;
+  const auth = str(keys, "auth", { max: 100 })!;
+  await batch([
+    q(
+      `INSERT INTO push_subscriptions (profile_id, endpoint, p256dh, auth) VALUES ($1, $2, $3, $4)
+       ON CONFLICT (endpoint) DO UPDATE SET profile_id = $1, p256dh = $3, auth = $4`,
+      [user.id, endpoint, p256dh, auth],
+    ),
+    q(`UPDATE profiles SET notify_digest = true WHERE id = $1`, [user.id]),
+  ]);
+  return json({ ok: true });
+});
+
+route("POST", "push/unsubscribe", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  const endpoint = str(body, "endpoint", { max: 1000, optional: true });
+  if (endpoint) await query(`DELETE FROM push_subscriptions WHERE profile_id = $1 AND endpoint = $2`, [user.id, endpoint]);
+  return json({ ok: true });
+});
+
+// Chamado de hora em hora (GitHub Actions). Público de propósito: só envia o que já está na hora
+// e no máximo uma vez por dia por pessoa, então chamar a mais não muda nada.
+async function cronDigest({ url }: Ctx) {
+  await rateLimit("cron:digest", 30, 60);
+  const appUrl = process.env.APP_URL ?? url.origin;
+  return json(await sendDueDigests(appUrl.startsWith("https://") ? appUrl : "https://ninho-financas-familia.vercel.app"));
+}
+route("POST", "cron/digest", cronDigest);
+route("GET", "cron/digest", cronDigest);
+
+// ===========================================================================
+// Orçamento
+
+route("GET", "budgets", async ({ request, url }) => {
+  const user = await requireUser(request);
+  return json(await listBudgets(user, monthParam(url, currentMonth(user))));
+});
+
+route("PUT", "budgets", async ({ request, url }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  const scope = oneOf(body.scope, ["personal", "family"] as const, "tipo de orçamento");
+  const categoryId = str(body, "categoryId", { max: 40, label: "categoria" })!;
+  if (CATEGORY_BY_ID.get(categoryId)?.kind !== "expense") throw new HttpError(400, "Escolha uma categoria de gasto");
+  const limit = cents(body.limitCents, "limite");
+  if (scope === "family" && user.role !== "admin") throw new HttpError(403, "Só quem administra a família define o orçamento da casa");
+  if (scope === "personal")
+    await query(
+      `INSERT INTO budgets (household_id, owner_id, scope, category_id, limit_cents) VALUES ($1, $2, 'personal', $3, $4)
+       ON CONFLICT (owner_id, category_id) WHERE scope = 'personal' DO UPDATE SET limit_cents = $4, updated_at = now()`,
+      [user.household_id, user.id, categoryId, limit],
+    );
+  else
+    await query(
+      `INSERT INTO budgets (household_id, owner_id, scope, category_id, limit_cents) VALUES ($1, NULL, 'family', $2, $3)
+       ON CONFLICT (household_id, category_id) WHERE scope = 'family' DO UPDATE SET limit_cents = $3, updated_at = now()`,
+      [user.household_id, categoryId, limit],
+    );
+  const result: BudgetsPayload = await listBudgets(user, monthParam(url, currentMonth(user)));
+  return json(result);
+});
+
+route("DELETE", "budgets/:id", async ({ request, params, url }) => {
+  const user = await requireUser(request);
+  const row = await one(
+    `DELETE FROM budgets WHERE id = $1 AND ((scope = 'personal' AND owner_id = $2) OR (scope = 'family' AND household_id = $3 AND $4))
+     RETURNING id`,
+    [uuid(params[0]), user.id, user.household_id, user.role === "admin"],
+  );
+  if (!row) throw new HttpError(404, "Orçamento não encontrado");
+  return json(await listBudgets(user, monthParam(url, currentMonth(user))));
+});
+
+// ===========================================================================
+// Contas da casa
+
+route("GET", "bills", async ({ request, url }) => {
+  const user = await requireUser(request);
+  return json(await listBills(user, monthParam(url, currentMonth(user))));
+});
+
+route("POST", "bills", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  await rateLimit(`bills:${user.id}`, 60, 60);
+  const shares = Array.isArray(body.shares) ? body.shares.slice(0, 6) : [];
+  const dueOn = dateKey(body.dueOn, "vencimento");
+  await createBill(user, {
+    name: str(body, "name", { max: 60, label: "nome da conta" })!,
+    categoryId: str(body, "categoryId", { max: 40, label: "categoria" })!,
+    amountCents: cents(body.amountCents),
+    dueOn,
+    shares: shares.map((x: Record<string, unknown>) => ({ profileId: uuid(x.profileId, "pessoa"), amountCents: Number(x.amountCents) })),
+  });
+  return json(await listBills(user, monthOf(dueOn)), 201);
+});
+
+route("POST", "bills/:id/pay", async ({ request, params, url }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  await payShare(user, uuid(params[0]), body.createTransaction !== false);
+  return json(await listBills(user, monthParam(url, currentMonth(user))));
+});
+
+route("POST", "bills/:id/unpay", async ({ request, params, url }) => {
+  const user = await requireUser(request);
+  await unpayShare(user, uuid(params[0]));
+  return json(await listBills(user, monthParam(url, currentMonth(user))));
+});
+
+route("POST", "bills/:id/duplicate", async ({ request, params, url }) => {
+  const user = await requireUser(request);
+  await duplicateBill(user, uuid(params[0]));
+  return json(await listBills(user, monthParam(url, currentMonth(user))));
+});
+
+route("DELETE", "bills/:id", async ({ request, params, url }) => {
+  const user = await requireUser(request);
+  await deleteBill(user, uuid(params[0]));
+  return json(await listBills(user, monthParam(url, currentMonth(user))));
+});
+
+// ===========================================================================
+// Fechamento do mês
+
+route("GET", "report", async ({ request, url }) => {
+  const user = await requireUser(request);
+  return json(await buildReport(user, monthParam(url, addMonths(currentMonth(user), -1))));
+});
+
+route("POST", "report/link", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  const month = typeof body.month === "string" && /^\d{4}-\d{2}$/.test(body.month) ? body.month : addMonths(currentMonth(user), -1);
+  await rateLimit(`report:${user.id}`, 20, 60);
+  return json({ url: await createReportLink(user, month) });
+});
+
+// Link de uso único (vence em 10 min): funciona fora do app, no navegador do celular
+route("GET", "report/pdf", async ({ url }) => {
+  const { user, month } = await redeemReportLink(url.searchParams.get("t") ?? "");
+  const pdf = await reportPdf(user, await buildReport(user, month));
+  return new Response(new Blob([new Uint8Array(pdf)]), {
+    headers: {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="ninho-${month}.pdf"`,
+      "Cache-Control": "no-store, private",
+    },
+  });
+});
+
+// ===========================================================================
+// Fotos das notas fiscais
+
+route("POST", "receipts", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request, 1024 * 1024);
+  await rateLimit(`receipts:${user.id}`, 30, 60);
+  const id = await saveReceipt(user, typeof body.image === "string" ? body.image : "", uuid(body.transactionId, "transação"));
+  return json({ id }, 201);
+});
+
+route("GET", "receipts/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  const { mime, bytes } = await receiptImage(user, uuid(params[0]));
+  return new Response(new Uint8Array(bytes), { headers: { "Content-Type": mime, "Cache-Control": "no-store, private" } });
+});
+
+route("DELETE", "receipts/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await deleteReceipt(user, uuid(params[0]));
+  return json({ ok: true });
 });
 
 // ===========================================================================

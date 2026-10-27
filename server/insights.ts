@@ -4,7 +4,7 @@
 import { formatMoney } from "../shared/money.js";
 import { installmentOf } from "../shared/merchant.js";
 import { addDays, addMonths, daysBetween, dayLabel, daysInMonth } from "../shared/time.js";
-import type { Alert, Recurring } from "../shared/types.js";
+import type { Alert, Commitments, Recurring } from "../shared/types.js";
 
 export type TxLite = {
   id: string;
@@ -195,4 +195,36 @@ export function detectAlerts(transactions: TxLite[], recurring: Recurring[], tod
 /** Custo mensal estimado das recorrências (anuais divididas por 12). */
 export function monthlyRecurringCents(recurring: Recurring[]) {
   return recurring.reduce((sum, r) => sum + (r.intervalDays > 300 ? Math.round(r.lastAmountCents / 12) : r.lastAmountCents), 0);
+}
+
+function sameDayIn(month: string, key: string) {
+  return `${month}-${String(Math.min(Number(key.slice(8, 10)), daysInMonth(month))).padStart(2, "0")}`;
+}
+
+/** Contas que já estão "contratadas" para o mês que vem: assinaturas e contas mensais ainda ativas,
+ *  anuais que vencem no mês e a próxima parcela de cada compra parcelada. */
+export function nextMonthCommitments(recurring: Recurring[], installments: Recurring[], today: string): Commitments {
+  const month = addMonths(today.slice(0, 7), 1);
+  const items: Commitments["items"] = [];
+  for (const r of recurring) {
+    const monthly = r.intervalDays <= 35;
+    if (monthly) {
+      if (daysBetween(r.lastOn, today) > 45) continue; // parou de cobrar
+      items.push({ label: r.label, amountCents: r.lastAmountCents, kind: r.kind, on: sameDayIn(month, r.lastOn) });
+    } else if (r.nextExpectedOn?.startsWith(month)) {
+      items.push({ label: r.label, amountCents: r.lastAmountCents, kind: r.kind, on: r.nextExpectedOn });
+    }
+  }
+  for (const p of installments) {
+    if (!p.installment || p.installment.n >= p.installment.of) continue;
+    if (daysBetween(p.lastOn, today) > 45) continue;
+    items.push({
+      label: `${p.label} (parcela ${p.installment.n + 1}/${p.installment.of})`,
+      amountCents: p.lastAmountCents,
+      kind: "parcela",
+      on: sameDayIn(month, p.lastOn),
+    });
+  }
+  items.sort((a, b) => a.on.localeCompare(b.on));
+  return { month, totalCents: items.reduce((s, i) => s + i.amountCents, 0), items };
 }

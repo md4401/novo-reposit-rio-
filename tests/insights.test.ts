@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectAlerts, detectRecurring, type TxLite } from "../server/insights";
+import { detectAlerts, detectRecurring, type TxLite, nextMonthCommitments } from "../server/insights";
 
 let id = 0;
 const tx = (occurredOn: string, merchant: string, amountCents: number, categoryId: string | null = null, description = merchant): TxLite => ({
@@ -52,5 +52,24 @@ describe("assinaturas e alertas", () => {
     const alerts = detectAlerts([...history, big], [], today, new Set());
     expect(alerts).toHaveLength(1);
     expect(alerts[0]).toMatchObject({ type: "unusual", transactionIds: [big.id] });
+  });
+});
+
+describe("compromissos do mês que vem", () => {
+  it("soma assinaturas ativas e a próxima parcela; ignora o que parou de cobrar", () => {
+    const today = "2026-10-20";
+    const recurring = [
+      { merchant: "netflix", label: "Netflix", categoryId: "assinaturas", kind: "assinatura" as const, intervalDays: 30, lastOn: "2026-10-03", nextExpectedOn: "2026-11-03", lastAmountCents: 5590, previousAmountCents: 5590, count: 6, installment: null },
+      { merchant: "velha", label: "Velha", categoryId: "assinaturas", kind: "assinatura" as const, intervalDays: 30, lastOn: "2026-07-03", nextExpectedOn: "2026-08-03", lastAmountCents: 1000, previousAmountCents: 1000, count: 4, installment: null },
+    ];
+    const installments = [
+      { merchant: "loja", label: "Loja", categoryId: "compras", kind: "parcela" as const, intervalDays: 30, lastOn: "2026-10-10", nextExpectedOn: "2026-11-09", lastAmountCents: 10000, previousAmountCents: null, count: 3, installment: { n: 3, of: 10 } },
+      { merchant: "fim", label: "Fim", categoryId: "compras", kind: "parcela" as const, intervalDays: 30, lastOn: "2026-10-10", nextExpectedOn: null, lastAmountCents: 999, previousAmountCents: null, count: 10, installment: { n: 10, of: 10 } },
+    ];
+    const c = nextMonthCommitments(recurring, installments, today);
+    expect(c.month).toBe("2026-11");
+    expect(c.totalCents).toBe(15590);
+    expect(c.items.map((i) => i.label)).toEqual(["Netflix", "Loja (parcela 4/10)"]);
+    expect(c.items.every((i) => i.on.startsWith("2026-11"))).toBe(true);
   });
 });

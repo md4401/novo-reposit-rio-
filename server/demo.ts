@@ -103,7 +103,7 @@ export async function seedDemo(user: SessionUser, opts: { withMembers: boolean }
     add(me, card, dateIn(month, 22), "Spotify", 2190, "expense", one("assinaturas", 2190, "personal"), "auto", "keyword", "Crédito •••• 4821");
     add(me, card, dateIn(month, 21), "NETFLIX.COM", 3990, "expense", one("assinaturas", 3990, "personal"), "auto", "rule", "Crédito •••• 4821");
     const gym = i === months.length - 1 ? 12990 : 11990; // aumento de mensalidade no último mês
-    add(me, card, dateIn(month, 5), "Academia Corpo Ativo", gym, "expense", one("lazer", gym, "personal"), "auto", "keyword", "Crédito •••• 4821");
+    add(me, card, dateIn(month, 5), "Academia Corpo Ativo", gym, "expense", one("bem-estar", gym, "personal"), "auto", "keyword", "Crédito •••• 4821");
     for (const day of [3, 9, 16, 23, 29]) {
       if (isCurrent && day === 23) continue; // a compra dividida do exemplo entra abaixo
       const total = between(16000, 26000);

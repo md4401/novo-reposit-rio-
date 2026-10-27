@@ -17,6 +17,12 @@ const PROTECTED: [string, string][] = [
   ["POST", `goals/${ID}/contributions`], ["DELETE", `goals/${ID}`], ["GET", "alerts"], ["POST", "alerts/dismiss"],
   ["GET", "health"], ["GET", "rules"], ["PATCH", `rules/${ID}`], ["DELETE", `rules/${ID}`], ["GET", "nia"],
   ["POST", "nia"], ["POST", "nia/clear"], ["POST", "nia/transcribe"], ["POST", "nia/receipt"],
+  ["POST", "me/password"], ["POST", "me/delete"], ["POST", "household/leave"], ["POST", `household/members/${ID}/role`],
+  ["POST", `household/members/${ID}/reset-code`], ["DELETE", `household/members/${ID}`], ["POST", "push/subscribe"],
+  ["POST", "push/unsubscribe"], ["GET", "budgets"], ["PUT", "budgets"], ["DELETE", `budgets/${ID}`], ["GET", "bills"],
+  ["POST", "bills"], ["POST", `bills/${ID}/pay`], ["POST", `bills/${ID}/unpay`], ["POST", `bills/${ID}/duplicate`],
+  ["DELETE", `bills/${ID}`], ["GET", "report"], ["POST", "report/link"], ["POST", "receipts"], ["GET", `receipts/${ID}`],
+  ["DELETE", `receipts/${ID}`],
 ];
 
 const call = (method: string, path: string, init: RequestInit = {}) =>

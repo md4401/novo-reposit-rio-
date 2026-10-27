@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Bell, ChevronRight, Plus, Wallet, Activity, TriangleAlert } from "lucide-react";
+import { ArrowLeftRight, Bell, CalendarCheck, ChevronRight, Plus, Wallet, Activity, TriangleAlert } from "lucide-react";
 import type { Overview } from "../../shared/types";
 import { CategoryDonut, IncomeExpenseBars } from "../components/charts";
 import { TxRow } from "../components/TxRow";
@@ -7,8 +7,26 @@ import { monthLabel } from "../lib/format";
 import { navigate } from "../lib/router";
 import { useData } from "../lib/useData";
 import { DigestModal } from "../modals/DigestModal";
+import { MonthReportModal } from "../modals/MonthReportModal";
 import { NewTransactionModal } from "../modals/NewTransactionModal";
 import { useApp } from "../state";
+
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+/** O selo diz só o que o app sabe: orçamento (se houver) ou quanto sobrou. */
+function balanceFoot(data: Overview) {
+  const b = data.budgets;
+  if (b.total > 0) {
+    if (b.over > 0) return `${b.over} categoria${b.over > 1 ? "s" : ""} acima do orçamento`;
+    if (b.near > 0) return `${b.near} perto do limite do orçamento`;
+    return (
+      <>
+        <span className="up">✓</span> Dentro do orçamento
+      </>
+    );
+  }
+  return data.family.balanceCents >= 0 ? "Sobrou no mês até agora · defina um orçamento" : "Gastos acima das receitas";
+}
 
 export function HomePage() {
   const { me, openModal } = useApp();
@@ -34,6 +52,15 @@ export function HomePage() {
       />
       <DemoFlag />
       {error && <ErrorBox message={error} onRetry={reload} />}
+      {data?.closingMonth && (
+        <button type="button" className="notice info compact" style={{ width: "100%", textAlign: "left", marginBottom: 16 }} onClick={() => openModal(<MonthReportModal month={data.closingMonth!} />)}>
+          <CalendarCheck size={17} />
+          <span style={{ flex: 1 }}>
+            <b>{capitalize(monthLabel(data.closingMonth).split(" ")[0])} fechou:</b> veja seu mês em 5 números e baixe o relatório.
+          </span>
+          <ChevronRight size={16} />
+        </button>
+      )}
       {!data ? (
         <div className="cards">
           {[1, 2, 3, 4].map((i) => (
@@ -65,7 +92,8 @@ export function HomePage() {
               dark
               icon={<Activity size={17} />}
               value={<Money cents={data.family.balanceCents} />}
-              foot={data.family.balanceCents >= 0 ? <><span className="up">✓</span> Dentro do planejado</> : "Gastos acima das receitas"}
+              foot={balanceFoot(data)}
+              onClick={() => navigate("orcamento")}
             />
             <Metric
               label="Minhas pendências"

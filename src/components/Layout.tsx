@@ -34,7 +34,8 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
 
   // Primeira vez numa conta sem lançamentos: boas-vindas (marcadas como vistas ao abrir, mesmo se fechar no X)
   const profileId = me?.profile.id;
-  const fresh = me ? !me.setup.hasTransactions : false;
+  // No modo criança não: a tela inicial dela já explica o básico
+  const fresh = me ? !me.setup.hasTransactions && me.profile.uiMode !== "kid" : false;
   useEffect(() => {
     if (!profileId || !fresh || welcomeSeen(profileId)) return;
     markWelcomeSeen(profileId);

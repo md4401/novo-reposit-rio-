@@ -1,13 +1,14 @@
 // Registrar despesa ou receita à mão (ou confirmar uma proposta da Nia / nota fiscal).
 import { useState } from "react";
-import { categoriesFor } from "../../shared/categories";
 import type { Allocation, Direction, Proposal, Scope } from "../../shared/types";
 import { ModalHeader, Spinner } from "../components/ui";
 import { api } from "../lib/api";
 import { createTransaction } from "../lib/offline";
-import { category, centsToInput, formatMoney, parseMoney } from "../lib/format";
+import { category, centsToInput, dayLabel, formatMoney, parseMoney } from "../lib/format";
 import { useApp } from "../state";
 import { ScopeToggle } from "../components/ScopeToggle";
+import { CategoryPicker } from "../components/CategoryPicker";
+import { addDays } from "../../shared/time";
 
 export function NewTransactionModal({
   proposal,
@@ -78,7 +79,6 @@ export function NewTransactionModal({
     }
   }
 
-  const options = categoriesFor(direction === "income" ? "income" : "expense");
   return (
     <form onSubmit={submit}>
       <ModalHeader
@@ -110,15 +110,9 @@ export function NewTransactionModal({
         <label htmlFor="nt-desc">{direction === "income" ? "Descrição" : "Estabelecimento ou descrição"}</label>
         <input id="nt-desc" required maxLength={120} autoFocus={!proposal} placeholder={direction === "income" ? "Ex.: Salário" : "Ex.: Mercado da esquina"} value={description} onChange={(e) => setDescription(e.target.value)} />
       </div>
-      <div className="form-row">
-        <div className="field">
-          <label htmlFor="nt-amount">Valor em reais</label>
-          <input id="nt-amount" required inputMode="decimal" placeholder="0,00" value={amount} onChange={(e) => setAmount(e.target.value)} />
-        </div>
-        <div className="field">
-          <label htmlFor="nt-date">Data</label>
-          <input id="nt-date" type="date" required value={date} max={me?.today} onChange={(e) => setDate(e.target.value)} />
-        </div>
+      <div className="field">
+        <label htmlFor="nt-amount">Valor em reais</label>
+        <input id="nt-amount" className="amount-input" required inputMode="decimal" placeholder="0,00" value={amount} onChange={(e) => setAmount(e.target.value)} />
       </div>
       {split && cents === proposal!.amountCents ? (
         <div className="modal-note" style={{ marginBottom: 14 }}>
@@ -127,38 +121,48 @@ export function NewTransactionModal({
           . Para mudar, salve e toque no lançamento.
         </div>
       ) : (
-        <div className="form-row">
+        <>
           <div className="field">
-            <label htmlFor="nt-cat">Categoria</label>
-            <select id="nt-cat" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-              <option value="auto">✨ Deixar o ninho sugerir</option>
-              {options.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <span className="field-label">Categoria</span>
+            <CategoryPicker direction={direction} value={categoryId} onChange={setCategoryId} allowAuto />
           </div>
           <div className="field">
             <span className="field-label">Quem vê</span>
             <ScopeToggle value={scope} onChange={setScope} disabled={categoryId === "auto"} />
           </div>
-        </div>
+        </>
       )}
-      {me && me.accounts.length > 0 && (
+      <details className="more-options" open={date !== me?.today || Boolean(proposal)}>
+        <summary>
+          Data e conta <small>{date === me?.today ? "hoje" : dayLabel(date)}{accountId ? ` · ${me?.accounts.find((a) => a.id === accountId)?.name ?? ""}` : ""}</small>
+        </summary>
         <div className="field">
-          <label htmlFor="nt-acc">Conta ou cartão (opcional)</label>
-          <select id="nt-acc" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-            <option value="">Sem conta</option>
-            {me.accounts.filter((a) => a.active).map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-                {a.last4 ? ` •••• ${a.last4}` : ""}
-              </option>
-            ))}
-          </select>
+          <label htmlFor="nt-date">Data</label>
+          <div className="date-quick">
+            <button type="button" className={`cat-chip ${date === me?.today ? "on" : ""}`} onClick={() => me && setDate(me.today)}>
+              Hoje
+            </button>
+            <button type="button" className={`cat-chip ${me && date === addDays(me.today, -1) ? "on" : ""}`} onClick={() => me && setDate(addDays(me.today, -1))}>
+              Ontem
+            </button>
+            <input id="nt-date" type="date" required value={date} max={me?.today} onChange={(e) => setDate(e.target.value)} />
+          </div>
         </div>
-      )}
+        {me && me.accounts.length > 0 && (
+          <div className="field">
+            <label htmlFor="nt-acc">Conta ou cartão (opcional)</label>
+            <select id="nt-acc" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+              <option value="">Sem conta</option>
+              {me.accounts.filter((a) => a.active).map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                  {a.last4 ? ` •••• ${a.last4}` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </details>
       <div className="modal-actions">
         <button type="button" className="btn ghost" onClick={() => closeModal()}>
           Cancelar

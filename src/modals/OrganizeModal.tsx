@@ -1,5 +1,5 @@
 // "Organizar compra": dividir em categorias (cada parte pessoal ou familiar), fechando centavo por centavo.
-import { Plus, Trash2, X } from "lucide-react";
+import { Plus, Scissors, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { categoriesFor } from "../../shared/categories";
 import type { Allocation, Direction, Goal, Scope, Tag, Transaction } from "../../shared/types";
@@ -9,11 +9,9 @@ import { useData } from "../lib/useData";
 import { category, centsToInput, dayLabel, formatMoney, parseMoney } from "../lib/format";
 import { useApp } from "../state";
 import { ScopeToggle } from "../components/ScopeToggle";
-import { CategoryIcon } from "../components/icons";
+import { CategoryPicker } from "../components/CategoryPicker";
 
 type Row = { categoryId: string; value: string; scope: Scope };
-
-const QUICK = ["alimentacao", "compras", "saude", "transporte", "lazer", "moradia", "outros"];
 
 /** Etiquetas: salvam na hora (não dependem do botão Salvar). */
 function TagPicker({ transaction }: { transaction: Transaction }) {
@@ -124,7 +122,8 @@ export function OrganizeModal({ transaction: t }: { transaction: Transaction }) 
   const [error, setError] = useState<string | null>(null);
 
   const totalCents = manual ? (parseMoney(amount) ?? 0) : t.amountCents;
-  const parsed = rows.map((r) => parseMoney(r.value) ?? 0);
+  // Sem divisão, a única categoria leva o valor inteiro
+  const parsed = rows.length === 1 ? [totalCents] : rows.map((r) => parseMoney(r.value) ?? 0);
   const sum = parsed.reduce((a, b) => a + b, 0);
   const ok = direction === "transfer" || (rows.length > 0 && parsed.every((v) => v > 0) && sum === totalCents && totalCents > 0);
   const options = useMemo(() => categoriesFor(direction === "income" ? "income" : "expense"), [direction]);
@@ -138,6 +137,9 @@ export function OrganizeModal({ transaction: t }: { transaction: Transaction }) 
       setRows((rs) => rs.map((r) => (valid.includes(r.categoryId) ? r : { ...r, categoryId: d === "income" ? "outras-receitas" : "outros" })));
     }
   };
+
+  const startSplit = () =>
+    setRows((rs) => [{ ...rs[0], value: centsToInput(totalCents) }, { categoryId: direction === "income" ? "outras-receitas" : "outros", value: "", scope: rs[0].scope }]);
 
   const fillRest = () => {
     const diff = totalCents - sum;
@@ -233,56 +235,29 @@ export function OrganizeModal({ transaction: t }: { transaction: Transaction }) 
       <p className={`class-note ${t.status === "pending" ? "pending" : ""}`}>{classificationNote(t)}</p>
       {error && <div className="form-error">{error}</div>}
 
-      <div className="segmented" style={{ marginBottom: 14 }}>
-        {(
-          [
-            ["expense", "Despesa"],
-            ["income", "Receita"],
-            ["transfer", "Transferência / fatura"],
-          ] as [Direction, string][]
-        ).map(([d, label]) => (
-          <button key={d} type="button" className={direction === d ? "on" : ""} onClick={() => changeDirection(d)}>
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {manual && (
-        <div className="form-row">
-          <div className="field">
-            <label htmlFor="desc">Descrição</label>
-            <input id="desc" value={description} maxLength={120} onChange={(e) => setDescription(e.target.value)} />
-          </div>
-          <div className="field">
-            <label htmlFor="amount">Valor (R$)</label>
-            <input id="amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
-          </div>
-        </div>
-      )}
-
       {direction === "transfer" ? (
         <div className="modal-note">
           Pagamento de fatura, transferência entre contas suas ou aplicação: <b>não conta como gasto</b>. Assim a compra no cartão e o
           pagamento da fatura não viram duas despesas.
         </div>
+      ) : rows.length === 1 ? (
+        <>
+          <span className="field-label">Categoria</span>
+          <CategoryPicker direction={direction} value={rows[0].categoryId} onChange={(categoryId) => update(0, { categoryId })} />
+          <div className="field" style={{ marginTop: 14 }}>
+            <span className="field-label">Quem vê</span>
+            <ScopeToggle value={rows[0].scope} onChange={(scope) => update(0, { scope })} />
+          </div>
+          <button type="button" className="btn ghost small" onClick={startSplit}>
+            <Scissors size={13} /> Dividir em várias categorias
+          </button>
+        </>
       ) : (
         <>
           <div className="modal-note" style={{ marginBottom: 14 }}>
             Divida o valor em categorias. Cada parte pode ser <b>pessoal</b> (só você vê) ou <b>familiar</b> (entra nos totais da casa,
             sem mostrar onde nem quem comprou). A soma precisa fechar exatamente {formatMoney(totalCents)}.
           </div>
-          {t.status === "pending" && rows.length === 1 && (
-            <div style={{ marginBottom: 12 }}>
-              <span className="field-label">Toque para classificar de uma vez:</span>
-              <div className="quick-cats">
-                {(direction === "income" ? ["salario", "renda-extra", "reembolso", "outras-receitas"] : QUICK).map((id) => (
-                  <button key={id} type="button" onClick={() => update(0, { categoryId: id })} style={rows[0].categoryId === id ? { background: "var(--tint)", borderColor: "var(--green2)" } : undefined}>
-                    <CategoryIcon id={id} size={14} /> {category(id).name}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
             <h3>Categorias</h3>
             <span className={`chip ${t.status === "pending" ? "amber" : "lime"}`}>{t.status === "pending" ? "A revisar" : "Editável"}</span>
@@ -327,38 +302,71 @@ export function OrganizeModal({ transaction: t }: { transaction: Transaction }) 
         </>
       )}
 
-      {direction !== "income" && (goals.data?.length ?? 0) > 0 && (
-        <div className="field" style={{ marginTop: 14 }}>
-          <label htmlFor="o-goal">Conta para uma meta?</label>
-          <select id="o-goal" value={goalId} onChange={(e) => setGoalId(e.target.value)}>
-            <option value="">Não</option>
-            {goals.data!.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.icon} {g.name} ({g.scope === "family" ? "família" : "pessoal"})
-              </option>
+      <details className="more-options">
+        <summary>
+          Mais opções <small>tipo{manual ? ", descrição e valor" : ""}, meta, etiquetas{direction === "expense" ? ", Imposto de Renda" : ""}</small>
+        </summary>
+          <div className="segmented" style={{ marginBottom: 14 }}>
+            {(
+              [
+                ["expense", "Despesa"],
+                ["income", "Receita"],
+                ["transfer", "Transferência / fatura"],
+              ] as [Direction, string][]
+            ).map(([d, label]) => (
+              <button key={d} type="button" className={direction === d ? "on" : ""} onClick={() => changeDirection(d)}>
+                {label}
+              </button>
             ))}
-          </select>
-          {goalId && (
-            <label className="check-line" style={{ marginTop: 8 }}>
-              <input type="checkbox" checked={goalAlways} onChange={(e) => setGoalAlways(e.target.checked)} />
-              <span>Sempre que for “{t.merchant}”, contar para esta meta</span>
-            </label>
+          </div>
+
+          {manual && (
+            <div className="form-row">
+              <div className="field">
+                <label htmlFor="desc">Descrição</label>
+                <input id="desc" value={description} maxLength={120} onChange={(e) => setDescription(e.target.value)} />
+              </div>
+              <div className="field">
+                <label htmlFor="amount">Valor (R$)</label>
+                <input id="amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+              </div>
+            </div>
           )}
-        </div>
-      )}
 
-      <TagPicker transaction={t} />
+          {direction !== "income" && (goals.data?.length ?? 0) > 0 && (
+            <div className="field" style={{ marginTop: 14 }}>
+              <label htmlFor="o-goal">Conta para uma meta?</label>
+              <select id="o-goal" value={goalId} onChange={(e) => setGoalId(e.target.value)}>
+                <option value="">Não</option>
+                {goals.data!.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.icon} {g.name} ({g.scope === "family" ? "família" : "pessoal"})
+                  </option>
+                ))}
+              </select>
+              {goalId && (
+                <label className="check-line" style={{ marginTop: 8 }}>
+                  <input type="checkbox" checked={goalAlways} onChange={(e) => setGoalAlways(e.target.checked)} />
+                  <span>Sempre que for “{t.merchant}”, contar para esta meta</span>
+                </label>
+              )}
+            </div>
+          )}
 
-      {direction === "expense" && (
-        <div className="field" style={{ marginTop: 14 }}>
-          <label htmlFor="o-tax">Imposto de Renda</label>
-          <select id="o-tax" value={tax} onChange={(e) => setTax(e.target.value as typeof tax)}>
-            <option value="auto">Automático (saúde e educação contam)</option>
-            <option value="yes">Dedutível</option>
-            <option value="no">Não dedutível</option>
-          </select>
-        </div>
-      )}
+          <TagPicker transaction={t} />
+
+          {direction === "expense" && (
+            <div className="field" style={{ marginTop: 14 }}>
+              <label htmlFor="o-tax">Imposto de Renda</label>
+              <select id="o-tax" value={tax} onChange={(e) => setTax(e.target.value as typeof tax)}>
+                <option value="auto">Automático (saúde e educação contam)</option>
+                <option value="yes">Dedutível</option>
+                <option value="no">Não dedutível</option>
+              </select>
+            </div>
+          )}
+
+      </details>
 
       {t.receiptId && <ReceiptPreview id={t.receiptId} />}
 

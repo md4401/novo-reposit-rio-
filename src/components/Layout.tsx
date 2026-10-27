@@ -1,5 +1,5 @@
 // Estrutura: menu lateral (computador) e barra inferior + gaveta (celular), como no protótipo.
-import { Activity, ArrowLeftRight, Banknote, Bell, Bot, CalendarClock, Eye, EyeOff, FileText, Gift, HandCoins, Handshake, House, Landmark, Lock, Menu, MessagesSquare, PiggyBank, Plus, Receipt, Repeat, Scale, Settings, ShoppingBasket, Sparkles, Tags, Target, Ticket, TrendingUp, Trophy, Users, Wallet } from "lucide-react";
+import { Activity, ArrowLeftRight, Banknote, Bell, Bot, CalendarClock, Eye, EyeOff, FileText, FolderLock, Gift, HandCoins, Handshake, HeartHandshake, House, Landmark, LifeBuoy, Lock, Menu, MessagesSquare, PiggyBank, Plus, Receipt, Repeat, Scale, Settings, ShieldAlert, ShoppingBasket, Sparkles, Tags, Target, Ticket, TrendingUp, Trophy, Users, Wallet } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { navigate } from "../lib/router";
 import { DigestModal } from "../modals/DigestModal";
@@ -33,6 +33,10 @@ const CARE: NavItem[] = [
   { key: "receber", label: "Valores a receber", icon: <HandCoins size={17} /> },
   { key: "bancos", label: "Custo dos bancos", icon: <Banknote size={17} /> },
   { key: "pontos", label: "Benefícios e pontos", icon: <Ticket size={17} /> },
+  { key: "reserva", label: "Reserva de emergência", icon: <LifeBuoy size={17} /> },
+  { key: "documentos", label: "Documentos e garantias", icon: <FolderLock size={17} /> },
+  { key: "seguranca", label: "Golpes e segurança", icon: <ShieldAlert size={17} /> },
+  { key: "legado", label: "E se eu faltar?", icon: <HeartHandshake size={17} /> },
 ];
 const SMART: NavItem[] = [
   { key: "nia", label: "Assistente Nia", icon: <Bot size={17} /> },

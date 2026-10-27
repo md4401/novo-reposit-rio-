@@ -97,6 +97,7 @@ const mapAsset = (r: Record<string, unknown>): Asset => ({
   kind: r.kind as Asset["kind"],
   valueCents: num(r.value_cents),
   updatedOn: r.updated_on as string,
+  isReserve: Boolean(r.is_reserve),
 });
 const mapDebt = (r: Record<string, unknown>): Debt => ({
   id: r.id as string,

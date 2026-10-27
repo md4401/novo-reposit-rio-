@@ -373,7 +373,7 @@ export type TaxReport = {
   educationLimitCents: number;
 };
 
-export type Asset = { id: string; name: string; kind: "investment" | "property" | "vehicle" | "other"; valueCents: number; updatedOn: string };
+export type Asset = { id: string; name: string; kind: "investment" | "property" | "vehicle" | "other"; valueCents: number; updatedOn: string; isReserve?: boolean };
 export type Debt = { id: string; name: string; balanceCents: number; monthlyRatePercent: number; minPaymentCents: number };
 export type Wealth = {
   accountsCents: number;
@@ -510,3 +510,32 @@ export type Loyalty = {
   updatedOn: string;
   daysLeft: number | null;
 };
+
+export type ReserveStatus = {
+  /** Custo essencial por mês (moradia, mercado, saúde, transporte, educação, limpeza, higiene) */
+  essentialCents: number;
+  reserveCents: number;
+  months: number;
+  targetMonths: number;
+  targetCents: number;
+  items: { kind: "account" | "asset"; id: string; name: string; cents: number; isReserve: boolean }[];
+};
+
+export type DocumentItem = {
+  id: string;
+  name: string;
+  kind: "garantia" | "seguro" | "contrato" | "documento" | "outro";
+  expiresOn: string | null;
+  remindDays: number;
+  notes: string | null;
+  shared: boolean;
+  hasImage: boolean;
+  owner: string;
+  isMine: boolean;
+  daysLeft: number | null;
+};
+
+export type LegacyMine = { content: string; trustedId: string | null; releaseMode: "now" | "inactive"; inactiveDays: number; updatedAt: string } | null;
+export type LegacyShared = { ownerName: string; available: boolean; content: string | null; releaseMode: "now" | "inactive"; inactiveDays: number }[];
+
+export type ScamAlert = { id: string; occurredOn: string; description: string; amountCents: number; reason: string };

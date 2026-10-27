@@ -23,6 +23,10 @@ import { MeetingPage } from "./pages/Meeting";
 import { ReceivablesPage } from "./pages/Receivables";
 import { BankCostsPage } from "./pages/BankCosts";
 import { LoyaltyPage } from "./pages/Loyalty";
+import { ReservePage } from "./pages/Reserve";
+import { DocumentsPage } from "./pages/Documents";
+import { LegacyPage } from "./pages/Legacy";
+import { SecurityPage } from "./pages/Security";
 import { SettingsPage } from "./pages/Settings";
 import { SharePage } from "./pages/Share";
 import { TagsPage } from "./pages/Tags";
@@ -67,6 +71,10 @@ export function App() {
     receber: <ReceivablesPage />,
     bancos: <BankCostsPage />,
     pontos: <LoyaltyPage />,
+    reserva: <ReservePage />,
+    documentos: <DocumentsPage />,
+    legado: <LegacyPage />,
+    seguranca: <SecurityPage />,
     compartilhar: <SharePage />,
     casa: <HouseBillsPage />,
     metas: <GoalsPage />,

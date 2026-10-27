@@ -28,3 +28,4 @@ android/app/src/main/res/xml/config.xml
 *.pem
 *.key
 keystore.properties
+.*.tmp.mjs

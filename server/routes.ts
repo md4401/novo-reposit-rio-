@@ -132,6 +132,21 @@ import {
   receive,
   saveLoyalty,
 } from "./receivables.js";
+import {
+  deleteDocument,
+  deleteLegacy,
+  documentImage,
+  listDocuments,
+  myLegacy,
+  protectionInsights,
+  reserveStatus,
+  saveDocument,
+  saveLegacy,
+  scamAlerts,
+  setReserveItems,
+  sharedLegacies,
+  type DocumentInput,
+} from "./protection.js";
 
 type Ctx = { request: Request; url: URL; params: string[] };
 type Handler = (ctx: Ctx) => Promise<Response>;
@@ -388,7 +403,7 @@ route("GET", "overview", async ({ request, url }) => {
   const user = await requireUser(request);
   const month = monthParam(url, currentMonth(user));
   const today = todayKey(user.timezone);
-  const [family, mine, recent, alerts, budgets, due, invoices, extra] = await Promise.all([
+  const [family, mine, recent, alerts, budgets, due, invoices, extra, protection] = await Promise.all([
     familyNumbers(user, month, 7),
     personalNumbers(user, month, 2),
     listTransactions(user, { limit: 6 }),
@@ -397,6 +412,7 @@ route("GET", "overview", async ({ request, url }) => {
     payablesDue(user, today),
     cardInvoices(user, today),
     moneyInsights(user, today),
+    protectionInsights(user, today),
   ]);
   const budgetSummary = summarize([...budgets.personal, ...budgets.family]);
   const insights: Insight[] = [];
@@ -410,7 +426,8 @@ route("GET", "overview", async ({ request, url }) => {
       page: "pagar",
     });
   }
-  insights.push(...extra);
+  // Golpe suspeito vem primeiro; depois o resto da proteção e do dinheiro esquecido
+  insights.push(...protection.filter((i) => i.page === "seguranca"), ...extra, ...protection.filter((i) => i.page !== "seguranca"));
   const invoiceDue = invoices.find((i) => i.status !== "future" && i.totalCents > 0 && daysBetweenKeys(today, i.dueOn) <= 5);
   if (invoiceDue)
     insights.push({
@@ -1374,6 +1391,93 @@ route("DELETE", "loyalty/:id", async ({ request, params }) => {
   const user = await requireUser(request);
   await deleteLoyalty(user, uuid(params[0]));
   return json(await listLoyalty(user, todayKey(user.timezone)));
+});
+
+// ===========================================================================
+// Proteção: reserva, documentos, "e se eu faltar?" e golpes
+
+route("GET", "reserve", async ({ request }) => {
+  const user = await requireUser(request);
+  return json(await reserveStatus(user, todayKey(user.timezone)));
+});
+
+route("PUT", "reserve", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  const ids = (key: string) => (Array.isArray(body[key]) ? (body[key] as unknown[]).slice(0, 50).map((x) => uuid(x)) : []);
+  await setReserveItems(user, ids("accountIds"), ids("assetIds"));
+  return json(await reserveStatus(user, todayKey(user.timezone)));
+});
+
+function documentInput(body: Body): DocumentInput {
+  return {
+    name: str(body, "name", { max: 80, label: "nome" })!,
+    kind: oneOf(body.kind ?? "garantia", ["garantia", "seguro", "contrato", "documento", "outro"] as const, "tipo"),
+    expiresOn: body.expiresOn ? dateKey(body.expiresOn, "validade") : null,
+    remindDays: body.remindDays === undefined ? 30 : int(body, "remindDays", 0, 365, "aviso"),
+    notes: str(body, "notes", { max: 500, optional: true, label: "observações" }) ?? null,
+    shared: body.shared === true,
+    image: typeof body.image === "string" ? body.image : null,
+  };
+}
+
+route("GET", "documents", async ({ request }) => {
+  const user = await requireUser(request);
+  return json(await listDocuments(user, todayKey(user.timezone)));
+});
+
+route("POST", "documents", async ({ request }) => {
+  const user = await requireUser(request);
+  await rateLimit(`documents:${user.id}`, 30, 60);
+  await saveDocument(user, documentInput(await readJson(request, 1.5 * 1024 * 1024)));
+  return json(await listDocuments(user, todayKey(user.timezone)), 201);
+});
+
+route("PATCH", "documents/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await saveDocument(user, documentInput(await readJson(request, 1.5 * 1024 * 1024)), uuid(params[0]));
+  return json(await listDocuments(user, todayKey(user.timezone)));
+});
+
+route("GET", "documents/:id/image", async ({ request, params }) => {
+  const user = await requireUser(request);
+  const { mime, bytes } = await documentImage(user, uuid(params[0]));
+  return new Response(new Uint8Array(bytes), { headers: { "Content-Type": mime, "Cache-Control": "no-store, private" } });
+});
+
+route("DELETE", "documents/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await deleteDocument(user, uuid(params[0]));
+  return json(await listDocuments(user, todayKey(user.timezone)));
+});
+
+route("GET", "legacy", async ({ request }) => {
+  const user = await requireUser(request);
+  const [mine, shared] = await Promise.all([myLegacy(user), sharedLegacies(user)]);
+  return json({ mine, shared });
+});
+
+route("PUT", "legacy", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  await saveLegacy(user, {
+    content: str(body, "content", { max: 8000, label: "instruções" })!,
+    trustedId: body.trustedId ? uuid(body.trustedId, "pessoa de confiança") : null,
+    releaseMode: oneOf(body.releaseMode ?? "inactive", ["now", "inactive"] as const, "liberação"),
+    inactiveDays: body.inactiveDays === undefined ? 60 : int(body, "inactiveDays", 15, 365, "dias sem acesso"),
+  });
+  return json({ mine: await myLegacy(user), shared: await sharedLegacies(user) });
+});
+
+route("DELETE", "legacy", async ({ request }) => {
+  const user = await requireUser(request);
+  await deleteLegacy(user);
+  return json({ mine: null, shared: await sharedLegacies(user) });
+});
+
+route("GET", "security", async ({ request }) => {
+  const user = await requireUser(request);
+  return json(await scamAlerts(user, todayKey(user.timezone)));
 });
 
 // ===========================================================================

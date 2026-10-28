@@ -75,8 +75,18 @@ export function ReceiptModal({ initialImage }: { initialImage?: string } = {}) {
     if (!file) return;
     setBusy(true);
     setError(null);
+    let image: string;
     try {
-      setReading(await api<ReceiptReading>("nia/receipt", { body: { image: await resize(file) }, silent: true }));
+      image = await resize(file);
+    } catch {
+      setBusy(false);
+      return setError("Não consegui abrir essa foto. Tire outra foto da nota ou escolha uma imagem JPG ou PNG.");
+    }
+    try {
+      const result = await api<ReceiptReading>("nia/receipt", { body: { image }, silent: true });
+      if (result.items.length === 0 && result.totalCents <= 0)
+        setError("Não consegui ler os valores dessa nota. Tente outra foto (nota esticada, com luz) ou registre à mão.");
+      setReading(result);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -107,12 +117,19 @@ export function ReceiptModal({ initialImage }: { initialImage?: string } = {}) {
 
   async function createNew() {
     const receiptImage = keepPhoto && file && !example ? ((await forStorage(file)) ?? undefined) : undefined;
+    // Vale o total da nota. Se os itens lidos não fecham o total, fica uma categoria só (a maior).
+    const grouped = groupByCategory(items, scope);
+    const amountCents = total > 0 ? total : itemsSum;
+    const allocations =
+      itemsSum === amountCents || grouped.length === 0
+        ? grouped
+        : [{ ...grouped.reduce((a, b) => (b.amountCents > a.amountCents ? b : a)), amountCents }];
     const proposal: Proposal = {
       description: reading?.merchant ?? (example ? "Mercado (exemplo)" : "Compra com nota fiscal"),
-      amountCents: itemsSum,
+      amountCents,
       direction: "expense",
       occurredOn: reading?.occurredOn ?? me?.today ?? "",
-      allocations: groupByCategory(items, scope),
+      allocations,
     };
     closeModal(() => openModal(<NewTransactionModal proposal={proposal} source="receipt" receiptImage={receiptImage} receiptItems={example ? undefined : items} />));
   }
@@ -150,7 +167,7 @@ export function ReceiptModal({ initialImage }: { initialImage?: string } = {}) {
             </tbody>
           </table>
           <div style={{ fontWeight: 800, marginTop: 10 }}>Total: {formatMoney(total)}</div>
-          {itemsSum !== total && <div className="small" style={{ color: "var(--red)" }}>A soma dos itens ({formatMoney(itemsSum)}) não bate com o total da nota: confira antes de salvar.</div>}
+          {itemsSum !== total && <div className="small" style={{ color: "var(--red)" }}>A soma dos itens ({formatMoney(itemsSum)}) não bate com o total da nota: vale o total, numa categoria só. Confira antes de salvar.</div>}
           {reading?.match && (
             <div className="small" style={{ marginTop: 8 }}>
               Encontrei a compra <b>{reading.match.description}</b> de {dayLabel(reading.match.occurredOn)} com o mesmo valor. Vincular só detalha as categorias — não cria outra despesa.
@@ -172,7 +189,17 @@ export function ReceiptModal({ initialImage }: { initialImage?: string } = {}) {
         <button type="button" className="btn ghost" onClick={() => closeModal()}>
           Fechar
         </button>
-        {items.length > 0 ? (
+        {reading && items.length === 0 ? (
+          reading.totalCents > 0 ? (
+            <button type="button" className="btn dark" onClick={() => void createNew()}>
+              Registrar {formatMoney(reading.totalCents)}
+            </button>
+          ) : (
+            <button type="button" className="btn dark" onClick={() => closeModal(() => openModal(<NewTransactionModal />))}>
+              Registrar à mão
+            </button>
+          )
+        ) : items.length > 0 ? (
           reading?.match && itemsSum === total ? (
             <button type="button" className="btn dark" disabled={busy} onClick={linkToMatch}>
               {busy && <Spinner />} Vincular à compra

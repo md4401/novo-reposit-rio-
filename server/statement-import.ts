@@ -81,6 +81,7 @@ export async function importStatement(
   }
   const fresh = rows.filter((r) => !r.duplicate && !matches.has(r.externalId));
   let imported = 0;
+  let pending = 0;
   if (input.commit && (fresh.length || matches.size)) {
     const classifier = await loadClassifier(user.id);
     const records = fresh.map((r) => {
@@ -143,6 +144,7 @@ export async function importStatement(
       q(`UPDATE financial_accounts SET last_synced_at = now() WHERE id = $1`, [account.id]),
     ]);
     imported = Number(inserted[0]?.n ?? 0);
+    pending = Math.min(imported, records.filter((r) => r.status === "pending").length);
     if (matches.size) {
       // Liga a captura à linha do extrato: reimportar continua sem duplicar
       await batch(
@@ -170,6 +172,8 @@ export async function importStatement(
     committed: input.commit,
     bank: parsed.bank?.name ?? null,
     autoInverted: Boolean(parsed.bank?.creditCard),
+    latestMonth: rows.length ? rows.reduce((m, r) => (r.occurredOn > m ? r.occurredOn : m), "").slice(0, 7) : null,
+    pending,
   };
 }
 

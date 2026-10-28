@@ -40,8 +40,16 @@ function exportCsv(items: Transaction[]) {
 export function TransactionsPage({ route }: { route: Route }) {
   const { me, openModal, toast } = useApp();
   const today = me?.today.slice(0, 7) ?? "";
-  const [month, setMonth] = useState(today);
   const [allMonths, setAllMonths] = useState(false);
+  const asked = route.query.get("mes");
+  const [month, setMonth] = useState(asked && /^\d{4}-\d{2}$/.test(asked) && asked <= today ? asked : today);
+  // Veio de outro lugar pedindo um mês (ex.: depois de importar o extrato)
+  useEffect(() => {
+    if (asked && /^\d{4}-\d{2}$/.test(asked) && asked <= today) {
+      setMonth(asked);
+      setAllMonths(false);
+    }
+  }, [asked, today]);
   const [filter, setFilter] = useState<Filter>(route.query.get("filtro") === "pendentes" ? "pending" : "all");
   const [search, setSearch] = useState(route.query.get("q") ?? "");
   const [q, setQ] = useState(search);
@@ -144,10 +152,20 @@ export function TransactionsPage({ route }: { route: Route }) {
             icon="🧾"
             title={filter === "pending" ? "Nada para revisar" : "Nenhuma transação encontrada"}
             text={
-              filter === "pending" ? "Tudo classificado. Bom trabalho!" : narrowed ? "Nada com esse filtro ou busca." : "Registre uma despesa ou importe o extrato do seu banco (CSV ou OFX)."
+              filter === "pending"
+                ? "Tudo classificado. Bom trabalho!"
+                : narrowed
+                  ? "Nada com esse filtro ou busca."
+                  : !allMonths
+                    ? "Nada neste mês. Compras de outros meses (como as de um extrato antigo) aparecem em “Tudo”."
+                    : "Registre uma despesa ou importe o extrato do seu banco (CSV ou OFX)."
             }
             action={
-              !narrowed ? (
+              !narrowed && !allMonths ? (
+                <button type="button" className="btn dark small" onClick={() => setAllMonths(true)}>
+                  <CalendarRange size={14} /> Ver todos os meses
+                </button>
+              ) : !narrowed ? (
                 <button type="button" className="btn dark small" onClick={() => openModal(<QuickAddSheet />)}>
                   <Plus size={14} /> Adicionar
                 </button>

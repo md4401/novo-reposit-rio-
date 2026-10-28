@@ -1059,7 +1059,13 @@ route("POST", "nia/receipt", async ({ request }) => {
   await rateLimit(`receipt:${user.id}`, 10, 60);
   const image = typeof body.image === "string" ? body.image : "";
   if (!/^data:image\/(jpeg|png|webp);base64,/.test(image)) throw new HttpError(400, "Envie uma foto (JPG, PNG ou WEBP)");
-  const reading = await readReceiptWithAi(image);
+  let reading: Awaited<ReturnType<typeof readReceiptWithAi>>;
+  try {
+    reading = await readReceiptWithAi(image);
+  } catch (error) {
+    logError(error);
+    throw new HttpError(502, "Não consegui ler essa nota agora. Tente de novo com a nota bem esticada e com luz, ou registre o valor à mão.");
+  }
   const items = (Array.isArray(reading.items) ? reading.items : [])
     .filter((i) => i && typeof i.name === "string" && Number.isInteger(i.amountCents) && i.amountCents > 0)
     .map((i) => ({

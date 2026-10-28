@@ -286,6 +286,10 @@ export type ImportResult = {
   bank: string | null;
   /** Fatura de cartão reconhecida: sinais invertidos automaticamente */
   autoInverted: boolean;
+  /** Mês (AAAA-MM) da movimentação mais recente do arquivo: a lista abre nele depois de importar */
+  latestMonth: string | null;
+  /** Quantas das importadas ficaram sem categoria (a revisar) */
+  pending: number;
 };
 
 export type Proposal = {

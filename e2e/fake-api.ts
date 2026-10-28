@@ -248,7 +248,7 @@ export class FakeApi {
         const acc = this.accounts.find((a) => a.id === body!.accountId);
         for (const { duplicate: _, ...r } of rows) this.transactions.unshift(transaction({ ...r, source: "csv", accountId: acc?.id ?? null, accountName: acc?.name ?? null }));
       }
-      const result: ImportResult = { format: "csv", rows, total: rows.length, duplicates: 0, imported: commit ? rows.length : 0, committed: commit, bank: null, autoInverted: false };
+      const result: ImportResult = { format: "csv", rows, total: rows.length, duplicates: 0, imported: commit ? rows.length : 0, committed: commit, bank: null, autoInverted: false, latestMonth: rows.length ? rows.reduce((m, r) => (r.occurredOn > m ? r.occurredOn : m), "").slice(0, 7) : null, pending: 0 };
       return ok(result);
     }
 

@@ -19,10 +19,12 @@ export type Classification = {
 export type Classifier = {
   rules: Map<string, { id: string; categoryId: string; scope: Scope }>;
   history: Map<string, { categoryId: string; scope: Scope }>;
+  /** Visibilidade das despesas sem regra nem histórico (escolha da pessoa) */
+  defaultScope: Scope;
 };
 
 /** Carrega regras e histórico da pessoa uma vez (importações de centenas de linhas). */
-export async function loadClassifier(profileId: string): Promise<Classifier> {
+export async function loadClassifier(profileId: string, defaultScope: Scope = "personal"): Promise<Classifier> {
   const [rules, history] = await batch(
     [
       q(`SELECT id, merchant, category_id, scope FROM categorization_rules WHERE profile_id = $1 AND active`, [profileId]),
@@ -43,6 +45,7 @@ export async function loadClassifier(profileId: string): Promise<Classifier> {
     history: new Map(
       history.map((h) => [`${h.direction}|${h.merchant}`, { categoryId: h.category_id as string, scope: h.scope as Scope }]),
     ),
+    defaultScope,
   };
 }
 
@@ -61,7 +64,8 @@ export function classifyWith(ctx: Classifier, input: { description: string; merc
   if (history) return { direction, status: "auto", classifiedBy: "history", allocation: history };
   if (direction !== "transfer") {
     const guess = guessCategory(input.description, direction);
-    if (guess) return { direction, status: "auto", classifiedBy: "keyword", allocation: { categoryId: guess, scope: "personal" } };
+    if (guess)
+      return { direction, status: "auto", classifiedBy: "keyword", allocation: { categoryId: guess, scope: direction === "expense" ? ctx.defaultScope : "personal" } };
   }
   return { direction, status: "pending", classifiedBy: null, allocation: null };
 }
@@ -69,14 +73,14 @@ export function classifyWith(ctx: Classifier, input: { description: string; merc
 export async function classify(
   profileId: string,
   input: { description: string; merchant: string; direction: Direction },
-  opts: { useAi?: boolean } = {},
+  opts: { useAi?: boolean; defaultScope?: Scope } = {},
 ): Promise<Classification> {
-  const result = classifyWith(await loadClassifier(profileId), input);
+  const result = classifyWith(await loadClassifier(profileId, opts.defaultScope), input);
   if (result.ruleId) await query(`UPDATE categorization_rules SET hits = hits + 1 WHERE id = $1`, [result.ruleId]);
   if (result.status === "pending" && opts.useAi && aiEnabled() && input.direction === "expense") {
     const ai = await classifyWithAi(input.description).catch(() => null);
     if (ai && ai.confidence >= 0.8) {
-      return { direction: input.direction, status: "auto", classifiedBy: "ai", allocation: { categoryId: ai.categoryId, scope: "personal" } };
+      return { direction: input.direction, status: "auto", classifiedBy: "ai", allocation: { categoryId: ai.categoryId, scope: opts.defaultScope ?? "personal" } };
     }
   }
   return result;

@@ -51,7 +51,7 @@ export function ReceiptModal({ initialImage }: { initialImage?: string } = {}) {
   const [example, setExample] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [scope, setScope] = useState<"personal" | "family">("family");
+  const [scope, setScope] = useState<"personal" | "family">(me?.profile.defaultScope ?? "family");
   const [keepPhoto, setKeepPhoto] = useState(true);
   const ai = Boolean(me?.aiEnabled);
   // Imagem que chegou por "Compartilhar"

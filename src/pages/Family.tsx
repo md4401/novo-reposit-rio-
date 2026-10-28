@@ -68,7 +68,16 @@ export function FamilyPage() {
                 <br />
                 começa com clareza.
               </h2>
-              <p>Receitas, despesas e metas da família. Nenhum extrato individual, loja ou nome de comprador é compartilhado nesta área.</p>
+              <p>
+                Receitas, despesas e metas da família. Entram aqui só os totais do que cada pessoa marca como Família — nenhum extrato
+                individual, loja ou nome de comprador. Atualiza sozinho quando alguém lança.
+              </p>
+              {me?.profile.defaultScope === "personal" && (
+                <p className="small" style={{ marginTop: 6 }}>
+                  Suas despesas novas estão entrando como Pessoal.{" "}
+                  <LinkButton onClick={() => navigate("ajustes?aba=privacidade")}>Mudar</LinkButton>
+                </p>
+              )}
               <div className="members">
                 {data.members.map((m, i) => (
                   <span className="member-pill" key={i}>

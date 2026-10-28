@@ -56,6 +56,8 @@ export type Me = {
     uiMode: "full" | "simple" | "kid";
     /** Informou a renda para a divisão proporcional */
     hasSplitIncome: boolean;
+    /** Como as despesas novas entram quando não se escolhe: Família (só nos totais) ou Pessoal */
+    defaultScope: Scope;
   };
   household: {
     id: string;

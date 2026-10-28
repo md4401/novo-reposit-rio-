@@ -83,7 +83,7 @@ export async function importStatement(
   let imported = 0;
   let pending = 0;
   if (input.commit && (fresh.length || matches.size)) {
-    const classifier = await loadClassifier(user.id);
+    const classifier = await loadClassifier(user.id, user.default_scope);
     const records = fresh.map((r) => {
       const merchant = normalizeMerchant(r.description);
       const c = classifyWith(classifier, { description: r.description, merchant, direction: r.direction });
@@ -110,7 +110,7 @@ export async function importStatement(
         for (const r of records) {
           const g = guesses.get(r.description);
           if (r.status === "pending" && g && g.confidence >= 0.75) {
-            Object.assign(r, { status: "auto", classified_by: "ai", category_id: g.categoryId, scope: "personal" });
+            Object.assign(r, { status: "auto", classified_by: "ai", category_id: g.categoryId, scope: classifier.defaultScope });
           }
         }
       } catch (error) {

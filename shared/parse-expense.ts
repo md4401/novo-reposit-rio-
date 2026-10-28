@@ -99,7 +99,8 @@ function findDate(text: string, today: string) {
   return today;
 }
 
-export function parseExpenseStatement(input: string, today: string): Proposal | null {
+/** `defaultScope`: como a despesa entra quando o texto não diz (a receita fica pessoal). */
+export function parseExpenseStatement(input: string, today: string, defaultScope: Scope = "personal"): Proposal | null {
   const original = input.trim();
   const text = stripAccents(original.toLowerCase());
   const income = INCOME_VERBS.test(text) && !EXPENSE_VERBS.test(text);
@@ -107,7 +108,7 @@ export function parseExpenseStatement(input: string, today: string): Proposal | 
   const direction = income ? "income" : "expense";
   const amounts = findAmounts(text);
   if (amounts.length === 0) return null;
-  const scope: Scope = FAMILY_WORDS.test(text) ? "family" : "personal";
+  const scope: Scope = FAMILY_WORDS.test(text) ? "family" : direction === "expense" ? defaultScope : "personal";
 
   // Cada valor leva a categoria citada logo depois dele (ou logo antes, se não houver).
   const parts = amounts.map((a, i) => {

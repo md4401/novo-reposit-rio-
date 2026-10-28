@@ -17,7 +17,7 @@ import { OrganizeModal } from "./OrganizeModal";
 type Learned = { merchant: string; categoryId: string; applied: number } | null;
 
 export function DigestModal() {
-  const { closeModal, openModal, refreshMe } = useApp();
+  const { me, closeModal, openModal, refreshMe } = useApp();
   const { data } = useData<Transaction[]>("transactions?status=pending");
   // A fila é a foto do começo: cada confirmação recarrega a lista, e a ordem não pode mudar no meio
   const [queue, setQueue] = useState<Transaction[] | null>(null);
@@ -28,7 +28,8 @@ export function DigestModal() {
   const [done, setDone] = useState(0);
   const [skipped, setSkipped] = useState(0);
   const [categoryId, setCategoryId] = useState("");
-  const [scope, setScope] = useState<Scope>("personal");
+  // Começa como a pessoa escolheu em Configurações; trocar aqui vale para as próximas da fila
+  const [scope, setScope] = useState<Scope>(me?.profile.defaultScope ?? "personal");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [learned, setLearned] = useState<Learned>(null);

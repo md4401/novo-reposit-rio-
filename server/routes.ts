@@ -307,6 +307,7 @@ async function loadMe(user: SessionUser): Promise<Me> {
       selfSalaryCents: notify[0]?.self_salary_cents == null ? null : num(notify[0].self_salary_cents),
       uiMode: (notify[0]?.ui_mode as "full" | "simple" | "kid") ?? "full",
       hasSplitIncome: notify[0]?.split_income_cents != null,
+      defaultScope: user.default_scope,
     },
     household: {
       id: household[0].id as string,
@@ -383,12 +384,41 @@ route("PATCH", "me", async ({ request }) => {
     queries.push(q(`UPDATE profiles SET self_salary_cents = $2 WHERE id = $1`, [user.id, body.selfSalaryCents === null ? null : cents(body.selfSalaryCents, "salário")]));
   if (body.uiMode !== undefined)
     queries.push(q(`UPDATE profiles SET ui_mode = $2 WHERE id = $1`, [user.id, oneOf(body.uiMode, ["full", "simple", "kid"] as const, "modo")]));
+  if (body.defaultScope !== undefined)
+    queries.push(q(`UPDATE profiles SET default_scope = $2 WHERE id = $1`, [user.id, oneOf(body.defaultScope, ["personal", "family"] as const, "visibilidade")]));
   if (body.householdName !== undefined) {
     if (user.role !== "admin") throw new HttpError(403, "Só quem administra a família pode mudar o nome dela");
     queries.push(q(`UPDATE households SET name = $2 WHERE id = $1`, [user.household_id, str(body, "householdName", { max: 60 })]));
   }
   await batch(queries);
   return json(await loadMe(await requireUser(request)));
+});
+
+// Passa as despesas que a pessoa já marcou como Pessoal para Família (e as regras dela também).
+// A família continua vendo só os totais: nenhuma compra, loja ou nome.
+route("POST", "me/share-with-family", async ({ request }) => {
+  const user = await requireUser(request);
+  const [moved] = await batch([
+    q(
+      `WITH moved AS (
+         UPDATE transaction_allocations a SET scope = 'family'
+           FROM transactions t
+          WHERE a.transaction_id = t.id AND t.profile_id = $1 AND a.profile_id = $1
+            AND a.scope = 'personal' AND t.direction = 'expense' AND NOT t.ignored
+         RETURNING a.transaction_id
+       )
+       SELECT count(DISTINCT transaction_id)::int AS n FROM moved`,
+      [user.id],
+    ),
+    q(
+      `UPDATE categorization_rules SET scope = 'family'
+        WHERE profile_id = $1 AND scope = 'personal' AND category_id IN (SELECT id FROM categories WHERE kind = 'expense')`,
+      [user.id],
+    ),
+  ]);
+  const count = Number(moved[0]?.n ?? 0);
+  await audit(user.id, "transactions.shared_with_family", "profile", user.id, { count });
+  return json({ count });
 });
 
 route("POST", "household/invite", async ({ request }) => {
@@ -655,7 +685,7 @@ route("POST", "transactions", async ({ request }) => {
     allocations = [{ categoryId: "transferencia", amountCents, scope: "personal" }];
   } else {
     // Sem categoria informada: o motor de classificação decide (ou vira pendência)
-    const c = await classify(user.id, { description, merchant: normalizeMerchant(description), direction }, { useAi: true });
+    const c = await classify(user.id, { description, merchant: normalizeMerchant(description), direction }, { useAi: true, defaultScope: user.default_scope });
     finalDirection = c.direction;
     status = c.status;
     classifiedBy = c.classifiedBy;
@@ -1292,7 +1322,7 @@ route("POST", "share/text", async ({ request }) => {
     return json({ proposal });
   }
   // Não é comprovante: tenta como frase ("gastei 45 na farmácia")
-  return json({ proposal: parseExpenseStatement(text, today) });
+  return json({ proposal: parseExpenseStatement(text, today, user.default_scope) });
 });
 
 route("POST", "share/pix", async ({ request }) => {

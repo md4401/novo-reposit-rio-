@@ -137,7 +137,7 @@ export class FakeApi {
 
   private me(): Me {
     return {
-      profile: { id: PROFILE_ID, name: this.name, email: "ana@exemplo.com", role: "admin", avatarColor: "#1e6650", digestHour: 20, timezone: "America/Sao_Paulo", incomeMode: "fixed", selfSalaryCents: null, uiMode: this.uiMode, hasSplitIncome: false },
+      profile: { id: PROFILE_ID, name: this.name, email: "ana@exemplo.com", role: "admin", avatarColor: "#1e6650", digestHour: 20, timezone: "America/Sao_Paulo", incomeMode: "fixed", selfSalaryCents: null, uiMode: this.uiMode, hasSplitIncome: false, defaultScope: "family" },
       household: {
         id: "h-1",
         name: this.householdName,

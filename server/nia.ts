@@ -405,7 +405,7 @@ export async function askNia(user: SessionUser, message: string): Promise<NiaMes
   const payload: Payload = {};
   // 1) Pedidos (lista, lembrete, acerto, a receber) e lançamentos viram proposta para confirmar
   const action = actionReply(message, today, members);
-  const proposal = action ? null : parseExpenseStatement(message, today);
+  const proposal = action ? null : parseExpenseStatement(message, today, user.default_scope);
   let reply: string;
   if (action) {
     reply = action.reply;

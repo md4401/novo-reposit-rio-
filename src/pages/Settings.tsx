@@ -1,6 +1,7 @@
 import { Copy, Download, KeyRound, LogOut, RefreshCw, Share2, ShieldCheck, Smartphone, Trash2, UserMinus, UserRound, Users } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { Me, Rule } from "../../shared/types";
+import type { Me, Rule, Scope } from "../../shared/types";
+import { ScopeToggle } from "../components/ScopeToggle";
 import { Avatar, Heading, Panel, Segmented, Spinner, Toggle } from "../components/ui";
 import { api } from "../lib/api";
 import { category } from "../lib/format";
@@ -85,6 +86,38 @@ export function SettingsPage() {
       await api(path, { body: {} });
       await refreshMe();
       toast(message);
+    } catch (err) {
+      toast((err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function saveDefaultScope(defaultScope: Scope) {
+    setBusy("scope");
+    try {
+      await api<Me>("me", { method: "PATCH", body: { defaultScope } });
+      await refreshMe();
+      toast(defaultScope === "family" ? "Suas despesas novas vão entrar nos totais da família." : "Suas despesas novas vão ficar só para você.");
+    } catch (err) {
+      toast((err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function shareWithFamily() {
+    const ok = await confirm({
+      title: "Contar suas despesas pessoais como Família?",
+      text: "Elas entram nos totais da casa. Ninguém vê a compra, a loja nem quem comprou. Depois dá para voltar uma a uma.",
+      confirmLabel: "Passar para Família",
+    });
+    if (!ok) return;
+    setBusy("share");
+    try {
+      const { count } = await api<{ count: number }>("me/share-with-family", { body: {} });
+      await refreshMe();
+      toast(count ? `${count} despesa${count > 1 ? "s" : ""} agora conta${count > 1 ? "m" : ""} nos totais da família.` : "Nada para passar: suas despesas já estão como Família.");
     } catch (err) {
       toast((err as Error).message);
     } finally {
@@ -343,6 +376,22 @@ export function SettingsPage() {
                     <h4>O que a família vê</h4>
                     <p>Só totais das partes que você marcar como “familiar”. Nunca seu extrato, lojas, comprovantes, contas, regras ou conversas.</p>
                   </div>
+                </div>
+                <div className="field" style={{ marginTop: 4 }}>
+                  <span className="field-label">Minhas despesas novas entram como</span>
+                  <ScopeToggle value={me.profile.defaultScope} onChange={(s) => void saveDefaultScope(s)} disabled={busy === "scope"} label="Minhas despesas novas entram como" />
+                  <p className="muted small" style={{ marginTop: 6 }}>
+                    Vale para o que você lança, importa do extrato ou revisa. Dá para trocar em cada compra. Receitas ficam pessoais.
+                  </p>
+                </div>
+                <div className="setting-row">
+                  <div>
+                    <h4>Contar o que já lancei como Família</h4>
+                    <p>Suas despesas marcadas como Pessoal (de todos os meses) passam a entrar nos totais da casa. A família continua sem ver cada compra.</p>
+                  </div>
+                  <button type="button" className="btn ghost small" disabled={busy === "share"} onClick={() => void shareWithFamily()}>
+                    {busy === "share" && <Spinner />} Passar
+                  </button>
                 </div>
                 <div className="setting-row">
                   <div>

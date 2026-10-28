@@ -1,11 +1,12 @@
-// Categoria em botões (as mais usadas) + "Outra…" com o resto. Usado em revisar, organizar e lançar.
-import { Sparkles } from "lucide-react";
+// Categoria em botões: as mais usadas e, em "Mais categorias", todas as outras. Usado em revisar, organizar e lançar.
+import { ChevronDown, Sparkles } from "lucide-react";
+import { useState } from "react";
 import { categoriesFor } from "../../shared/categories";
 import type { Direction } from "../../shared/types";
 import { CategoryIcon } from "./icons";
 
-export const QUICK_EXPENSE = ["alimentacao", "moradia", "transporte", "saude", "compras", "lazer", "assinaturas", "outros"];
-export const QUICK_INCOME = ["salario", "renda-extra", "reembolso", "outras-receitas"];
+export const QUICK_EXPENSE = ["alimentacao", "restaurantes", "moradia", "transporte", "saude", "compras", "lazer", "assinaturas", "outros"];
+export const QUICK_INCOME = ["salario", "renda-extra", "aposentadoria", "reembolso", "outras-receitas"];
 
 export function CategoryPicker({
   direction,
@@ -22,6 +23,8 @@ export function CategoryPicker({
   const kind = direction === "income" ? "income" : "expense";
   const quick = kind === "income" ? QUICK_INCOME : QUICK_EXPENSE;
   const others = categoriesFor(kind).filter((c) => !quick.includes(c.id));
+  // Abre sozinho quando a categoria escolhida está entre as outras
+  const [more, setMore] = useState(() => others.some((c) => c.id === value));
   const chip = (id: string, label: React.ReactNode) => (
     <button key={id} type="button" role="radio" aria-checked={value === id} className={`cat-chip ${value === id ? "on" : ""}`} onClick={() => onChange(id)}>
       {label}
@@ -44,20 +47,19 @@ export function CategoryPicker({
           </>,
         ),
       )}
-      {others.length > 0 && (
-        <select
-          aria-label="Outra categoria"
-          className={`cat-more ${others.some((c) => c.id === value) ? "on" : ""}`}
-          value={others.some((c) => c.id === value) ? value : ""}
-          onChange={(e) => e.target.value && onChange(e.target.value)}
-        >
-          <option value="">Outra…</option>
-          {others.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+      {more &&
+        others.map((c) =>
+          chip(
+            c.id,
+            <>
+              <CategoryIcon id={c.id} size={14} /> {c.name}
+            </>,
+          ),
+        )}
+      {others.length > 0 && !more && (
+        <button type="button" className="cat-chip cat-more-btn" onClick={() => setMore(true)} aria-expanded={false}>
+          Mais categorias <ChevronDown size={14} />
+        </button>
       )}
     </div>
   );

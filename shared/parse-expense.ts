@@ -14,13 +14,18 @@ const FAMILY_WORDS = /\b(familia|familiar|da casa|pra casa|para casa|de casa|com
 
 // Palavras faladas que não estão no dicionário de estabelecimentos
 export const SPOKEN: [RegExp, string][] = [
-  [/\b(comida|alimento\w*|alimentacao|lanche|almoco|janta|cafe da manha|mercado|feira|pao)\b/, "alimentacao"],
+  [/\b(restaurante|delivery|ifood|lanche|almoco fora|jantar fora|pizza|hamburguer)\b/, "restaurantes"],
+  [/\b(comida|alimento\w*|alimentacao|almoco|janta|cafe da manha|mercado|feira|pao)\b/, "alimentacao"],
   [/\b(limpeza|produtos de limpeza)\b/, "limpeza"],
   [/\b(higiene|banho)\b/, "higiene"],
   [/\b(remedio\w*|saude|farmacia)\b/, "saude"],
   [/\b(gasolina|combustivel|transporte|uber|onibus)\b/, "transporte"],
   [/\b(luz|agua|aluguel|condominio|internet|gas|casa)\b/, "moradia"],
-  [/\b(roupa\w*|presente\w*|compras)\b/, "compras"],
+  [/\b(roupa\w*|sapato\w*|tenis)\b/, "vestuario"],
+  [/\b(presente\w*|doacao)\b/, "presentes"],
+  [/\b(compras)\b/, "compras"],
+  [/\b(viagem|hotel|passagem)\b/, "viagens"],
+  [/\b(cabelo|salao|manicure|barbeiro)\b/, "beleza"],
   [/\b(cinema|passeio|lazer|bar|cerveja)\b/, "lazer"],
 ];
 

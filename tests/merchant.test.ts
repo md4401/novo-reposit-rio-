@@ -23,7 +23,28 @@ describe("estabelecimentos", () => {
     expect(guessCategory("Posto Estrela")).toBe("transporte");
     expect(guessCategory("Drogaria São Paulo")).toBe("saude");
     expect(guessCategory("NETFLIX.COM")).toBe("assinaturas");
-    expect(guessCategory("Barbearia do Zé")).toBeNull();
+    expect(guessCategory("Barbearia do Zé")).toBe("beleza");
+    expect(guessCategory("Oficina Zé Silva")).toBe("transporte");
+    expect(guessCategory("Joana Ltda")).toBeNull();
     expect(guessCategory("PIX RECEBIDO SALARIO", "income")).toBe("salario");
+  });
+
+  it("categorias novas: restaurantes, roupas, viagens, impostos, seguros, empréstimos e receitas", () => {
+    expect(guessCategory("IFOOD *Pizzaria Bella")).toBe("restaurantes");
+    expect(guessCategory("Restaurante Sabor")).toBe("restaurantes");
+    expect(guessCategory("Assai Atacadista")).toBe("alimentacao");
+    expect(guessCategory("Renner Shopping")).toBe("vestuario");
+    expect(guessCategory("Shopee")).toBe("compras");
+    expect(guessCategory("LATAM Airlines passagem")).toBe("viagens");
+    expect(guessCategory("Cinema Center")).toBe("lazer");
+    expect(guessCategory("IPVA 2026 Detran")).toBe("impostos");
+    expect(guessCategory("Porto Seguro Auto")).toBe("seguros");
+    expect(guessCategory("Parcela emprestimo consignado")).toBe("dividas");
+    expect(guessCategory("Fraldas Pampers")).toBe("filhos");
+    expect(guessCategory("Dizimo igreja")).toBe("presentes");
+    expect(guessCategory("INSS aposentadoria", "income")).toBe("aposentadoria");
+    expect(guessCategory("Bolsa Familia", "income")).toBe("beneficios");
+    expect(guessCategory("Rendimento CDB", "income")).toBe("rendimentos");
+    expect(guessCategory("Aluguel recebido apto", "income")).toBe("aluguel-recebido");
   });
 });

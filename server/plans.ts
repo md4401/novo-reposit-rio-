@@ -38,7 +38,7 @@ export async function planInsights(user: SessionUser, today: string): Promise<In
       icon: "🧮",
       title: `Parcelas já comem ${Math.round(base.installmentsRatio * 100)}% da renda`,
       text: `${formatMoney(base.installmentsCents)} em parcelas no mês que vem. Acima de 30% aperta: evite parcelar mais até baixar.`,
-      page: "parcelar",
+      page: "simuladores?aba=parcelar",
     },
   ];
 }

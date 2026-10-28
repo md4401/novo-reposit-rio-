@@ -131,6 +131,18 @@ svg { flex-shrink: 0; }
 .nav-btn.active { color: #0b2d22; background: var(--accent); font-weight: 750; }
 .nav-btn .count { margin-left: auto; display: inline-grid; place-items: center; font-size: 10px; min-width: 20px; height: 20px; border-radius: 6px; color: #12372a; background: #c8f46b; padding: 0 5px; }
 .nav-btn.active .count { background: var(--dark); color: var(--accent); }
+/* Seção com as telas listadas embaixo */
+.nav-sec-head { display: flex; align-items: center; gap: 2px; }
+.nav-sec-head .nav-btn { flex: 1; min-width: 0; }
+.nav-sec.here .nav-sec-head .nav-btn:not(.active) { color: #fff; font-weight: 700; }
+.nav-toggle { flex-shrink: 0; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: #78968a; }
+.nav-toggle:hover { color: #fff; background: #1b4034; }
+.nav-toggle svg { transition: transform 0.18s; transform: rotate(-90deg); }
+.nav-toggle.open svg { transform: none; }
+.nav-sub { display: flex; flex-direction: column; gap: 1px; margin: 1px 0 6px 26px; padding-left: 12px; border-left: 1px solid #224a3c; }
+.nav-sub-btn { text-align: left; font-size: 12.5px; font-weight: 550; color: #a3bdb0; padding: 6px 10px; border-radius: 8px; transition: background 0.15s, color 0.15s; }
+.nav-sub-btn:hover { color: #fff; background: #1b4034; }
+.nav-sub-btn.active { color: #0b2d22; background: var(--accent); font-weight: 750; }
 .sidebar-footer { display: flex; gap: 10px; align-items: center; margin-top: auto; padding: 14px 10px; border-radius: 14px; width: 100%; text-align: left; border-top: 1px solid #224a3c; }
 .sidebar-footer:hover { background: #1b4034; }
 .sidebar { gap: 0; }
@@ -640,6 +652,16 @@ button.insight:hover { background: var(--tint); }
 .sheet-text b { font-size: 14px; }
 .sheet-text small { color: var(--muted); font-size: 12px; margin-top: 1px; }
 .sheet-profile { margin-bottom: 16px; background: var(--soft); }
+.sheet-sections { display: flex; flex-direction: column; gap: 8px; }
+.sheet-section { border: 1px solid var(--line); border-radius: 14px; padding: 8px; background: var(--card); }
+.sheet-section.on { border-color: var(--green2); }
+.sheet-section-head { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 2px; border-radius: 10px; }
+.sheet-section-head .sheet-ic { width: 32px; height: 32px; border-radius: 10px; }
+.sheet-section-head b { font-size: 13.5px; }
+.sheet-section-head small { margin-left: auto; color: var(--muted); font-size: 11px; text-align: right; }
+.sheet-section.on .sheet-section-head .sheet-ic { background: var(--accent); color: var(--on-accent); }
+.sheet-screens { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 2px 2px 44px; }
+.sheet-screens .cat-chip { padding: 6px 11px; font-size: 12px; min-height: 32px; }
 .sheet-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .sheet-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); min-width: 0; }
 .sheet-tile:hover { background: var(--soft); }
@@ -864,13 +886,12 @@ button.insight:hover { background: var(--tint); }
 
 /* Categoria em botões */
 .cat-picker { display: flex; flex-wrap: wrap; gap: 6px; }
+.cat-more-btn { border-style: dashed !important; color: var(--green-ink) !important; }
 .cat-chip { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 100px; border: 1px solid var(--line-strong); background: var(--card); color: var(--text2); font-size: 12.5px; font-weight: 700; min-height: 36px; }
 .cat-chip svg { color: var(--green2); }
 .cat-chip:hover { background: var(--soft); }
 .cat-chip.on { background: var(--dark); border-color: var(--dark); color: #fff; }
 .cat-chip.on svg { color: var(--accent); }
-.cat-more { min-height: 36px; border-radius: 100px; border: 1px solid var(--line-strong); background: var(--card); color: var(--text2); font-size: 12.5px; font-weight: 700; padding: 0 12px; max-width: 100%; }
-.cat-more.on { background: var(--dark); border-color: var(--dark); color: #fff; }
 
 /* "Mais opções" recolhido nos formulários */
 .more-options { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
@@ -901,8 +922,7 @@ button.insight:hover { background: var(--tint); }
 .date-quick input { flex: 1; min-width: 150px; }
 .more-options > summary { flex-wrap: wrap; }
 .more-options > summary small { flex-basis: 100%; padding-left: 18px; font-size: 11.5px; }
-.field .cat-more { width: auto; min-height: 36px; border-radius: 100px; font-size: 12.5px; padding: 0 12px; font-weight: 700; }
-
+.field 
 .row { display: flex; align-items: center; }
 /* Modo simples: letras e botões maiores */
 .app.simple .content { zoom: 1.15; }
@@ -991,3 +1011,7 @@ body.intro-arrive .topbar { animation: intro-arrive 0.5s ease both; }
 @media (prefers-reduced-motion: reduce) {
   body.intro-arrive .page > *, body.intro-arrive .topbar { animation: none; }
 }
+/* Tela com duas partes (Simuladores, Contas divididas, Compras): seletor abaixo das abas */
+.subpages { margin: -4px 0 16px; }
+.subpages .segmented { display: inline-flex; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.subpages .segmented button { white-space: nowrap; }

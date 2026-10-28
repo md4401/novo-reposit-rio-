@@ -1,6 +1,6 @@
 // Estrutura: menu lateral com as seções (computador) e barra inferior com "+" no centro (celular).
 // As telas de cada seção aparecem como abas no topo da página. Nos modos simples e criança, um menu curto.
-import { Bell, Bot, Eye, EyeOff, Lock, Plus, X } from "lucide-react";
+import { Bell, Bot, ChevronDown, Eye, EyeOff, Lock, Plus, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { BOTTOM_KEYS, BOTTOM_REDUCED, KID_NAV, NAV, PAGE_TITLES, sectionOf, SIMPLE_NAV, type NavItem, type NavLink } from "../lib/nav";
 import { navigate } from "../lib/router";
@@ -14,12 +14,22 @@ const BOTTOM = BOTTOM_KEYS.map((key) => NAV.find((n) => n.key === key)!);
 const BOTTOM_LABEL: Record<string, string> = { inicio: "Início", transacoes: "Transações", orcamento: "Planejar", familia: "Casa" };
 
 // Aviso de uma vez só para quem já usava o app antes do menu novo (quem está testando com exemplo não conhecia o antigo)
-const NEWS_KEY = "ninho.novidades.menu8";
+const NEWS_KEY = "ninho.novidades.menu10";
 function readSeen() {
   try {
     return localStorage.getItem(NEWS_KEY) === "1";
   } catch {
     return true;
+  }
+}
+
+// Seções recolhidas no menu lateral (por padrão todas abertas, mostrando cada tela)
+const CLOSED_KEY = "ninho.menu.recolhidas";
+function readClosed(): Set<string> {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(CLOSED_KEY) ?? "[]") as string[]);
+  } catch {
+    return new Set();
   }
 }
 
@@ -29,6 +39,7 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
   const section = sectionOf(page);
   const [seenNews, setSeenNews] = useState(readSeen);
   const [showAll, setShowAll] = useState(false);
+  const [closed, setClosed] = useState(readClosed);
   const mode = me?.profile.uiMode ?? "full";
   const reduced = mode !== "full" && !showAll;
 
@@ -54,6 +65,59 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
       // sem armazenamento: some só nesta visita
     }
     setSeenNews(true);
+  };
+
+  const toggleSection = (key: string) =>
+    setClosed((c) => {
+      const next = new Set(c);
+      if (!next.delete(key)) next.add(key);
+      try {
+        localStorage.setItem(CLOSED_KEY, JSON.stringify([...next]));
+      } catch {
+        // sem armazenamento: vale só nesta visita
+      }
+      return next;
+    });
+
+  // Seção com várias telas: o nome leva à primeira; as telas ficam listadas embaixo (dá para recolher)
+  const navSection = (n: NavItem) => {
+    if (n.tabs.length === 1) return navButton(n);
+    const open = !closed.has(n.key);
+    const here = section.key === n.key;
+    return (
+      <div key={n.key} className={`nav-sec ${here ? "here" : ""}`}>
+        <div className="nav-sec-head">
+          <button type="button" className={`nav-btn ${here && !open ? "active" : ""}`} onClick={() => go(n.key)}>
+            {n.icon(17)}
+            <span>{n.label}</span>
+            {n.key === "transacoes" && pending > 0 && (
+              <span className="count" title="Compras a revisar">
+                {pending}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            className={`nav-toggle ${open ? "open" : ""}`}
+            onClick={() => toggleSection(n.key)}
+            aria-expanded={open}
+            aria-label={`${open ? "Recolher" : "Mostrar"} as telas de ${n.label}`}
+            title={open ? "Recolher" : "Mostrar telas"}
+          >
+            <ChevronDown size={15} />
+          </button>
+        </div>
+        {open && (
+          <div className="nav-sub">
+            {n.tabs.map((t) => (
+              <button key={t.key} type="button" className={`nav-sub-btn ${page === t.key ? "active" : ""}`} onClick={() => go(t.key)} aria-current={page === t.key ? "page" : undefined}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   const navButton = (n: NavItem) => (
@@ -111,7 +175,7 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
         <button type="button" className="btn primary block sidebar-add" onClick={quickAdd}>
           <Plus size={16} /> Adicionar
         </button>
-        <nav className="nav">{reduced ? shortNav.map(linkButton) : NAV.map(navButton)}</nav>
+        <nav className="nav">{reduced ? shortNav.map(linkButton) : NAV.map(navSection)}</nav>
         {mode !== "full" && (
           <button type="button" className="link sidebar-all" onClick={() => setShowAll((v) => !v)}>
             {showAll ? "Mostrar menos" : "Ver todas as telas"}
@@ -178,7 +242,7 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
           {!seenNews && me?.setup.hasTransactions && !me.hasDemoData && (
             <div className="news-bar" role="status">
               <span>
-                <b>O menu ficou mais simples:</b> poucas seções, e as telas de cada uma viram abas no topo. No celular, o menu completo abre pela sua foto, no canto de cima.
+                <b>O menu foi reorganizado</b> por pergunta: Pagar e receber, De olho, Proteção… Nenhuma tela saiu; algumas se juntaram (Simuladores, Contas divididas, Compras). No celular, o menu completo abre pela sua foto.
               </span>
               <button type="button" className="icon-btn" onClick={hideNews} aria-label="Entendi">
                 <X size={15} />

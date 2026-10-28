@@ -11,6 +11,7 @@ import {
   isSavingTips,
   isSpendQuestion,
   merchantIn,
+  normalize,
   parseIou,
   parsePayable,
   parsePeriod,
@@ -243,8 +244,9 @@ export async function smartReply(
   if (amount) return afford(user, amount, categoryIn(message), today);
   if (isSavingTips(message)) return savingTips(user, today);
   const period = parsePeriod(message, today);
-  const categoryId = categoryIn(message);
   const merchant = merchantIn(message);
+  // "no iFood": a loja já diz tudo; a categoria vem do resto da frase, se houver
+  const categoryId = categoryIn(merchant ? normalize(message).replace(merchant, "") : message);
   // "e no mês passado?" / "e com transporte?": completa com a pergunta anterior
   if (isFollowUp(message)) {
     return spending(

@@ -1,4 +1,4 @@
-// Pontos, milhas e cashback que vencem; o vale-refeição/alimentação entra como conta em "Contas e extratos".
+// Pontos, milhas e cashback que vencem; o vale-refeição/alimentação entra como conta em "Bancos e cartões".
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { Loyalty } from "../../shared/types";
@@ -98,7 +98,7 @@ export function LoyaltyPage() {
             <p className="small muted">
               Cadastre o cartão do VR/VA como conta (tipo “Vale-refeição / alimentação”) em{" "}
               <button type="button" className="link" onClick={() => navigate("contas")}>
-                Contas e extratos
+                Bancos e cartões
               </button>{" "}
               e informe o saldo: ele entra no saldo previsto e nos gastos de alimentação.
             </p>

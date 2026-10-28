@@ -64,6 +64,8 @@ export function categoryIn(input: string): string | null {
 export const isHelp = (input: string) =>
   /^(ajuda|help|menu|oi nia|o que (voce|vc) (sabe|faz|pode)|como (te |voce )?(uso|usar|funciona)|quais (sao )?(os )?comandos)/.test(normalize(input).replace(/[?!.]/g, ""));
 
+const BRANDS = /^(ifood|rappi|uber|99|amazon|shopee|mercado livre|magalu|delivery|aiqfome|ze delivery)\b/;
+
 const NOT_MERCHANT = /^(o |a |os |as )?(mes|semana|ano|dia|hoje|ontem|total|geral|cartao|credito|debito|pix|dinheiro|casa|familia)\b/;
 
 /** Estabelecimento citado: "no iFood", "na Amazon", "com o Uber". */
@@ -73,7 +75,8 @@ export function merchantIn(input: string): string | null {
   if (!m) return null;
   const name = m[1].trim();
   if (NOT_MERCHANT.test(name) || MONTHS.some((mo) => name.startsWith(mo)) || /^\d/.test(name)) return null;
-  if (categoryIn(name)) return null;
+  // Palavra de categoria ("mercado", "farmácia") não é loja; marca conhecida é, mesmo tendo categoria
+  if (categoryIn(name) && !BRANDS.test(name)) return null;
   return name.length >= 2 ? name : null;
 }
 

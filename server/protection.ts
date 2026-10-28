@@ -10,7 +10,7 @@ import { HttpError } from "./http.js";
 // ---------------------------------------------------------------------------
 // Reserva de emergência
 
-const ESSENTIAL = ["moradia", "alimentacao", "saude", "transporte", "educacao", "limpeza", "higiene"];
+const ESSENTIAL = ["moradia", "alimentacao", "saude", "transporte", "educacao", "limpeza", "higiene", "filhos", "impostos", "seguros", "dividas"];
 
 export async function reserveStatus(user: SessionUser, today: string): Promise<ReserveStatus> {
   const month = today.slice(0, 7);

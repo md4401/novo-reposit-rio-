@@ -37,6 +37,11 @@ describe("Nia entende lançamentos falados", () => {
     expect(p.allocations[0].categoryId).toBe("renda-extra");
   });
 
+  it("entende as categorias novas", () => {
+    expect(parseExpenseStatement("gastei 60 no restaurante", today)!.allocations[0].categoryId).toBe("restaurantes");
+    expect(parseExpenseStatement("paguei 150 de roupa", today)!.allocations[0].categoryId).toBe("vestuario");
+  });
+
   it("ignora perguntas", () => {
     expect(parseExpenseStatement("quanto gastei com mercado?", today)).toBeNull();
     expect(parseExpenseStatement("comprei pão", today)).toBeNull();

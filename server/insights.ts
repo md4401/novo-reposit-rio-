@@ -33,7 +33,7 @@ function titleCase(text: string) {
   return text.replace(/(^|\s)(\p{L})/gu, (_, space: string, c: string) => space + c.toUpperCase());
 }
 
-const BILL_CATEGORIES = new Set(["moradia", "saude", "educacao", "assinaturas"]);
+const BILL_CATEGORIES = new Set(["moradia", "saude", "educacao", "assinaturas", "seguros", "dividas"]);
 
 export function detectRecurring(transactions: TxLite[], today: string): { recurring: Recurring[]; installments: Recurring[] } {
   const groups = new Map<string, TxLite[]>();

@@ -18,6 +18,8 @@ type Options = {
   accounts?: Partial<Account>[];
   pending?: { description: string; amountCents: number }[];
   uiMode?: Me["profile"]["uiMode"];
+  /** Abertura do app (desligada nos fluxos, para os cliques não esperarem a animação) */
+  intro?: "full" | "short" | "off";
 };
 
 let seq = 0;
@@ -112,16 +114,18 @@ export class FakeApi {
   async install(page: Page) {
     const signedIn = this.signedIn;
     const welcomeSeen = this.options.welcomeSeen ?? signedIn;
+    const intro = this.options.intro ?? "off";
     await page.addInitScript(
-      ([token, profileId, signed, seen]) => {
+      ([token, profileId, signed, seen, introMode]) => {
         // Só na primeira carga: as próximas mantêm o que o app gravou
         if (sessionStorage.getItem("e2e.ready")) return;
         sessionStorage.setItem("e2e.ready", "1");
         localStorage.clear();
         if (signed) localStorage.setItem("ninho.token", token as string);
         if (seen) localStorage.setItem(`ninho.boasvindas.${profileId}`, "1");
+        localStorage.setItem("ninho.intro", introMode as string);
       },
-      [TOKEN, PROFILE_ID, signedIn, welcomeSeen] as const,
+      [TOKEN, PROFILE_ID, signedIn, welcomeSeen, intro] as const,
     );
     await page.route("**/api/**", (route) => this.handle(route));
   }

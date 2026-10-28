@@ -11,6 +11,7 @@ import { ChangePasswordModal, DeleteAccountModal, ResetCodeModal } from "../moda
 import { UpdateModal } from "../modals/UpdateModal";
 import { canInstall, isInstalled, onInstallChange, promptInstall } from "../lib/pwa";
 import { getThemePref, setThemePref, type ThemePref } from "../lib/theme";
+import { introSetting, setIntroSetting, type IntroSetting } from "../lib/intro";
 import { useData } from "../lib/useData";
 import { useApp } from "../state";
 import { inviteText } from "./Family";
@@ -42,6 +43,7 @@ export function SettingsPage() {
   const [nativeUpdater, setNativeUpdater] = useState(false);
   const [tab, setTab] = useState<Tab>(initialTab);
   const [theme, setTheme] = useState<ThemePref>(getThemePref);
+  const [intro, setIntro] = useState<IntroSetting>(introSetting);
   useEffect(() => void checkUpdate(true).then(setUpdate), []);
   useEffect(() => void hasNativeUpdater().then(setNativeUpdater), []);
   // Captura das notificações do banco: só no APK 0.5.0+ (null = indisponível)
@@ -420,6 +422,24 @@ export function SettingsPage() {
                       ["system", "Automático"],
                       ["light", "Claro"],
                       ["dark", "Escuro"],
+                    ]}
+                  />
+                </div>
+                <div className="setting-row">
+                  <div>
+                    <h4>Abertura</h4>
+                    <p>Completa uma vez por dia (o ninho se formando); curta nas outras vezes.</p>
+                  </div>
+                  <Segmented<IntroSetting>
+                    value={intro}
+                    onChange={(v) => {
+                      setIntro(v);
+                      setIntroSetting(v);
+                    }}
+                    options={[
+                      ["full", "Completa"],
+                      ["short", "Curta"],
+                      ["off", "Desligada"],
                     ]}
                   />
                 </div>

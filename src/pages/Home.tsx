@@ -1,6 +1,6 @@
 // Tela inicial: como está o mês, o que precisa de você e o que vem por aí — nessa ordem.
 import { CalendarClock, CircleCheck, CreditCard, FileText, House, Repeat, ChevronRight } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { Insight, Overview, UpcomingItem } from "../../shared/types";
 import { CategoryDonut } from "../components/charts";
 import { BalanceHelp, LeftoverHelp } from "../components/help";
@@ -11,6 +11,7 @@ import { DemoFlag, ErrorBox, Heading, LinkButton, Money, Panel, Progress, Segmen
 import { addMonths, monthLabel } from "../lib/format";
 import { navigate } from "../lib/router";
 import { useData } from "../lib/useData";
+import { introJustFinished } from "../lib/intro";
 import { DigestModal } from "../modals/DigestModal";
 import { MonthReportModal } from "../modals/MonthReportModal";
 import { useApp } from "../state";
@@ -116,6 +117,26 @@ export function HomePage() {
   );
 }
 
+/** Logo depois da abertura, o valor do mês conta de zero até o número (uma vez). */
+function CountUp({ cents }: { cents: number }) {
+  const [shown, setShown] = useState(() => (introJustFinished() ? 0 : cents));
+  useEffect(() => {
+    if (shown === cents) return;
+    const from = shown;
+    const start = performance.now();
+    let frame = 0;
+    const tick = (now: number) => {
+      const k = Math.min(1, (now - start) / 750);
+      setShown(Math.round(from + (cents - from) * (1 - (1 - k) ** 3)));
+      if (k < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cents]);
+  return <Money cents={shown} />;
+}
+
 /** "Seu mês": quanto saiu, entrou e sobrou, na visão escolhida. */
 function MonthCard({ data, view, onView }: { data: Overview; view: View; onView: (v: View) => void }) {
   const { openModal } = useApp();
@@ -143,7 +164,7 @@ function MonthCard({ data, view, onView }: { data: Overview; view: View; onView:
       <div className="month-main">
         <span>Saiu</span>
         <b className="num">
-          <Money cents={t.expenseCents} />
+          <CountUp cents={t.expenseCents} />
         </b>
       </div>
       {ratio !== null && (

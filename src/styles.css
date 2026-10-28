@@ -909,3 +909,85 @@ button.insight:hover { background: var(--tint); }
 .app.simple .nav-btn { font-size: 15px; padding-block: 12px; }
 .app.kid .content { zoom: 1.08; }
 .sidebar-all { margin: 12px 12px 0; font-size: 12.5px; color: #cfe3d6; }
+
+/* ===================== Abertura: o ninho se forma ===================== */
+.intro {
+  position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; overflow: hidden;
+  background: radial-gradient(120% 80% at 50% 45%, #14382e 0%, #0d2922 55%, #081d18 100%);
+  touch-action: none; user-select: none; -webkit-tap-highlight-color: transparent;
+}
+.intro-light {
+  position: absolute; width: 520px; height: 520px; left: 50%; top: 50%; margin: -260px 0 0 -260px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(199, 244, 108, 0.16) 0%, rgba(199, 244, 108, 0.05) 35%, transparent 65%);
+  opacity: 0; animation: intro-light 2.2s ease-out forwards;
+}
+@keyframes intro-light { 0% { opacity: 0; transform: scale(0.6); } 60% { opacity: 1; } 100% { opacity: 0.8; transform: scale(1); } }
+.intro-stage { position: relative; width: 240px; height: 240px; display: grid; place-items: center; }
+.intro-nest { position: absolute; inset: 0; overflow: visible; transition: opacity 0.45s ease, transform 0.6s cubic-bezier(0.5, 0, 0.2, 1); }
+.intro .twig { fill: none; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: intro-twig 0.8s cubic-bezier(0.6, 0.1, 0.2, 1) forwards; }
+.intro .t0 { stroke: #c7f46c; stroke-width: 3.2; opacity: 0.92; }
+.intro .t1 { stroke: #5f9c7c; stroke-width: 4.4; }
+.intro .t2 { stroke: #a6d98f; stroke-width: 2.4; opacity: 0.75; }
+@keyframes intro-twig { to { stroke-dashoffset: 0; } }
+.intro .kin {
+  fill: #e9ffc2; opacity: 0; transform-box: fill-box; transform-origin: center;
+  filter: drop-shadow(0 0 5px rgba(199, 244, 108, 0.9));
+  animation: intro-kin 0.62s cubic-bezier(0.2, 0.8, 0.25, 1) forwards;
+}
+@keyframes intro-kin {
+  0% { opacity: 0; transform: translate(var(--fx), var(--fy)) scale(0.4); }
+  35% { opacity: 1; }
+  85% { transform: translate(0, 0) scale(1.25); }
+  100% { opacity: 1; transform: none; }
+}
+/* O "ovo de luz": o mesmo ponto da moldura do index.html */
+.intro-egg {
+  position: absolute; width: 14px; height: 14px; border-radius: 50%; background: #c7f46c;
+  box-shadow: 0 0 22px 4px rgba(199, 244, 108, 0.45); animation: intro-egg 1.2s ease-in-out infinite;
+  transition: opacity 0.3s ease, transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+@keyframes intro-egg { 50% { box-shadow: 0 0 30px 8px rgba(199, 244, 108, 0.6); } }
+.intro-mark {
+  position: absolute; width: 76px; height: 76px; border-radius: 22px; background: #c7f46c; color: #0d2922;
+  font-weight: 900; font-size: 40px; letter-spacing: -1px; display: grid; place-items: center;
+  box-shadow: 0 0 0 0 rgba(199, 244, 108, 0.5), 0 18px 50px rgba(0, 0, 0, 0.35);
+  opacity: 0; transform: scale(0.18); will-change: transform;
+}
+.intro-word {
+  position: absolute; top: 172px; left: 0; right: 0; text-align: center; color: #f3f8ef;
+  font-size: 30px; font-weight: 800; letter-spacing: -1px; transition: opacity 0.2s ease;
+}
+.intro-word span { display: inline-block; opacity: 0; transform: translateY(8px); animation: intro-letter 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+.intro-word .dot { color: #c7f46c; animation-name: intro-dot; animation-duration: 0.6s; }
+@keyframes intro-letter { to { opacity: 1; transform: none; } }
+@keyframes intro-dot { 0% { opacity: 0; transform: scale(0.2); } 60% { opacity: 1; transform: scale(1.6); } 100% { opacity: 1; transform: none; } }
+.intro-tag {
+  position: absolute; top: 214px; left: -40px; right: -40px; text-align: center; color: #9fc4b0;
+  font-size: 11px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase;
+  opacity: 0; animation: intro-letter 0.6s ease forwards 1.75s; transition: opacity 0.2s ease;
+}
+/* Fases */
+.intro-full.is-nest .intro-mark { opacity: 0; }
+.intro-full.is-mark .intro-nest, .intro-full.is-hold .intro-nest, .intro-full.is-exit .intro-nest { opacity: 0.18; transform: scale(1.35); }
+.intro.is-mark .intro-mark, .intro.is-hold .intro-mark, .intro.is-exit .intro-mark { animation: intro-mark-in 0.6s cubic-bezier(0.2, 1.35, 0.4, 1) forwards; }
+.intro.is-mark .intro-egg, .intro.is-hold .intro-egg, .intro.is-exit .intro-egg { opacity: 0; transform: scale(3); }
+@keyframes intro-mark-in { to { opacity: 1; transform: scale(1); } }
+.intro.is-hold .intro-mark { animation: intro-mark-in 0.6s cubic-bezier(0.2, 1.35, 0.4, 1) forwards, intro-breathe 1.6s ease-in-out 0.6s infinite; }
+@keyframes intro-breathe { 50% { box-shadow: 0 0 0 14px rgba(199, 244, 108, 0), 0 18px 50px rgba(0, 0, 0, 0.35); transform: scale(1.04); } 0%, 100% { box-shadow: 0 0 0 0 rgba(199, 244, 108, 0.35), 0 18px 50px rgba(0, 0, 0, 0.35); opacity: 1; transform: scale(1); } }
+.intro.is-exit .intro-word, .intro.is-exit .intro-tag, .intro.is-exit .intro-nest, .intro.is-exit .intro-light { opacity: 0 !important; transition: opacity 0.18s ease; }
+/* Esmaecida (pouco movimento, modo simples/criança): logo parado e some */
+.intro-fade .intro-mark { opacity: 1; transform: none; animation: none !important; }
+.intro-fade .intro-egg, .intro-fade .intro-word, .intro-fade .intro-light { display: none; }
+.intro-fade-out { animation: intro-fade 0.3s ease forwards; }
+@keyframes intro-fade { to { opacity: 0; } }
+/* Chegada: os cartões da tela sobem em sequência */
+body.intro-arrive .page > * { animation: intro-arrive 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+body.intro-arrive .page > *:nth-child(2) { animation-delay: 0.06s; }
+body.intro-arrive .page > *:nth-child(3) { animation-delay: 0.12s; }
+body.intro-arrive .page > *:nth-child(4) { animation-delay: 0.18s; }
+body.intro-arrive .page > *:nth-child(n + 5) { animation-delay: 0.24s; }
+body.intro-arrive .topbar { animation: intro-arrive 0.5s ease both; }
+@keyframes intro-arrive { from { opacity: 0; transform: translateY(18px); } }
+@media (prefers-reduced-motion: reduce) {
+  body.intro-arrive .page > *, body.intro-arrive .topbar { animation: none; }
+}

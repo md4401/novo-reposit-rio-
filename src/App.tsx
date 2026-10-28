@@ -1,4 +1,7 @@
+import { useEffect } from "react";
+import { Intro } from "./components/Intro";
 import { Layout } from "./components/Layout";
+import { rememberHousehold } from "./lib/intro";
 import { Spinner } from "./components/ui";
 import { useRoute } from "./lib/router";
 import { AccountsPage } from "./pages/Accounts";
@@ -40,7 +43,22 @@ import { TaxPage } from "./pages/Tax";
 import { TransactionsPage } from "./pages/Transactions";
 import { useApp } from "./state";
 
+/** A abertura fica por cima enquanto o app carrega por baixo (os dados não esperam a animação). */
 export function App() {
+  const { me, loadingMe } = useApp();
+  // Lembra quantas pessoas tem a casa e o modo de uso para a próxima abertura
+  useEffect(() => {
+    if (me) rememberHousehold(me.household.members.filter((m) => !m.isDemo).length, me.profile.uiMode);
+  }, [me]);
+  return (
+    <>
+      <Screens />
+      <Intro ready={!loadingMe} />
+    </>
+  );
+}
+
+function Screens() {
   const { me, loadingMe } = useApp();
   const route = useRoute();
 

@@ -6,7 +6,8 @@ import { formatMoney } from "../shared/money.js";
 import { stripAccents } from "../shared/merchant.js";
 import { parseExpenseStatement } from "../shared/parse-expense.js";
 import { addMonths, dayLabel, monthLabel, monthOf, todayKey } from "../shared/time.js";
-import type { NiaMessage, Proposal } from "../shared/types.js";
+import type { NiaAction, NiaMessage, Proposal } from "../shared/types.js";
+import { actionReply, smartReply, type SpendIntent } from "./nia-smart.js";
 import { aiEnabled, niaAnswer } from "./ai.js";
 import { loadAlerts } from "./alerts.js";
 import type { SessionUser } from "./auth.js";
@@ -33,18 +34,22 @@ export async function listMessages(user: SessionUser): Promise<NiaMessage[]> {
   );
   const messages = rows.reverse().map(mapMessage);
   if (messages.length === 0) {
-    return [{ id: "welcome", role: "assistant", content: WELCOME, proposal: null, createdAt: new Date().toISOString() }];
+    return [{ id: "welcome", role: "assistant", content: WELCOME, proposal: null, action: null, suggestions: ["Quanto gastei este mês?", "Posso gastar 200?", "Põe leite na lista"], createdAt: new Date().toISOString() }];
   }
   return messages;
 }
 
+type Payload = { proposal?: Proposal; action?: NiaAction; suggestions?: string[]; intent?: SpendIntent };
+
 function mapMessage(r: Record<string, unknown>): NiaMessage {
-  const payload = (r.payload as { proposal?: Proposal } | null) ?? null;
+  const payload = (r.payload as Payload | null) ?? null;
   return {
     id: r.id as string,
     role: r.role as NiaMessage["role"],
     content: r.content as string,
     proposal: payload?.proposal ?? null,
+    action: payload?.action ?? null,
+    suggestions: payload?.suggestions ?? [],
     createdAt: new Date(r.created_at as string).toISOString(),
   };
 }
@@ -186,9 +191,10 @@ function list(items: string[]) {
 }
 
 export const NIA_HELP =
-  "Posso ajudar com: seus gastos do mês, gastos por categoria, pendências, assinaturas, alertas, metas, orçamento, " +
-  "contas do próximo mês, fatura do cartão, contas a pagar, saldo previsto, patrimônio, desafios, acertos, valores a receber, reserva, custo dos bancos, golpes, lista de compras, garantias e o resumo da família. Para registrar uma compra, é só dizer, por exemplo: " +
-  "“comprei R$ 80 de comida e R$ 30 de limpeza no mercado”.";
+  "Posso responder com os seus números: “quanto gastei no mercado na semana passada?”, “quanto gastei no iFood em setembro?”, " +
+  "“posso gastar 300?”, “como economizar?”, fatura, contas a pagar, reserva, metas e o resumo da família. " +
+  "Também anoto por você (você confirma antes): “gastei 80 no mercado”, “põe leite na lista”, " +
+  "“me lembra de pagar a luz dia 10, 180 reais”, “o Beto me deve 50 do mercado” ou “vou receber 300 de reembolso”.";
 
 /** Intenções comuns respondidas direto com os números do banco (sem IA: nunca erra valor).
  *  Devolve null quando a pergunta não é uma delas. */
@@ -358,6 +364,17 @@ export function ruleReply(question: string, ctx: Context): string | null {
   return null;
 }
 
+/** Próximas perguntas que fazem sentido depois de cada assunto. */
+function suggestionsFor(message: string) {
+  const text = stripAccents(message.toLowerCase());
+  if (/fatura|cartao/.test(text)) return ["Posso gastar 200?", "Quanto vou ter no fim do mês?"];
+  if (/pendenc|classific|revis/.test(text)) return ["Quanto gastei este mês?", "Como economizar?"];
+  if (/assinatura|recorrent/.test(text)) return ["Como economizar?", "Quanto os bancos me custam?"];
+  if (/meta|reserva|guardar/.test(text)) return ["Posso gastar 200?", "Como economizar?"];
+  if (/familia|casa/.test(text)) return ["Quem me deve?", "O que falta comprar na lista de compras?"];
+  return ["E no mês passado?", "Como economizar?", "Posso gastar 200?"];
+}
+
 function describeProposal(p: Proposal) {
   const parts = p.allocations.map((a) => `${categoryName(a.categoryId)} ${money(a.amountCents)}`);
   const scope = p.allocations.every((a) => a.scope === "family") ? "familiar" : p.allocations.some((a) => a.scope === "family") ? "parte familiar" : "pessoal";
@@ -378,20 +395,45 @@ export async function askNia(user: SessionUser, message: string): Promise<NiaMes
     )
   ).reverse();
 
-  const proposal = parseExpenseStatement(message, today);
+  const [members, lastRow] = await Promise.all([
+    query<{ id: string; name: string }>(`SELECT id, name FROM profiles WHERE household_id = $1 AND NOT is_demo AND id <> $2`, [user.household_id, user.id]),
+    query<{ payload: Payload | null }>(
+      `SELECT payload FROM ai_messages WHERE profile_id = $1 AND role = 'assistant' ORDER BY created_at DESC LIMIT 1`,
+      [user.id],
+    ),
+  ]);
+  const payload: Payload = {};
+  // 1) Pedidos (lista, lembrete, acerto, a receber) e lançamentos viram proposta para confirmar
+  const action = actionReply(message, today, members);
+  const proposal = action ? null : parseExpenseStatement(message, today);
   let reply: string;
-  if (proposal) {
+  if (action) {
+    reply = action.reply;
+    payload.action = action.action;
+  } else if (proposal) {
     reply = describeProposal(proposal);
+    payload.proposal = proposal;
+    payload.suggestions = ["Quanto gastei este mês?"];
   } else {
-    const ctx = await buildContext(user);
-    const direct = ruleReply(message, ctx);
-    reply = direct ?? NIA_HELP;
-    if (!direct && aiEnabled()) {
-      try {
-        const answer = await niaAnswer(message, moneyForAi(ctx), history);
-        if (answer) reply = answer;
-      } catch (error) {
-        logError(error); // IA indisponível: segue sem ela
+    // 2) Perguntas com período, estabelecimento, "posso gastar?" e dicas: só os números necessários
+    const smart = await smartReply(user, message, today, lastRow[0]?.payload?.intent ?? null, NIA_HELP).catch((error) => (logError(error), null));
+    if (smart) {
+      reply = smart.reply;
+      if (smart.suggestions) payload.suggestions = smart.suggestions;
+      if (smart.intent) payload.intent = smart.intent;
+    } else {
+      // 3) Regras com o contexto completo; 4) IA (se configurada) para o resto
+      const ctx = await buildContext(user);
+      const direct = ruleReply(message, ctx);
+      reply = direct ?? NIA_HELP;
+      payload.suggestions = direct ? suggestionsFor(message) : ["Quanto gastei este mês?", "Posso gastar 200?", "Como economizar?"];
+      if (!direct && aiEnabled()) {
+        try {
+          const answer = await niaAnswer(message, moneyForAi(ctx), history);
+          if (answer) reply = answer;
+        } catch (error) {
+          logError(error); // IA indisponível: segue sem ela
+        }
       }
     }
   }
@@ -400,7 +442,7 @@ export async function askNia(user: SessionUser, message: string): Promise<NiaMes
     `INSERT INTO ai_messages (profile_id, role, content, payload, created_at)
      VALUES ($1, 'user', $2, NULL, now()), ($1, 'assistant', $3, $4, now() + interval '1 millisecond')
      RETURNING id, role, content, payload, created_at`,
-    [user.id, message, reply, proposal ? JSON.stringify({ proposal }) : null],
+    [user.id, message, reply, Object.keys(payload).length ? JSON.stringify(payload) : null],
   );
   return rows.map(mapMessage);
 }

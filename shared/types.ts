@@ -1,3 +1,5 @@
+import type { NiaAction } from "./nia-intents.js";
+export type { NiaAction } from "./nia-intents.js";
 // Contratos entre a API (server/) e as telas (src/). Valores sempre em centavos.
 
 export type Scope = "personal" | "family";
@@ -299,6 +301,10 @@ export type NiaMessage = {
   role: "user" | "assistant";
   content: string;
   proposal: Proposal | null;
+  /** Pedido que a pessoa confirma (lista de compras, lembrete de conta, acerto, valor a receber) */
+  action: NiaAction | null;
+  /** Próximas perguntas sugeridas */
+  suggestions: string[];
   createdAt: string;
 };
 

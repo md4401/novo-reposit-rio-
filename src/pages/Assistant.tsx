@@ -1,7 +1,7 @@
 // Assistente Nia: conversa privada, lançamentos por texto ou voz (com confirmação) e nota fiscal.
 import { Bell, Camera, Check, ChevronRight, Lock, Mic, Pencil, Send, Sparkles, Square, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import type { NiaMessage, Proposal } from "../../shared/types";
+import type { NiaAction, NiaMessage, Proposal } from "../../shared/types";
 import { ErrorBox, Heading, Panel, Spinner } from "../components/ui";
 import { api } from "../lib/api";
 import { createTransaction } from "../lib/offline";
@@ -15,7 +15,7 @@ import { ReceiptModal } from "../modals/ReceiptModal";
 import { useApp } from "../state";
 import { CategoryIcon, Glyph } from "../components/icons";
 
-const QUICK = ["Quanto gastei este mês?", "O que falta classificar?", "Quais assinaturas estão ativas?", "Como está a família?", "Gastei 45 na farmácia"];
+const QUICK = ["Quanto gastei este mês?", "Posso gastar 200?", "Como economizar?", "Quanto gastei no mercado na semana passada?", "Põe leite e pão na lista", "Gastei 45 na farmácia"];
 const SAVED_KEY = "ninho.savedProposals";
 
 function savedProposals(): Set<string> {
@@ -89,6 +89,68 @@ function ProposalCard({ message, onSaved, saved }: { message: NiaMessage; saved:
   );
 }
 
+/** Pedido feito na conversa (lista, lembrete, acerto, a receber): só grava quando a pessoa confirma. */
+function ActionCard({ message, onSaved, saved }: { message: NiaMessage; saved: boolean; onSaved: (id: string) => void }) {
+  const { toast, refreshMe } = useApp();
+  const [busy, setBusy] = useState(false);
+  const a = message.action as NiaAction;
+
+  async function confirm() {
+    setBusy(true);
+    try {
+      if (a.kind === "shopping") {
+        for (const name of a.items) await api("shopping", { body: { name } });
+        toast("Na lista de compras. 🛒");
+      } else if (a.kind === "payable") {
+        await api("payables", { body: { name: a.name, categoryId: a.categoryId, amountCents: a.amountCents, dueOn: a.dueOn, recurrence: a.recurrence, remindDays: 3 } });
+        toast("Lembrete criado em Contas a pagar. 📅");
+      } else if (a.kind === "iou") {
+        await api("ious", { body: { otherId: a.otherId, owedToMe: a.owedToMe, amountCents: a.amountCents, description: a.description } });
+        toast("Acerto anotado. 🤝");
+      } else {
+        await api("receivables", { body: { name: a.name, kind: a.type, amountCents: a.amountCents, expectedOn: a.expectedOn } });
+        toast("Anotado em Valores a receber.");
+      }
+      onSaved(message.id);
+      await refreshMe();
+    } catch (e) {
+      toast((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const rows: [string, string][] =
+    a.kind === "shopping"
+      ? a.items.map((i) => ["🛒", i])
+      : a.kind === "payable"
+        ? [["Conta", a.name], ["Valor", formatMoney(a.amountCents)], ["Vence", `${dayLabel(a.dueOn)}${a.recurrence === "monthly" ? " · todo mês" : ""}`]]
+        : a.kind === "iou"
+          ? [[a.owedToMe ? `${a.otherName} te deve` : `Você deve a ${a.otherName}`, formatMoney(a.amountCents)], ["Do quê", a.description]]
+          : [[a.name, formatMoney(a.amountCents)]];
+  return (
+    <div className="proposal">
+      {rows.map(([k, v], i) => (
+        <div className="proposal-row" key={i}>
+          <span>{k}</span>
+          <b>{v}</b>
+        </div>
+      ))}
+      {saved ? (
+        <div className="chip green" style={{ marginTop: 8 }}>
+          <Check size={12} /> Feito
+        </div>
+      ) : (
+        <div className="proposal-actions">
+          <button type="button" className="btn dark small" disabled={busy} onClick={confirm}>
+            {busy ? <Spinner size={13} /> : <Check size={13} />} Confirmar
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AssistantPage() {
   const { me, openModal, toast, confirm } = useApp();
   const { data, error, reload } = useData<NiaMessage[]>("nia");
@@ -138,7 +200,7 @@ export function AssistantPage() {
     if (!clean || sending) return;
     setText("");
     setSending(true);
-    const optimistic: NiaMessage = { id: `tmp-${Date.now()}`, role: "user", content: clean, proposal: null, createdAt: new Date().toISOString() };
+    const optimistic: NiaMessage = { id: `tmp-${Date.now()}`, role: "user", content: clean, proposal: null, action: null, suggestions: [], createdAt: new Date().toISOString() };
     setMessages((m) => [...m.filter((x) => x.id !== "welcome"), optimistic]);
     try {
       const reply = await api<NiaMessage[]>("nia", { body: { message: clean } });
@@ -240,8 +302,19 @@ export function AssistantPage() {
                 <div key={m.id} className={`bubble ${m.role}`}>
                   {m.content}
                   {m.proposal && <ProposalCard message={m} saved={saved.has(m.id)} onSaved={markSaved} />}
+                  {m.action && <ActionCard message={m} saved={saved.has(m.id)} onSaved={markSaved} />}
                 </div>
               ))}
+              {/* Próximas perguntas sugeridas pela última resposta */}
+              {!sending && talking && (messages.at(-1)?.suggestions.length ?? 0) > 0 && (
+                <div className="chat-suggest">
+                  {messages.at(-1)!.suggestions.map((q) => (
+                    <button key={q} type="button" className="quick" onClick={() => send(q)}>
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              )}
               {sending && (
                 <div className="bubble assistant">
                   <Spinner size={14} /> Pensando…

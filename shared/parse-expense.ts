@@ -13,7 +13,7 @@ const INCOME_VERBS = /\b(recebi|recebemos|ganhei|ganhamos|entrou|caiu)\b/;
 const FAMILY_WORDS = /\b(familia|familiar|da casa|pra casa|para casa|de casa|compartilhad\w*|todo mundo)\b/;
 
 // Palavras faladas que não estão no dicionário de estabelecimentos
-const SPOKEN: [RegExp, string][] = [
+export const SPOKEN: [RegExp, string][] = [
   [/\b(comida|alimento\w*|alimentacao|lanche|almoco|janta|cafe da manha|mercado|feira|pao)\b/, "alimentacao"],
   [/\b(limpeza|produtos de limpeza)\b/, "limpeza"],
   [/\b(higiene|banho)\b/, "higiene"],
@@ -46,7 +46,7 @@ function categoryFrom(segment: string, direction: "expense" | "income") {
 
 const AMOUNT = /(?:r\$\s*)?(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?:\s*(reais|real|conto|contos|pila))?/g;
 
-function findAmounts(text: string) {
+export function findAmounts(text: string) {
   const found: { cents: number; index: number; end: number }[] = [];
   for (const m of text.matchAll(AMOUNT)) {
     const before = text.slice(Math.max(0, m.index - 5), m.index);

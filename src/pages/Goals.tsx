@@ -23,7 +23,7 @@ export function GoalsPage() {
   return (
     <>
       <Heading
-        title="Metas e objetivos"
+        title="Metas"
         subtitle="Transforme planos importantes em etapas possíveis."
         actions={
           <button type="button" className="btn dark" onClick={() => openModal(<NewGoalModal />)}>

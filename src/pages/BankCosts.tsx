@@ -23,7 +23,7 @@ export function BankCostsPage() {
   return (
     <>
       <Heading
-        title="Quanto os bancos custaram"
+        title="Custo dos bancos"
         subtitle="Tarifas, juros, IOF, anuidade e multas encontrados nos seus lançamentos."
         actions={
           <select aria-label="Ano" value={year} onChange={(e) => setYear(Number(e.target.value))}>

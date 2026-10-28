@@ -929,3 +929,8 @@ button.insight:hover { background: var(--tint); }
 .app.simple .nav-btn { font-size: 15px; padding-block: 12px; }
 .app.kid .content { zoom: 1.08; }
 .sidebar-all { margin: 12px 12px 0; font-size: 12.5px; color: #cfe3d6; }
+
+/* Tela com duas partes (Simuladores, Contas divididas, Compras): seletor abaixo das abas */
+.subpages { margin: -4px 0 16px; }
+.subpages .segmented { display: inline-flex; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.subpages .segmented button { white-space: nowrap; }

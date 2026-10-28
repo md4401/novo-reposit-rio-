@@ -91,7 +91,7 @@ export function SharePage() {
 
   return (
     <>
-      <Heading title="Compartilhado com o ninho" subtitle="Comprovantes, notas e mensagens viram lançamentos — você confere antes de salvar." />
+      <Heading title="Recebidos" subtitle="Comprovantes, notas e mensagens viram lançamentos — você confere antes de salvar." />
       {item === undefined ? (
         <Spinner />
       ) : item === null ? (

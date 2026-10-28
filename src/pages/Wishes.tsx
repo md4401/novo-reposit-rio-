@@ -71,7 +71,7 @@ export function WishesPage() {
   return (
     <>
       <Heading
-        title="Lista de desejos"
+        title="Desejos"
         subtitle="As compras grandes da casa, decididas juntos. Quem tem mais votos sobe na lista."
         actions={
           <button type="button" className="btn dark" onClick={() => openModal(<WishModal />)}>

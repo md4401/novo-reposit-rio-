@@ -1,89 +1,105 @@
-// Mapa do app: 9 seções no menu; as telas de cada seção viram abas no topo da página.
-// Os endereços das telas não mudam (#/pagar, #/cesta…): links antigos continuam funcionando.
-import { ArrowLeftRight, Bot, CalendarClock, House, Landmark, PiggyBank, Settings, ShieldAlert, ShieldCheck, Trophy, Users, Wallet } from "lucide-react";
+// Mapa do app: 11 seções no menu, cada uma responde a uma pergunta; as telas viram abas no topo.
+// Regras: título da página = nome da aba; até 5 abas por seção; "conta" só para banco.
+// Endereços antigos (#/cesta, #/acertos…) são redirecionados em lib/router.ts.
+import { ArrowLeftRight, Bot, CalendarClock, Eye, House, Landmark, PiggyBank, Settings, ShieldAlert, ShieldCheck, Target, Trophy, Users, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
 
 export type NavTab = { key: string; label: string };
 export type NavItem = { key: string; label: string; hint: string; icon: (size: number) => ReactNode; tabs: NavTab[] };
 
 export const NAV: NavItem[] = [
-  { key: "inicio", label: "Início", hint: "Resumo do mês", icon: (s) => <House size={s} />, tabs: [{ key: "inicio", label: "Início" }] },
+  { key: "inicio", label: "Início", hint: "Como está o seu mês", icon: (s) => <House size={s} />, tabs: [{ key: "inicio", label: "Início" }] },
   {
     key: "transacoes",
     label: "Transações",
-    hint: "Tudo o que entrou e saiu",
+    hint: "O que entrou e saiu",
     icon: (s) => <ArrowLeftRight size={s} />,
     tabs: [
       { key: "transacoes", label: "Transações" },
+      { key: "compartilhar", label: "Recebidos" },
       { key: "etiquetas", label: "Etiquetas" },
     ],
   },
   {
     key: "meu",
     label: "Meu dinheiro",
-    hint: "Só seu: assinaturas, renda, bancos, patrimônio, IR",
+    hint: "Quanto você tem: só seu",
     icon: (s) => <Wallet size={s} />,
     tabs: [
-      { key: "meu", label: "Resumo" },
-      { key: "alertas", label: "Assinaturas e alertas" },
-      { key: "renda", label: "Renda variável" },
-      { key: "receber", label: "Valores a receber" },
-      { key: "bancos", label: "Custo dos bancos" },
-      { key: "pontos", label: "Benefícios e pontos" },
+      { key: "meu", label: "Visão geral" },
       { key: "patrimonio", label: "Patrimônio e dívidas" },
+      { key: "reserva", label: "Reserva de emergência" },
+      { key: "renda", label: "Renda variável" },
       { key: "ir", label: "Imposto de Renda" },
+    ],
+  },
+  {
+    key: "pagar",
+    label: "Pagar e receber",
+    hint: "O que vence e o que vai entrar",
+    icon: (s) => <CalendarClock size={s} />,
+    tabs: [
+      { key: "pagar", label: "Contas a pagar" },
+      { key: "receber", label: "Valores a receber" },
+      { key: "previsao", label: "Saldo previsto" },
     ],
   },
   {
     key: "orcamento",
     label: "Planejar",
-    hint: "Orçamento, contas, metas e desafios",
-    icon: (s) => <PiggyBank size={s} />,
+    hint: "Orçamento, metas e simulações",
+    icon: (s) => <Target size={s} />,
     tabs: [
       { key: "orcamento", label: "Orçamento" },
-      { key: "pagar", label: "Contas a pagar" },
-      { key: "previsao", label: "Saldo previsto" },
       { key: "metas", label: "Metas" },
-      { key: "desejos", label: "Desejos" },
-      { key: "parcelar", label: "Parcelar ou à vista?" },
-      { key: "momentos", label: "Grandes momentos" },
+      { key: "simuladores", label: "Simuladores" },
       { key: "desafios", label: "Desafios" },
     ],
   },
   {
     key: "familia",
     label: "Casa",
-    hint: "Totais da família, contas divididas, acertos e compras",
+    hint: "O que é da família",
     icon: (s) => <Users size={s} />,
     tabs: [
       { key: "familia", label: "Resumo da casa" },
-      { key: "casa", label: "Contas da casa" },
-      { key: "acertos", label: "Quem deve a quem" },
+      { key: "casa", label: "Contas divididas" },
+      { key: "compras", label: "Compras" },
+      { key: "desejos", label: "Desejos" },
       { key: "reuniao", label: "Reunião do mês" },
-      { key: "compras", label: "Lista de compras" },
-      { key: "cesta", label: "Cesta" },
     ],
   },
   {
-    key: "reserva",
-    label: "Proteção",
-    hint: "Reserva, golpes, documentos e “e se eu faltar?”",
-    icon: (s) => <ShieldCheck size={s} />,
+    key: "alertas",
+    label: "De olho",
+    hint: "Onde o dinheiro pode estar escapando",
+    icon: (s) => <Eye size={s} />,
     tabs: [
-      { key: "reserva", label: "Reserva de emergência" },
+      { key: "alertas", label: "Assinaturas e alertas" },
       { key: "seguranca", label: "Golpes e segurança" },
-      { key: "documentos", label: "Documentos e garantias" },
-      { key: "legado", label: "E se eu faltar?" },
+      { key: "bancos", label: "Custo dos bancos" },
+      { key: "pontos", label: "Benefícios e pontos" },
     ],
   },
-  { key: "nia", label: "Assistente Nia", hint: "Pergunte ou fale um gasto", icon: (s) => <Bot size={s} />, tabs: [{ key: "nia", label: "Nia" }] },
+  {
+    key: "documentos",
+    label: "Proteção",
+    hint: "Documentos, “e se eu faltar?” e acompanhamento",
+    icon: (s) => <ShieldCheck size={s} />,
+    tabs: [
+      { key: "documentos", label: "Documentos e garantias" },
+      { key: "legado", label: "E se eu faltar?" },
+      { key: "acompanhar", label: "Acompanhamento" },
+    ],
+  },
+  { key: "nia", label: "Assistente Nia", hint: "Pergunte ou conte um gasto", icon: (s) => <Bot size={s} />, tabs: [{ key: "nia", label: "Nia" }] },
   {
     key: "contas",
     label: "Bancos e cartões",
-    hint: "Contas, importação e saúde dos dados",
+    hint: "De onde vêm os dados",
     icon: (s) => <Landmark size={s} />,
     tabs: [
-      { key: "contas", label: "Contas e cartões" },
+      { key: "contas", label: "Bancos e cartões" },
       { key: "saude", label: "Saúde dos dados" },
     ],
   },
@@ -91,10 +107,7 @@ export const NAV: NavItem[] = [
 ];
 
 /** Telas que não são abas, mas pertencem a uma seção (abertas por um link). */
-const OTHER_PAGES: Record<string, { section: string; label: string }> = {
-  acompanhar: { section: "familia", label: "Acompanhar" },
-  compartilhar: { section: "inicio", label: "Compartilhar" },
-};
+const OTHER_PAGES: Record<string, { section: string; label: string }> = {};
 
 /** Seção de uma tela (a aba "pagar" pertence a "Planejar"). */
 export function sectionOf(page: string) {
@@ -103,7 +116,7 @@ export function sectionOf(page: string) {
 }
 
 export const PAGE_TITLES: Record<string, string> = {
-  ...Object.fromEntries(NAV.flatMap((n) => n.tabs.map((t) => [t.key, n.tabs.length > 1 ? `${n.label} · ${t.label}` : n.label]))),
+  ...Object.fromEntries(NAV.flatMap((n) => n.tabs.map((t) => [t.key, n.tabs.length > 1 && t.label !== n.label ? `${n.label} · ${t.label}` : n.label]))),
   ...Object.fromEntries(Object.entries(OTHER_PAGES).map(([key, p]) => [key, p.label])),
 };
 

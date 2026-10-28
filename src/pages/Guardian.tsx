@@ -1,11 +1,20 @@
 // Acompanhar alguém (com autorização dela): totais do mês, contas a pagar e alertas de golpe. Nunca compras.
 import type { GuardianSummary } from "../../shared/types";
+import { GuardianPanel } from "../components/CarePanels";
 import { ErrorBox, Heading, Money, Panel, Skeleton } from "../components/ui";
 import { dayLabel, formatMoney, monthLabel } from "../lib/format";
 import { useData } from "../lib/useData";
 
 export function GuardianPage({ id }: { id: string }) {
-  const { data, error, reload } = useData<GuardianSummary>(`guardians/${id}/summary`);
+  const { data, error, reload } = useData<GuardianSummary>(id ? `guardians/${id}/summary` : null);
+  // Pelo menu (sem pessoa escolhida): quem você acompanha e quem pode acompanhar você
+  if (!id)
+    return (
+      <>
+        <Heading title="Acompanhamento" subtitle="Alguém de confiança vê só totais, contas a pagar e alertas de golpe — nunca as compras." />
+        <GuardianPanel />
+      </>
+    );
   return (
     <>
       <Heading title={data ? `Acompanhando ${data.name}` : "Acompanhar"} subtitle="Só totais, contas a pagar e alertas de golpe — as compras continuam privadas." />

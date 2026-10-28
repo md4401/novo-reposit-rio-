@@ -32,7 +32,7 @@ export function BasketPage() {
   return (
     <>
       <Heading
-        title="Cesta da família"
+        title="Preços da cesta"
         subtitle="O preço dos produtos das notas fiscais da casa ao longo do tempo. Sem dizer quem comprou nem onde."
         actions={
           <button type="button" className="btn dark" onClick={() => openModal(<ReceiptModal />)}>

@@ -14,7 +14,7 @@ const BOTTOM = BOTTOM_KEYS.map((key) => NAV.find((n) => n.key === key)!);
 const BOTTOM_LABEL: Record<string, string> = { inicio: "Início", transacoes: "Transações", orcamento: "Planejar", familia: "Casa" };
 
 // Aviso de uma vez só para quem já usava o app antes do menu novo (quem está testando com exemplo não conhecia o antigo)
-const NEWS_KEY = "ninho.novidades.menu9";
+const NEWS_KEY = "ninho.novidades.menu10";
 function readSeen() {
   try {
     return localStorage.getItem(NEWS_KEY) === "1";
@@ -242,7 +242,7 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
           {!seenNews && me?.setup.hasTransactions && !me.hasDemoData && (
             <div className="news-bar" role="status">
               <span>
-                <b>As telas agora ficam agrupadas em seções</b> — todas continuam aqui. No menu, cada seção lista as suas telas, e elas também aparecem como abas no topo. No celular, o menu completo abre pela sua foto, no canto de cima.
+                <b>O menu foi reorganizado</b> por pergunta: Pagar e receber, De olho, Proteção… Nenhuma tela saiu; algumas se juntaram (Simuladores, Contas divididas, Compras). No celular, o menu completo abre pela sua foto.
               </span>
               <button type="button" className="icon-btn" onClick={hideNews} aria-label="Entendi">
                 <X size={15} />

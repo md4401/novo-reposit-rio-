@@ -22,18 +22,18 @@ export function FamilyPage() {
   return (
     <>
       <Heading
-        title="Nossa família"
+        title="Resumo da casa"
         subtitle="O que importa para a casa, sem expor as finanças individuais."
         actions={
           <>
             <button type="button" className="btn ghost" onClick={() => navigate("casa")}>
-              <Receipt size={15} /> Contas da casa
+              <Receipt size={15} /> Contas divididas
             </button>
             <button type="button" className="btn ghost" onClick={() => navigate("orcamento")}>
               <PiggyBank size={15} /> Orçamento da casa
             </button>
             <button type="button" className="btn ghost" onClick={() => navigate("desejos")}>
-              <Gift size={15} /> Lista de desejos
+              <Gift size={15} /> Desejos
             </button>
             <button type="button" className="btn ghost" onClick={() => navigate("saude")}>
               <Activity size={15} /> Saúde dos dados

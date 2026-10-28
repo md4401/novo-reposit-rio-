@@ -168,7 +168,7 @@ export function AccountsPage() {
         <Panel
           title={
             <h2>
-              Suas contas e cartões <BalanceHelp />
+              Seus bancos e cartões <BalanceHelp />
             </h2>
           }
         >

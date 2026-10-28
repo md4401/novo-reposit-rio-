@@ -12,13 +12,10 @@ import { ForecastPage } from "./pages/Forecast";
 import { GoalsPage } from "./pages/Goals";
 import { HealthPage } from "./pages/Health";
 import { HomePage } from "./pages/Home";
-import { HouseBillsPage } from "./pages/HouseBills";
 import { PayablesPage } from "./pages/Payables";
 import { PersonalPage } from "./pages/Personal";
 import { WealthPage } from "./pages/Wealth";
 import { WishesPage } from "./pages/Wishes";
-import { BasketPage } from "./pages/Basket";
-import { BetweenPage } from "./pages/Between";
 import { MeetingPage } from "./pages/Meeting";
 import { ReceivablesPage } from "./pages/Receivables";
 import { BankCostsPage } from "./pages/BankCosts";
@@ -30,9 +27,7 @@ import { SecurityPage } from "./pages/Security";
 import { IncomePage } from "./pages/Income";
 import { GuardianPage } from "./pages/Guardian";
 import { KidHomePage } from "./pages/KidHome";
-import { InstallmentsPage } from "./pages/Installments";
-import { SimulatorPage } from "./pages/Simulator";
-import { ShoppingPage } from "./pages/Shopping";
+import { GroceriesPage, SimulatorsPage, SplitBillsPage } from "./pages/Merged";
 import { SettingsPage } from "./pages/Settings";
 import { SharePage } from "./pages/Share";
 import { TagsPage } from "./pages/Tags";
@@ -71,8 +66,6 @@ export function App() {
     etiquetas: <TagsPage />,
     desejos: <WishesPage />,
     desafios: <ChallengesPage />,
-    cesta: <BasketPage />,
-    acertos: <BetweenPage />,
     reuniao: <MeetingPage />,
     receber: <ReceivablesPage />,
     bancos: <BankCostsPage />,
@@ -82,12 +75,11 @@ export function App() {
     legado: <LegacyPage />,
     seguranca: <SecurityPage />,
     renda: <IncomePage />,
-    parcelar: <InstallmentsPage />,
-    momentos: <SimulatorPage />,
-    compras: <ShoppingPage />,
+    simuladores: <SimulatorsPage tab={route.query.get("aba")} />,
+    compras: <GroceriesPage tab={route.query.get("aba")} />,
     acompanhar: <GuardianPage id={route.query.get("id") ?? ""} key={route.query.get("id")} />,
     compartilhar: <SharePage />,
-    casa: <HouseBillsPage />,
+    casa: <SplitBillsPage tab={route.query.get("aba")} />,
     metas: <GoalsPage />,
     nia: <AssistantPage />,
     alertas: <AlertsPage />,

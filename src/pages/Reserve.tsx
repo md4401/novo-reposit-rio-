@@ -81,7 +81,7 @@ export function ReservePage() {
               Marque as contas e investimentos que são para emergência. O ideal é algo seguro e que você saca no mesmo dia (Tesouro Selic, CDB de liquidez diária,
               conta remunerada).
             </p>
-            {data.items.length === 0 && <p className="small muted">Cadastre suas contas em “Contas e extratos” e investimentos em “Patrimônio e dívidas”.</p>}
+            {data.items.length === 0 && <p className="small muted">Cadastre suas contas em “Bancos e cartões” e investimentos em “Patrimônio e dívidas”.</p>}
             {data.items.map((i) => (
               <div key={i.id} className="setting-row">
                 <div>

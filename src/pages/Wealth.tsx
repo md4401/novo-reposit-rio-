@@ -195,7 +195,7 @@ export function WealthPage() {
 
   return (
     <>
-      <Heading title="Patrimônio" subtitle="Tudo o que você tem menos tudo o que deve — e como isso muda mês a mês. Só você vê." />
+      <Heading title="Patrimônio e dívidas" subtitle="Tudo o que você tem menos tudo o que deve — e como isso muda mês a mês. Só você vê." />
       {error && <ErrorBox message={error} onRetry={reload} />}
       {!data ? (
         <Skeleton height={260} />

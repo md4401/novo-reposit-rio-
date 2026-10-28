@@ -62,13 +62,24 @@ export function MoreSheet({ page, reduced, onShowAll }: { page: string; reduced?
         </button>
       )}
       {all ? (
-        <div className="sheet-grid">
+        <div className="sheet-sections">
           {NAV.map((n) => (
-            <button key={n.key} type="button" className={`sheet-tile ${current === n.key ? "on" : ""}`} onClick={() => go(n.key)} aria-current={current === n.key ? "page" : undefined}>
-              <span className="sheet-ic">{n.icon(18)}</span>
-              <b>{n.label}</b>
-              <small>{n.hint}</small>
-            </button>
+            <div key={n.key} className={`sheet-section ${current === n.key ? "on" : ""}`}>
+              <button type="button" className="sheet-section-head" onClick={() => go(n.key)} aria-current={current === n.key && n.tabs.length === 1 ? "page" : undefined}>
+                <span className="sheet-ic">{n.icon(17)}</span>
+                <b>{n.label}</b>
+                {n.tabs.length === 1 && <small>{n.hint}</small>}
+              </button>
+              {n.tabs.length > 1 && (
+                <div className="sheet-screens">
+                  {n.tabs.map((t) => (
+                    <button key={t.key} type="button" className={`cat-chip ${page === t.key ? "on" : ""}`} onClick={() => go(t.key)} aria-current={page === t.key ? "page" : undefined}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           ))}
         </div>
       ) : (

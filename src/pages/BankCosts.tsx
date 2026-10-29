@@ -62,8 +62,8 @@ export function BankCostsPage() {
           </Panel>
           {data.byAccount.length > 1 && (
             <Panel title="Por conta">
-              {data.byAccount.map((a) => (
-                <div key={a.name} className="setting-row">
+              {data.byAccount.map((a, n) => (
+                <div key={`${a.name}-${n}`} className="setting-row">
                   <span>{a.name}</span>
                   <Money cents={a.cents} />
                 </div>

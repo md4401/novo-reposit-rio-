@@ -75,7 +75,9 @@ export function FamilyPage() {
               {me?.profile.defaultScope === "personal" && (
                 <p className="small" style={{ marginTop: 6 }}>
                   Suas despesas novas estão entrando como Pessoal.{" "}
-                  <LinkButton onClick={() => navigate("ajustes?aba=privacidade")}>Mudar</LinkButton>
+                  <button type="button" className="link" style={{ color: "inherit", textDecoration: "underline" }} onClick={() => navigate("ajustes?aba=privacidade")}>
+                    Mudar
+                  </button>
                 </p>
               )}
               <div className="members">
@@ -135,7 +137,7 @@ export function FamilyPage() {
               value={data.savingsRate === null ? "—" : `${(data.savingsRate * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`}
               foot="Saldo ÷ receitas do mês"
             />
-            <Metric label="Metas compartilhadas" icon={<Target size={17} />} value={String(data.goals.length).padStart(2, "0")} foot="Objetivos acompanhados" onClick={() => navigate("metas")} />
+            <Metric label="Metas compartilhadas" icon={<Target size={17} />} value={String(data.goals.length)} foot="Objetivos acompanhados" onClick={() => navigate("metas")} />
           </div>
 
           <div className="grid-2">

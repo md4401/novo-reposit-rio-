@@ -231,7 +231,7 @@ route("POST", "auth/register", async ({ request }) => {
 
 async function sessionFor(profileId: string) {
   return one<SessionUser>(
-    `SELECT id, household_id, name, email, role, avatar_color, timezone, digest_hour, '' AS session_id
+    `SELECT id, household_id, name, email, role, avatar_color, timezone, digest_hour, default_scope, '' AS session_id
        FROM profiles WHERE id = $1`,
     [profileId],
   );

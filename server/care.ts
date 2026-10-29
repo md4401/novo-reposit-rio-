@@ -78,7 +78,7 @@ export async function removeGuardian(user: SessionUser, otherId: string) {
 
 export async function guardianSummary(user: SessionUser, profileId: string, today: string): Promise<GuardianSummary> {
   const watched = await one<SessionUser>(
-    `SELECT p.id, p.household_id, p.name, p.email, p.role, p.avatar_color, p.timezone, p.digest_hour, '' AS session_id
+    `SELECT p.id, p.household_id, p.name, p.email, p.role, p.avatar_color, p.timezone, p.digest_hour, p.default_scope, '' AS session_id
        FROM guardians g JOIN profiles p ON p.id = g.profile_id
       WHERE g.profile_id = $1 AND g.guardian_id = $2 AND p.household_id = $3`,
     [profileId, user.id, user.household_id],

@@ -131,8 +131,8 @@ export function MeetingPage() {
           )}
           {(data.bills.length > 0 || data.ious.length > 0) && (
             <Panel title="3 · Contas e acertos">
-              {data.bills.map((b) => (
-                <div key={b.name + b.dueOn} className="setting-row">
+              {data.bills.map((b, n) => (
+                <div key={`${b.name + b.dueOn}-${n}`} className="setting-row">
                   <div>
                     <h4>{b.name}</h4>
                     <p>vence {dayLabel(b.dueOn)}</p>
@@ -140,8 +140,8 @@ export function MeetingPage() {
                   <span className={b.unpaidCents ? "down small" : "up small"}>{b.unpaidCents ? `falta ${formatMoney(b.unpaidCents)}` : "paga ✓"}</span>
                 </div>
               ))}
-              {data.ious.map((i) => (
-                <div key={i.name} className="setting-row">
+              {data.ious.map((i, n) => (
+                <div key={`${i.name}-${n}`} className="setting-row">
                   <span>{i.netCents > 0 ? `${i.name} te deve` : `Você deve a ${i.name}`}</span>
                   <Money cents={Math.abs(i.netCents)} />
                 </div>
@@ -150,8 +150,8 @@ export function MeetingPage() {
           )}
           {(data.goals.length > 0 || data.wishes.length > 0) && (
             <Panel title="4 · Metas e desejos">
-              {data.goals.map((g) => (
-                <div key={g.name} style={{ marginBottom: 10 }}>
+              {data.goals.map((g, n) => (
+                <div key={`${g.name}-${n}`} style={{ marginBottom: 10 }}>
                   <div className="setting-row" style={{ border: 0, paddingBottom: 4 }}>
                     <span>
                       {g.icon} {g.name}
@@ -163,8 +163,8 @@ export function MeetingPage() {
                   <Progress value={g.targetCents ? g.savedCents / g.targetCents : 0} tone="lime" />
                 </div>
               ))}
-              {data.wishes.map((w) => (
-                <div key={w.name} className="setting-row">
+              {data.wishes.map((w, n) => (
+                <div key={`${w.name}-${n}`} className="setting-row">
                   <span>🎁 {w.name}</span>
                   <span className="small">
                     {formatMoney(w.priceCents)} · {w.votes} voto(s)

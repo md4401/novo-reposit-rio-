@@ -194,7 +194,7 @@ export async function payDueAllowances(householdId?: string) {
     if (!claimed) continue;
     const member: SessionUser = {
       id: a.member_id, household_id: a.household_id, name: a.name, email: a.email, role: a.role,
-      avatar_color: a.avatar_color, timezone: a.timezone, digest_hour: a.digest_hour, session_id: "",
+      avatar_color: a.avatar_color, timezone: a.timezone, digest_hour: a.digest_hour, default_scope: "personal", session_id: "",
     };
     await insertTransaction(member, {
       description: "Mesada",

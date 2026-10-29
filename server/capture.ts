@@ -11,7 +11,7 @@ import { insertTransaction } from "./finance.js";
 export type CapturedItem = { key: string; packageName: string; title: string; text: string; postedAt: number };
 
 export async function captureNotifications(user: SessionUser, items: CapturedItem[], today: string) {
-  const classifier = await loadClassifier(user.id);
+  const classifier = await loadClassifier(user.id, user.default_scope);
   let created = 0;
   let ignored = 0;
   for (const item of items.slice(0, 100)) {

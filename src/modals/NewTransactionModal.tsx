@@ -32,7 +32,9 @@ export function NewTransactionModal({
   const [amount, setAmount] = useState(proposal ? centsToInput(proposal.amountCents) : "");
   const [date, setDate] = useState(proposal?.occurredOn ?? me?.today ?? "");
   const [categoryId, setCategoryId] = useState<string>(proposal?.allocations[0]?.categoryId ?? "auto");
-  const [scope, setScope] = useState<Scope>(proposal?.allocations[0]?.scope ?? "personal");
+  const [scope, setScope] = useState<Scope>(
+    proposal?.allocations[0]?.scope ?? ((proposal?.direction ?? initialDirection) === "expense" ? (me?.profile.defaultScope ?? "personal") : "personal"),
+  );
   const [accountId, setAccountId] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);

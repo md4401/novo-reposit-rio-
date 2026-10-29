@@ -202,7 +202,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       else if (route) window.location.hash = `#/${route === "inicio" ? "" : route}`;
     };
     void run();
-    const onVisible = () => document.visibilityState === "visible" && void run();
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      void run();
+      void refreshMe(); // contadores e família podem ter mudado em outro aparelho
+    };
     document.addEventListener("visibilitychange", onVisible);
     const off = onNativeLaunch(() => void run());
     return () => {

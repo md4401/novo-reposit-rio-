@@ -104,7 +104,8 @@ function ReceiptPreview({ id }: { id: string }) {
 }
 
 export function OrganizeModal({ transaction: t }: { transaction: Transaction }) {
-  const { closeModal, toast, refreshMe, confirm } = useApp();
+  const { me, closeModal, toast, refreshMe, confirm } = useApp();
+  const newScope: Scope = t.direction === "expense" ? (me?.profile.defaultScope ?? "personal") : "personal";
   const goals = useData<Goal[]>("goals");
   const [goalId, setGoalId] = useState(t.goalId ?? "");
   const [goalAlways, setGoalAlways] = useState(false);
@@ -116,7 +117,7 @@ export function OrganizeModal({ transaction: t }: { transaction: Transaction }) 
   const [rows, setRows] = useState<Row[]>(() =>
     t.allocations.length && t.direction !== "transfer"
       ? t.allocations.map((a) => ({ categoryId: a.categoryId, value: centsToInput(a.amountCents), scope: a.scope }))
-      : [{ categoryId: t.direction === "income" ? "outras-receitas" : "outros", value: centsToInput(t.amountCents), scope: "personal" }],
+      : [{ categoryId: t.direction === "income" ? "outras-receitas" : "outros", value: centsToInput(t.amountCents), scope: newScope }],
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -147,7 +148,7 @@ export function OrganizeModal({ transaction: t }: { transaction: Transaction }) 
     const last = rows.length - 1;
     const value = (parseMoney(rows[last].value) ?? 0) + diff;
     if (value > 0) update(last, { value: centsToInput(value) });
-    else setRows((rs) => [...rs, { categoryId: "outros", value: centsToInput(diff), scope: "personal" }]);
+    else setRows((rs) => [...rs, { categoryId: "outros", value: centsToInput(diff), scope: rs[last].scope }]);
   };
 
   async function save(allocations?: Allocation[]) {

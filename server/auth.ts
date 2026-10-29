@@ -52,6 +52,8 @@ export type SessionUser = {
   avatar_color: string;
   timezone: string;
   digest_hour: number;
+  /** Como as despesas novas entram quando ninguém escolhe (Configurações → Privacidade) */
+  default_scope: "personal" | "family";
   session_id: string;
 };
 
@@ -64,7 +66,7 @@ export async function requireUser(request: Request): Promise<SessionUser> {
   const token = bearer(request);
   if (!token) throw new HttpError(401, "Entre na sua conta para continuar");
   const user = await one<SessionUser & { last_seen_at: Date }>(
-    `SELECT p.id, p.household_id, p.name, p.email, p.role, p.avatar_color, p.timezone, p.digest_hour,
+    `SELECT p.id, p.household_id, p.name, p.email, p.role, p.avatar_color, p.timezone, p.digest_hour, p.default_scope,
             s.id AS session_id, s.last_seen_at
        FROM sessions s JOIN profiles p ON p.id = s.profile_id
       WHERE s.token_hash = $1 AND s.expires_at > now() AND NOT p.is_demo`,

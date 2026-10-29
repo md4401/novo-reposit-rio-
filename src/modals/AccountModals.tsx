@@ -135,10 +135,13 @@ export function ImportModal({ accountId: initial }: { accountId?: string }) {
       const result = await api<ImportResult>("import", { body: { accountId, fileName: f.name, content: f.content, invertSigns: inv, commit } });
       if (commit) {
         await refreshMe();
-        closeModal(() => navigate("transacoes"));
+        // Abre a lista no mês do extrato (que nem sempre é o mês atual)
+        closeModal(() => navigate(result.latestMonth ? `transacoes?mes=${result.latestMonth}` : "transacoes"));
         toast(
           result.imported
-            ? `${result.imported} movimentações importadas${result.duplicates ? ` (${result.duplicates} já existiam e foram puladas)` : ""}. Confira as pendências!`
+            ? `${result.imported} movimentações importadas${result.duplicates ? ` (${result.duplicates} já existiam e foram puladas)` : ""}.${
+                result.pending ? ` ${result.pending} ficaram em “A revisar”: escolha a categoria e elas entram nos totais.` : ""
+              }`
             : "Nada novo: todas as movimentações desse arquivo já estavam no ninho.",
         );
       } else setPreview(result);

@@ -45,23 +45,40 @@ type ChatMessage = { role: "system" | "user" | "assistant"; content: string | un
 
 async function chat(messages: ChatMessage[], opts: { json?: boolean; maxTokens?: number; vision?: boolean } = {}) {
   const { key, base, model, visionModel } = aiConfig();
-  const response = await fetch(`${base}/chat/completions`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-    body: JSON.stringify({
-      model: opts.vision ? visionModel : model,
-      messages,
-      ...(opts.json ? { response_format: { type: "json_object" } } : {}),
-      max_completion_tokens: opts.maxTokens ?? 800,
-    }),
-    signal: AbortSignal.timeout(25_000),
-  });
+  const send = (jsonMode: boolean) =>
+    fetch(`${base}/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify({
+        model: opts.vision ? visionModel : model,
+        messages,
+        ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
+        max_completion_tokens: opts.maxTokens ?? 800,
+      }),
+      signal: AbortSignal.timeout(opts.vision ? 40_000 : 25_000),
+    });
+  let response = await send(Boolean(opts.json));
+  if (!response.ok && opts.json && response.status === 400) {
+    // Modelos que "pensam" antes de responder (ex.: Qwen no Groq) quebram o modo JSON do provedor
+    // (json_validate_failed). Pede de novo sem o modo JSON: o prompt já exige JSON e parseAiJson extrai.
+    const text = await response.text();
+    if (!/json_validate_failed|response_format|json/i.test(text)) throw new Error(`IA respondeu 400: ${text.slice(0, 200)}`);
+    response = await send(false);
+  }
   if (!response.ok) throw new Error(`IA respondeu ${response.status}: ${(await response.text()).slice(0, 200)}`);
   const data = (await response.json()) as { choices?: { message?: { content?: string } }[] };
   return (data.choices?.[0]?.message?.content ?? "")
-    .replace(/<think>[\s\S]*?<\/think>/g, "") // modelos que "pensam em voz alta"
+    .replace(/<think>[\s\S]*?(<\/think>|$)/g, "") // modelos que "pensam em voz alta" (mesmo se cortado no meio)
     .replace(/[\u202f\u00a0]/g, " ")
     .trim();
+}
+
+/** Lê o JSON da resposta da IA, mesmo com texto ou bloco ```json em volta. */
+export function parseAiJson<T>(content: string): T {
+  const start = content.indexOf("{");
+  const end = content.lastIndexOf("}");
+  if (start < 0 || end < start) throw new Error("IA não devolveu JSON");
+  return JSON.parse(content.slice(start, end + 1)) as T;
 }
 
 /** Transcreve um áudio curto (pt-BR). O áudio não é guardado em lugar nenhum. */
@@ -101,13 +118,28 @@ export async function classifyWithAi(description: string) {
     ],
     { json: true, maxTokens: 100 },
   );
-  const parsed = JSON.parse(content) as { categoryId?: string; confidence?: number };
+  const parsed = parseAiJson<{ categoryId?: string; confidence?: number }>(content);
   if (!parsed.categoryId || !expenseIds.includes(parsed.categoryId)) return null;
   return { categoryId: parsed.categoryId, confidence: Number(parsed.confidence ?? 0) };
 }
 
 /** Classifica vários estabelecimentos numa chamada só (importação de extrato). */
 export async function classifyManyWithAi(descriptions: string[]) {
+  const result = new Map<string, { categoryId: string; confidence: number }>();
+  // Em lotes pequenos: uma resposta longa demais corta o JSON e perde o lote inteiro
+  let failure: unknown = null;
+  for (let start = 0; start < descriptions.length; start += 20) {
+    try {
+      for (const [description, guess] of await classifyBatchWithAi(descriptions.slice(start, start + 20))) result.set(description, guess);
+    } catch (error) {
+      failure = error; // um lote ruim não derruba os outros
+    }
+  }
+  if (failure && result.size === 0) throw failure;
+  return result;
+}
+
+async function classifyBatchWithAi(descriptions: string[]) {
   const result = new Map<string, { categoryId: string; confidence: number }>();
   if (descriptions.length === 0) return result;
   const content = await chat(
@@ -117,13 +149,13 @@ export async function classifyManyWithAi(descriptions: string[]) {
         content:
           `Classifique cada despesa de extrato bancário brasileiro em uma categoria. ` +
           `Responda JSON {"items": [{"i": número da linha, "categoryId": string, "confidence": número de 0 a 1}]}. ` +
-          `Categorias válidas: ${expenseIds.join(", ")}. Se não souber, use confidence baixo.`,
+          `Categorias válidas: ${expenseIds.join(", ")}. Se não souber, use confidence baixo. Responda só o JSON.`,
       },
       { role: "user", content: descriptions.map((d, i) => `${i}: ${d.slice(0, 120)}`).join("\n") },
     ],
-    { json: true, maxTokens: 60 * descriptions.length + 200 },
+    { json: true, maxTokens: 80 * descriptions.length + 600 },
   );
-  const parsed = JSON.parse(content) as { items?: { i: number; categoryId: string; confidence: number }[] };
+  const parsed = parseAiJson<{ items?: { i: number; categoryId: string; confidence: number }[] }>(content);
   for (const item of parsed.items ?? []) {
     const description = descriptions[item.i];
     if (description && expenseIds.includes(item.categoryId)) {
@@ -175,14 +207,14 @@ export async function readReceiptWithAi(imageDataUrl: string) {
         ],
       },
     ],
-    { json: true, maxTokens: 1500, vision: true },
+    { json: true, maxTokens: 4000, vision: true },
   );
-  return JSON.parse(content) as {
+  return parseAiJson<{
     merchant: string | null;
     date: string | null;
     totalCents: number;
     items: { name: string; amountCents: number; categoryId: string }[];
-  };
+  }>(content);
 }
 
 /** Comprovante de Pix/transferência (imagem): valor, quem recebeu/enviou e data. */
@@ -207,5 +239,5 @@ export async function readPixWithAi(imageDataUrl: string) {
     ],
     { json: true, maxTokens: 400, vision: true },
   );
-  return JSON.parse(content) as { amountCents: number; name: string | null; date: string | null; direction: "expense" | "income"; kind: string };
+  return parseAiJson<{ amountCents: number; name: string | null; date: string | null; direction: "expense" | "income"; kind: string }>(content);
 }

@@ -47,3 +47,11 @@ describe("Nia entende lançamentos falados", () => {
     expect(parseExpenseStatement("comprei pão", today)).toBeNull();
   });
 });
+
+describe("visibilidade padrão da pessoa", () => {
+  it("despesa sem palavra de família segue a escolha da pessoa; receita fica pessoal", () => {
+    expect(parseExpenseStatement("gastei 45 na farmácia", today, "family")!.allocations[0].scope).toBe("family");
+    expect(parseExpenseStatement("gastei 45 na farmácia", today)!.allocations[0].scope).toBe("personal");
+    expect(parseExpenseStatement("recebi 500 de salário", today, "family")!.allocations[0].scope).toBe("personal");
+  });
+});

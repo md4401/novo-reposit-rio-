@@ -56,6 +56,8 @@ export type Me = {
     uiMode: "full" | "simple" | "kid";
     /** Informou a renda para a divisão proporcional */
     hasSplitIncome: boolean;
+    /** Como as despesas novas entram quando não se escolhe: Família (só nos totais) ou Pessoal */
+    defaultScope: Scope;
   };
   household: {
     id: string;
@@ -286,6 +288,10 @@ export type ImportResult = {
   bank: string | null;
   /** Fatura de cartão reconhecida: sinais invertidos automaticamente */
   autoInverted: boolean;
+  /** Mês (AAAA-MM) da movimentação mais recente do arquivo: a lista abre nele depois de importar */
+  latestMonth: string | null;
+  /** Quantas das importadas ficaram sem categoria (a revisar) */
+  pending: number;
 };
 
 export type Proposal = {

@@ -57,7 +57,7 @@ export async function redeemReportLink(token: string) {
   );
   if (!row) throw new HttpError(410, "Link vencido. Gere o relatório de novo pelo app.");
   const user = await one<SessionUser>(
-    `SELECT id, household_id, name, email, role, avatar_color, timezone, digest_hour, '' AS session_id FROM profiles WHERE id = $1`,
+    `SELECT id, household_id, name, email, role, avatar_color, timezone, digest_hour, default_scope, '' AS session_id FROM profiles WHERE id = $1`,
     [row.profile_id],
   );
   if (!user) throw new HttpError(410, "Conta não encontrada");

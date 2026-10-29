@@ -140,7 +140,11 @@ export function ImportModal({ accountId: initial }: { accountId?: string }) {
         toast(
           result.imported
             ? `${result.imported} movimentações importadas${result.duplicates ? ` (${result.duplicates} já existiam e foram puladas)` : ""}.${
-                result.pending ? ` ${result.pending} ficaram em “A revisar”: escolha a categoria e elas entram nos totais.` : ""
+                result.pending === 1
+                  ? " 1 ficou em “A revisar”: escolha a categoria e ela entra nos totais."
+                  : result.pending
+                    ? ` ${result.pending} ficaram em “A revisar”: escolha a categoria e elas entram nos totais.`
+                    : ""
               }`
             : "Nada novo: todas as movimentações desse arquivo já estavam no ninho.",
         );

@@ -1,7 +1,8 @@
-import { Lock, Plus, Trash2 } from "lucide-react";
-import type { Goal } from "../../shared/types";
-import { Empty, ErrorBox, Heading, Money, Progress, Skeleton } from "../components/ui";
+import { Gift, Lock, Plus, Trash2, Trophy } from "lucide-react";
+import type { Goal, Wish } from "../../shared/types";
+import { Empty, ErrorBox, Heading, LinkButton, Money, Panel, Progress, Skeleton } from "../components/ui";
 import { api } from "../lib/api";
+import { navigate } from "../lib/router";
 import { useData } from "../lib/useData";
 import { ContributeModal, NewGoalModal } from "../modals/GoalModals";
 import { useApp } from "../state";
@@ -9,6 +10,8 @@ import { useApp } from "../state";
 export function GoalsPage() {
   const { openModal, toast, confirm } = useApp();
   const { data, error, reload } = useData<Goal[]>("goals");
+  const wishes = useData<Wish[]>("wishes");
+  const openWishes = (wishes.data ?? []).filter((w) => w.status === "open").sort((a, b) => b.votes - a.votes);
 
   async function remove(g: Goal) {
     if (!(await confirm({ title: `Apagar a meta “${g.name}”?`, text: "As contribuições já feitas deixam de contar para ela.", confirmLabel: "Apagar", danger: true }))) return;
@@ -89,6 +92,31 @@ export function GoalsPage() {
           })}
         </div>
       )}
+      {/* Desejos e desafios saíram das abas: ficam aqui, perto das metas */}
+      <Panel
+        title="Ideias da família"
+        action={<LinkButton onClick={() => navigate("desejos")}>{openWishes.length ? "Ver desejos" : "Sugerir"}</LinkButton>}
+      >
+        {openWishes.length === 0 ? (
+          <p className="muted small">Ninguém sugeriu nada ainda. Um desejo com votos da família pode virar meta com um toque.</p>
+        ) : (
+          openWishes.slice(0, 3).map((w) => (
+            <div key={w.id} className="setting-row">
+              <span>
+                <Gift size={14} /> {w.name}
+              </span>
+              <span className="small">
+                <Money cents={w.priceCents} /> · {w.votes} voto(s)
+              </span>
+            </div>
+          ))
+        )}
+        <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+          <button type="button" className="btn ghost small" onClick={() => navigate("desafios")}>
+            <Trophy size={13} /> Desafios de economia
+          </button>
+        </div>
+      </Panel>
       <div className="privacy-line" style={{ maxWidth: 680 }}>
         <Lock size={17} />
         <div>

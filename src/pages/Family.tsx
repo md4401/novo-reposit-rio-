@@ -1,4 +1,4 @@
-import { Activity, ArrowLeftRight, Copy, Gift, PiggyBank, Receipt, Share2, ShieldCheck, Target, TriangleAlert, Wallet } from "lucide-react";
+import { Activity, ArrowLeftRight, CalendarCheck, Copy, Gift, PiggyBank, Receipt, Share2, ShieldCheck, Target, TriangleAlert, Wallet } from "lucide-react";
 import { useState } from "react";
 import type { Allowance, Family } from "../../shared/types";
 import { CategoryBars, IncomeExpenseBars } from "../components/charts";
@@ -26,6 +26,9 @@ export function FamilyPage() {
         subtitle="O que importa para a casa, sem expor as finanças individuais."
         actions={
           <>
+            <button type="button" className="btn ghost" onClick={() => navigate("reuniao")}>
+              <CalendarCheck size={15} /> Reunião do mês
+            </button>
             <button type="button" className="btn ghost" onClick={() => navigate("casa")}>
               <Receipt size={15} /> Contas divididas
             </button>

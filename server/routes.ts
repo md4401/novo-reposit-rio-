@@ -282,7 +282,11 @@ async function loadMe(user: SessionUser): Promise<Me> {
              OR EXISTS (SELECT 1 FROM profiles WHERE household_id = $2 AND is_demo) AS has_demo`,
         [user.id, user.household_id],
       ),
-      q(`SELECT notify_digest, income_mode, self_salary_cents, ui_mode, split_income_cents FROM profiles WHERE id = $1`, [user.id]),
+      q(
+        `SELECT notify_digest, income_mode, self_salary_cents, ui_mode, split_income_cents,
+                (SELECT count(*)::int FROM guardians WHERE guardian_id = $1) AS watching FROM profiles WHERE id = $1`,
+        [user.id],
+      ),
       q(`SELECT min(limit_cents) AS limit_cents FROM agreements WHERE household_id = $1`, [user.household_id]),
       // Primeiros passos: só o que já existe (nada de valores)
       q(
@@ -308,6 +312,7 @@ async function loadMe(user: SessionUser): Promise<Me> {
       uiMode: (notify[0]?.ui_mode as "full" | "simple" | "kid") ?? "full",
       hasSplitIncome: notify[0]?.split_income_cents != null,
       defaultScope: user.default_scope,
+      watchingCount: num(notify[0]?.watching ?? 0),
     },
     household: {
       id: household[0].id as string,

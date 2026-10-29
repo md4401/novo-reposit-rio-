@@ -2,7 +2,7 @@
 import { Camera, ChevronRight, FileUp, Lock, MessageCircle, Minus, Plus } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Avatar, ModalHeader } from "../components/ui";
-import { KID_NAV, NAV, sectionOf, SIMPLE_NAV } from "../lib/nav";
+import { KID_NAV, NAV, navContext, sectionOf, SIMPLE_NAV, visibleTabs } from "../lib/nav";
 import { navigate } from "../lib/router";
 import { useApp } from "../state";
 import { ImportModal } from "./AccountModals";
@@ -44,6 +44,7 @@ export function MoreSheet({ page, reduced, onShowAll }: { page: string; reduced?
   const [all, setAll] = useState(!reduced);
   const go = (key: string) => closeModal(() => navigate(key === "inicio" ? "" : key));
   const current = sectionOf(page).key;
+  const ctx = navContext(me);
   // Modo simples ou criança: o menu curto primeiro, com a opção de ver tudo
   const short = me?.profile.uiMode === "kid" ? KID_NAV : SIMPLE_NAV;
   return (
@@ -63,16 +64,16 @@ export function MoreSheet({ page, reduced, onShowAll }: { page: string; reduced?
       )}
       {all ? (
         <div className="sheet-sections">
-          {NAV.map((n) => (
+          {NAV.map((n) => ({ n, tabs: visibleTabs(n, ctx) })).map(({ n, tabs }) => (
             <div key={n.key} className={`sheet-section ${current === n.key ? "on" : ""}`}>
-              <button type="button" className="sheet-section-head" onClick={() => go(n.key)} aria-current={current === n.key && n.tabs.length === 1 ? "page" : undefined}>
+              <button type="button" className="sheet-section-head" onClick={() => go(n.key)} aria-current={current === n.key && tabs.length === 1 ? "page" : undefined}>
                 <span className="sheet-ic">{n.icon(17)}</span>
                 <b>{n.label}</b>
-                {n.tabs.length === 1 && <small>{n.hint}</small>}
+                {tabs.length === 1 && <small>{n.hint}</small>}
               </button>
-              {n.tabs.length > 1 && (
+              {tabs.length > 1 && (
                 <div className="sheet-screens">
-                  {n.tabs.map((t) => (
+                  {tabs.map((t) => (
                     <button key={t.key} type="button" className={`cat-chip ${page === t.key ? "on" : ""}`} onClick={() => go(t.key)} aria-current={page === t.key ? "page" : undefined}>
                       {t.label}
                     </button>

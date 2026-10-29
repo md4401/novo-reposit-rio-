@@ -6,6 +6,7 @@ import { TxList } from "../components/TxRow";
 import { Empty, ErrorBox, Heading, Money, PeriodControl, Skeleton } from "../components/ui";
 import { scopeLabel, txCategoryLabel, txScope } from "../lib/format";
 import type { Route } from "../lib/router";
+import { navigate } from "../lib/router";
 import { useData } from "../lib/useData";
 import { ImportModal } from "../modals/AccountModals";
 import { QuickAddSheet } from "../modals/MenuSheets";
@@ -141,6 +142,11 @@ export function TransactionsPage({ route }: { route: Route }) {
               </option>
             ))}
           </select>
+        )}
+        {(tags.data?.length ?? 0) > 0 && (
+          <button type="button" className="btn ghost small" onClick={() => navigate("etiquetas")}>
+            Etiquetas
+          </button>
         )}
       </div>
       {error && <ErrorBox message={error} onRetry={reload} />}

@@ -58,6 +58,8 @@ export type Me = {
     hasSplitIncome: boolean;
     /** Como as despesas novas entram quando não se escolhe: Família (só nos totais) ou Pessoal */
     defaultScope: Scope;
+    /** Quantas pessoas esta pessoa acompanha (a aba Acompanhar só aparece se for > 0) */
+    watchingCount?: number;
   };
   household: {
     id: string;

@@ -2,7 +2,7 @@
 // As telas de cada seção aparecem como abas no topo da página. Nos modos simples e criança, um menu curto.
 import { Bell, Bot, ChevronDown, Eye, EyeOff, Lock, Plus, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
-import { BOTTOM_KEYS, BOTTOM_REDUCED, KID_NAV, NAV, PAGE_TITLES, sectionOf, SIMPLE_NAV, type NavItem, type NavLink } from "../lib/nav";
+import { BOTTOM_KEYS, BOTTOM_REDUCED, KID_NAV, NAV, navContext, PAGE_TITLES, sectionOf, SIMPLE_NAV, visibleTabs, type NavItem, type NavLink } from "../lib/nav";
 import { navigate } from "../lib/router";
 import { DigestModal } from "../modals/DigestModal";
 import { MoreSheet, QuickAddSheet } from "../modals/MenuSheets";
@@ -14,7 +14,7 @@ const BOTTOM = BOTTOM_KEYS.map((key) => NAV.find((n) => n.key === key)!);
 const BOTTOM_LABEL: Record<string, string> = { inicio: "Início", transacoes: "Transações", orcamento: "Planejar", familia: "Casa" };
 
 // Aviso de uma vez só para quem já usava o app antes do menu novo (quem está testando com exemplo não conhecia o antigo)
-const NEWS_KEY = "ninho.novidades.menu10";
+const NEWS_KEY = "ninho.novidades.menu11";
 function readSeen() {
   try {
     return localStorage.getItem(NEWS_KEY) === "1";
@@ -37,6 +37,8 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
   const { me, hidden, toggleHidden, openModal, toast } = useApp();
   const pending = me?.pendingCount ?? 0;
   const section = sectionOf(page);
+  const ctx = navContext(me);
+  const sectionTabs = visibleTabs(section, ctx);
   const [seenNews, setSeenNews] = useState(readSeen);
   const [showAll, setShowAll] = useState(false);
   const [closed, setClosed] = useState(readClosed);
@@ -81,7 +83,8 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
 
   // Seção com várias telas: o nome leva à primeira; as telas ficam listadas embaixo (dá para recolher)
   const navSection = (n: NavItem) => {
-    if (n.tabs.length === 1) return navButton(n);
+    const tabs = visibleTabs(n, ctx);
+    if (tabs.length === 1) return navButton(n);
     const open = !closed.has(n.key);
     const here = section.key === n.key;
     return (
@@ -109,7 +112,7 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
         </div>
         {open && (
           <div className="nav-sub">
-            {n.tabs.map((t) => (
+            {tabs.map((t) => (
               <button key={t.key} type="button" className={`nav-sub-btn ${page === t.key ? "active" : ""}`} onClick={() => go(t.key)} aria-current={page === t.key ? "page" : undefined}>
                 {t.label}
               </button>
@@ -242,16 +245,16 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
           {!seenNews && me?.setup.hasTransactions && !me.hasDemoData && (
             <div className="news-bar" role="status">
               <span>
-                <b>O menu foi reorganizado</b> por pergunta: Pagar e receber, De olho, Proteção… Nenhuma tela saiu; algumas se juntaram (Simuladores, Contas divididas, Compras). No celular, o menu completo abre pela sua foto.
+                <b>Menu mais enxuto:</b> Etiquetas, Desafios, Desejos, Reunião do mês, Custo dos bancos e Pontos saíram das abas e agora abrem por atalhos dentro de Casa, Metas e De olho. Nenhum dado foi apagado.
               </span>
               <button type="button" className="icon-btn" onClick={hideNews} aria-label="Entendi">
                 <X size={15} />
               </button>
             </div>
           )}
-          {!reduced && section.tabs.length > 1 && (
+          {!reduced && sectionTabs.length > 1 && (
             <div className="chips-row section-tabs" role="tablist" aria-label={section.label}>
-              {section.tabs.map((t) => (
+              {sectionTabs.map((t) => (
                 <button key={t.key} type="button" role="tab" aria-selected={page === t.key} className={`filter-chip ${page === t.key ? "on" : ""}`} onClick={() => go(t.key)}>
                   {t.label}
                 </button>

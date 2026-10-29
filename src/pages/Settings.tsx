@@ -18,6 +18,15 @@ import { useApp } from "../state";
 import { inviteText } from "./Family";
 import { CategoryIcon } from "../components/icons";
 
+/** "29/10/2026, 16:20" no fuso da pessoa. */
+function builtAt(timeZone: string) {
+  try {
+    return new Date(__BUILD_TIME__).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone });
+  } catch {
+    return new Date(__BUILD_TIME__).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+  }
+}
+
 // No APK o link precisa ser absoluto: o Android entrega o download ao navegador.
 const APK_URL = `${window.location.origin}/download/ninho.apk`;
 
@@ -537,7 +546,7 @@ export function SettingsPage() {
                     </button>
                   )}
                 </div>
-                <span className="hint">Nada sai do celular além do valor, do estabelecimento e da data. Quando o extrato for importado, o lançamento é ligado a ele (sem duplicar).</span>
+                <p className="muted small" style={{ marginTop: 8 }}>Nada sai do celular além do valor, do estabelecimento e da data. Quando o extrato for importado, o lançamento é ligado a ele (sem duplicar).</p>
               </Panel>
               <Panel title="Instalar o app no celular">
                 {isInstalled() ? (
@@ -560,10 +569,19 @@ export function SettingsPage() {
                 )}
                 <div className="setting-row" style={{ marginTop: 8 }}>
                   <div>
+                    <h4>Última atualização</h4>
+                    <p>
+                      App atualizado em <b>{builtAt(me.profile.timezone)}</b>. As telas e as funções se atualizam sozinhas ao abrir o app, sem
+                      reinstalar.
+                    </p>
+                  </div>
+                </div>
+                <div className="setting-row">
+                  <div>
                     <h4>App Android (APK)</h4>
                     {isNative() ? (
                       <p>
-                        Versão instalada: <b>{update?.current.name ?? "…"}</b>.{" "}
+                        Versão da instalação: <b>{update?.current.name ?? "…"}</b> (só muda quando há um APK novo).{" "}
                         {update?.reinstall
                           ? `A versão ${update.latest?.name} usa uma assinatura nova e não instala por cima: desinstale o ninho, baixe e instale de novo e entre com seu e-mail e senha. Seus dados ficam salvos na conta.`
                           : update?.latest

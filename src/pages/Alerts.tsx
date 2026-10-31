@@ -1,5 +1,5 @@
 import { Bot, Check, Repeat, ShieldCheck, TriangleAlert } from "lucide-react";
-import type { AlertsPayload, Recurring } from "../../shared/types";
+import type { AlertsPayload, BankCosts, Loyalty, Recurring } from "../../shared/types";
 import { Empty, ErrorBox, Heading, Metric, Money, Panel, Skeleton } from "../components/ui";
 import { api } from "../lib/api";
 import { dayLabel, monthLabel } from "../lib/format";
@@ -41,6 +41,41 @@ function RecurringCard({ r }: { r: Recurring }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/** Custo dos bancos e pontos: saíram das abas e ficam resumidos aqui, com atalho para os detalhes. */
+function BanksAndPoints() {
+  const { me } = useApp();
+  const year = me?.today.slice(0, 4) ?? "";
+  const costs = useData<BankCosts>(`bank-costs?year=${year}`);
+  const points = useData<Loyalty[]>("loyalty");
+  const expiring = (points.data ?? []).filter((p) => p.daysLeft !== null && p.daysLeft <= 60).length;
+  return (
+    <Panel title="Bancos e pontos">
+      <div className="setting-row">
+        <div>
+          <h4>Custo dos bancos em {year}</h4>
+          <p>Tarifas, juros, IOF, anuidade e multas</p>
+        </div>
+        <button type="button" className="btn ghost small" onClick={() => navigate("bancos")}>
+          {costs.data ? <Money cents={costs.data.totalCents} /> : "Ver"}
+        </button>
+      </div>
+      <div className="setting-row">
+        <div>
+          <h4>Benefícios e pontos</h4>
+          <p>
+            {!points.data?.length
+              ? "Anote pontos, milhas e cashback para não perder"
+              : `${points.data.length} programa(s)${expiring ? ` · ${expiring} vencendo em breve` : ""}`}
+          </p>
+        </div>
+        <button type="button" className="btn ghost small" onClick={() => navigate("pontos")}>
+          {points.data?.length ? "Ver" : "Anotar"}
+        </button>
+      </div>
+    </Panel>
   );
 }
 
@@ -157,6 +192,7 @@ export function AlertsPage() {
                   Duplicidade é só uma suspeita: o ninho nunca apaga compras sozinho e não garante detectar fraudes.
                 </p>
               </Panel>
+              <BanksAndPoints />
               <div className="privacy-line" style={{ margin: 0 }}>
                 <ShieldCheck size={18} />
                 <div>

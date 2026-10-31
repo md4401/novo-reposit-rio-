@@ -13,7 +13,7 @@ import { CategoryPicker } from "../components/CategoryPicker";
 
 type Row = { categoryId: string; value: string; scope: Scope };
 
-/** Etiquetas: salvam na hora (não dependem do botão Salvar). */
+/** Etiquetas: salvam na hora (não dependem do botão Salvar). Só aparecem para quem já criou alguma. */
 function TagPicker({ transaction }: { transaction: Transaction }) {
   const { toast } = useApp();
   const tags = useData<Tag[]>("tags");
@@ -43,6 +43,7 @@ function TagPicker({ transaction }: { transaction: Transaction }) {
     }
   }
 
+  if (!tags.data?.length && !transaction.tags.length) return null;
   return (
     <div className="field" style={{ marginTop: 14 }}>
       <label>Etiquetas</label>
@@ -305,7 +306,7 @@ export function OrganizeModal({ transaction: t }: { transaction: Transaction }) 
 
       <details className="more-options">
         <summary>
-          Mais opções <small>tipo{manual ? ", descrição e valor" : ""}, meta, etiquetas{direction === "expense" ? ", Imposto de Renda" : ""}</small>
+          Mais opções <small>tipo{manual ? ", descrição e valor" : ""}, meta{direction === "expense" ? ", Imposto de Renda" : ""}</small>
         </summary>
           <div className="segmented" style={{ marginBottom: 14 }}>
             {(

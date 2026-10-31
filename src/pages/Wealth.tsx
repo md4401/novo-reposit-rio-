@@ -1,10 +1,12 @@
 // Patrimônio (contas + bens + investimentos − dívidas) e plano para quitar dívidas.
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { FileText, Pencil, PieChart, Plus, Trash2, TrendingUp } from "lucide-react";
 import { useState } from "react";
 import type { Asset, Debt, DebtPlan, Wealth } from "../../shared/types";
 import { Empty, ErrorBox, Heading, ModalHeader, Money, Panel, Segmented, Skeleton, Spinner } from "../components/ui";
 import { api } from "../lib/api";
 import { centsToInput, monthShort, parseMoney } from "../lib/format";
+import { navContext } from "../lib/nav";
+import { navigate } from "../lib/router";
 import { useData } from "../lib/useData";
 import { useApp } from "../state";
 
@@ -184,8 +186,11 @@ function DebtPlanner({ hasDebts }: { hasDebts: boolean }) {
 }
 
 export function WealthPage() {
-  const { openModal, toast, confirm } = useApp();
+  const { me, openModal, toast, confirm } = useApp();
   const { data, error, reload } = useData<Wealth>("wealth");
+  // IR e Renda variável só viram abas quando fazem sentido; fora disso, atalhos aqui
+  const ctx = navContext(me);
+  const taxSeason = ctx ? ctx.month >= 2 && ctx.month <= 5 : false;
 
   async function remove(kind: "assets" | "debts", id: string, name: string) {
     if (!(await confirm({ title: `Apagar “${name}”?`, confirmLabel: "Apagar", danger: true }))) return;
@@ -195,7 +200,27 @@ export function WealthPage() {
 
   return (
     <>
-      <Heading title="Patrimônio e dívidas" subtitle="Tudo o que você tem menos tudo o que deve — e como isso muda mês a mês. Só você vê." />
+      <Heading
+        title="Patrimônio e dívidas"
+        subtitle="Tudo o que você tem menos tudo o que deve — e como isso muda mês a mês. Só você vê."
+        actions={
+          <>
+            <button type="button" className="btn ghost" onClick={() => navigate("meu")}>
+              <PieChart size={15} /> Meu mês
+            </button>
+            {!taxSeason && (
+              <button type="button" className="btn ghost" onClick={() => navigate("ir")}>
+                <FileText size={15} /> Imposto de Renda
+              </button>
+            )}
+            {ctx?.incomeMode !== "variable" && (
+              <button type="button" className="btn ghost" onClick={() => navigate("renda")}>
+                <TrendingUp size={15} /> Renda variável
+              </button>
+            )}
+          </>
+        }
+      />
       {error && <ErrorBox message={error} onRetry={reload} />}
       {!data ? (
         <Skeleton height={260} />

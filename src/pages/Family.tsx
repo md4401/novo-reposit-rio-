@@ -63,7 +63,7 @@ export function FamilyPage() {
           )}
           <div className="family-top">
             <div>
-              <div className="eyebrow" style={{ color: "#bce2bd" }}>
+              <div className="eyebrow" style={{ color: "var(--accent)" }}>
                 Visão compartilhada · {me?.household.name}
               </div>
               <h2>

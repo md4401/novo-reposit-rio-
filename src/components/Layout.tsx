@@ -191,7 +191,7 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
               <div className="name">{me.profile.name}</div>
               <div className="role">{me.household.name}</div>
             </div>
-            <Lock size={14} style={{ marginLeft: "auto", color: "#779788" }} aria-label="Espaço privado" />
+            <Lock size={14} style={{ marginLeft: "auto", color: "#8c8c86" }} aria-label="Espaço privado" />
           </button>
         )}
       </aside>
@@ -202,7 +202,7 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
             <div className="mobile-brand">
               <div className="brand-mark">n</div>
               <span>
-                ninho<span style={{ color: "#4a9271" }}>.</span>
+                ninho<span style={{ color: "var(--green-ink)" }}>.</span>
               </span>
             </div>
             <span className="crumb">

@@ -468,7 +468,7 @@ export function SettingsPage() {
                 <div className="setting-row">
                   <div>
                     <h4>Tema</h4>
-                    <p>“Automático” segue o modo claro ou escuro do aparelho.</p>
+                    <p>Preto é o padrão. “Automático” segue o modo claro ou escuro do aparelho.</p>
                   </div>
                   <Segmented<ThemePref>
                     value={theme}
@@ -477,9 +477,9 @@ export function SettingsPage() {
                       setThemePref(v);
                     }}
                     options={[
+                      ["dark", "Preto"],
+                      ["light", "Branco"],
                       ["system", "Automático"],
-                      ["light", "Claro"],
-                      ["dark", "Escuro"],
                     ]}
                   />
                 </div>

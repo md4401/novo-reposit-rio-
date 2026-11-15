@@ -158,7 +158,7 @@ export function AuthPage() {
             </div>
           </div>
         </div>
-        <p className="hero-foot" style={{ fontSize: 12, color: "#78968a" }}>
+        <p className="hero-foot" style={{ fontSize: 12, color: "#8c8c86" }}>
           O ninho não faz Pix nem pagamentos. Seus dados ficam guardados com segurança no Brasil (Neon, São Paulo).
         </p>
       </section>

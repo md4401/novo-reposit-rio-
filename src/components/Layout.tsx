@@ -1,9 +1,10 @@
 // Estrutura: menu lateral com as seções (computador) e barra inferior com "+" no centro (celular).
 // As telas de cada seção aparecem como abas no topo da página. Nos modos simples e criança, um menu curto.
-import { Bell, Bot, ChevronDown, Eye, EyeOff, Lock, Plus, X } from "lucide-react";
+import { Bell, Bot, ChevronDown, Eye, EyeOff, Lock, Moon, Plus, Sun, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { BOTTOM_KEYS, BOTTOM_REDUCED, KID_NAV, NAV, navContext, PAGE_TITLES, sectionOf, SIMPLE_NAV, visibleTabs, type NavItem, type NavLink } from "../lib/nav";
 import { navigate } from "../lib/router";
+import { currentTheme, onThemeChange, toggleTheme } from "../lib/theme";
 import { DigestModal } from "../modals/DigestModal";
 import { MoreSheet, QuickAddSheet } from "../modals/MenuSheets";
 import { markWelcomeSeen, welcomeSeen, WelcomeModal } from "../modals/WelcomeModal";
@@ -41,6 +42,8 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
   const sectionTabs = visibleTabs(section, ctx);
   const [seenNews, setSeenNews] = useState(readSeen);
   const [showAll, setShowAll] = useState(false);
+  const [theme, setTheme] = useState(currentTheme);
+  useEffect(() => onThemeChange(() => setTheme(currentTheme())), []);
   const [closed, setClosed] = useState(readClosed);
   const mode = me?.profile.uiMode ?? "full";
   const reduced = mode !== "full" && !showAll;
@@ -215,6 +218,15 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
                 <span className="hide-mobile">● DADOS DE </span>EXEMPLO
               </button>
             )}
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={() => setTheme(toggleTheme())}
+              aria-label={theme === "dark" ? "Usar tema claro" : "Usar tema escuro"}
+              title={theme === "dark" ? "Tema claro" : "Tema escuro"}
+            >
+              {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
             <button
               type="button"
               className="icon-btn"

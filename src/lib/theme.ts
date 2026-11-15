@@ -28,7 +28,7 @@ export function applyTheme(pref = getThemePref()) {
   root.classList.add("theme-switching");
   root.dataset.theme = theme;
   requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove("theme-switching")));
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#050505" : "#f2f2ee");
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#050505" : "#8fc2f2");
   // Ícones das barras do Android: escuros no tema claro, claros no escuro
   if (isNative()) void SystemBars.setStyle({ style: theme === "dark" ? SystemBarsStyle.Dark : SystemBarsStyle.Light }).catch(() => {});
 }
@@ -41,6 +41,27 @@ export function setThemePref(pref: ThemePref) {
     // sem armazenamento: vale só nesta visita
   }
   applyTheme(pref);
+  window.dispatchEvent(new Event(CHANGED));
+}
+
+const CHANGED = "ninho:theme";
+
+/** Avisa quando a escolha de tema muda (botão do topo ou Configurações). */
+export function onThemeChange(listener: () => void) {
+  window.addEventListener(CHANGED, listener);
+  return () => window.removeEventListener(CHANGED, listener);
+}
+
+/** Tema que está na tela agora. */
+export function currentTheme(): "light" | "dark" {
+  return document.documentElement.dataset.theme === "light" ? "light" : "dark";
+}
+
+/** Botão sol/lua: troca para o outro tema e guarda a escolha neste aparelho. */
+export function toggleTheme() {
+  const next = currentTheme() === "dark" ? "light" : "dark";
+  setThemePref(next);
+  return next;
 }
 
 /** Acompanha a troca de modo do sistema enquanto a escolha for "sistema". */

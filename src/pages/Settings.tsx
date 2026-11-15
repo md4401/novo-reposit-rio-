@@ -11,7 +11,7 @@ import { GuardianPanel, ModePanel } from "../components/CarePanels";
 import { ChangePasswordModal, DeleteAccountModal, ResetCodeModal } from "../modals/SecurityModals";
 import { UpdateModal } from "../modals/UpdateModal";
 import { canInstall, isInstalled, onInstallChange, promptInstall } from "../lib/pwa";
-import { getThemePref, setThemePref, type ThemePref } from "../lib/theme";
+import { getThemePref, onThemeChange, setThemePref, type ThemePref } from "../lib/theme";
 import { introSetting, setIntroSetting, type IntroSetting } from "../lib/intro";
 import { useData } from "../lib/useData";
 import { useApp } from "../state";
@@ -53,6 +53,7 @@ export function SettingsPage() {
   const [nativeUpdater, setNativeUpdater] = useState(false);
   const [tab, setTab] = useState<Tab>(initialTab);
   const [theme, setTheme] = useState<ThemePref>(getThemePref);
+  useEffect(() => onThemeChange(() => setTheme(getThemePref())), []);
   const [intro, setIntro] = useState<IntroSetting>(introSetting);
   useEffect(() => void checkUpdate(true).then(setUpdate), []);
   useEffect(() => void hasNativeUpdater().then(setNativeUpdater), []);
@@ -468,7 +469,7 @@ export function SettingsPage() {
                 <div className="setting-row">
                   <div>
                     <h4>Tema</h4>
-                    <p>Preto é o padrão. “Automático” segue o modo claro ou escuro do aparelho.</p>
+                    <p>Escuro (preto e lima) ou claro (azul, navy e limão). Dá para trocar a qualquer hora pelo botão de sol/lua no topo. “Automático” segue o celular.</p>
                   </div>
                   <Segmented<ThemePref>
                     value={theme}
@@ -477,8 +478,8 @@ export function SettingsPage() {
                       setThemePref(v);
                     }}
                     options={[
-                      ["dark", "Preto"],
-                      ["light", "Branco"],
+                      ["dark", "Escuro"],
+                      ["light", "Claro"],
                       ["system", "Automático"],
                     ]}
                   />

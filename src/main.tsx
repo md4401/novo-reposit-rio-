@@ -1,4 +1,5 @@
 import "@fontsource-variable/inter";
+import "@fontsource/anton/latin-400.css";
 import "./styles.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";

@@ -8,7 +8,7 @@ import { useApp } from "../state";
 import { Glyph } from "../components/icons";
 
 const STATUS = {
-  ok: { label: "Em dia", cls: "", color: "#2b8e65", icon: <Check size={18} /> },
+  ok: { label: "Em dia", cls: "", color: "var(--green-ink)", icon: <Check size={18} /> },
   warn: { label: "Atenção", cls: "warn", color: "#ab8238", icon: <TriangleAlert size={18} /> },
   stale: { label: "Desatualizada", cls: "bad", color: "#ba6757", icon: <CircleX size={18} /> },
   never: { label: "Sem dados", cls: "bad", color: "#ba6757", icon: <CircleX size={18} /> },

@@ -25,7 +25,7 @@ export function IncomeExpenseBars({ series, current }: { series: SeriesPoint[]; 
           <i className="dot" style={{ background: "var(--bar-income)" }} /> Receitas
         </span>
         <span>
-          <i className="dot" style={{ background: "#438469" }} /> Despesas
+          <i className="dot" style={{ background: "var(--green2)" }} /> Despesas
         </span>
       </div>
     </>

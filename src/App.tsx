@@ -37,6 +37,7 @@ import { TagsPage } from "./pages/Tags";
 import { TaxPage } from "./pages/Tax";
 import { TransactionsPage } from "./pages/Transactions";
 import { useApp } from "./state";
+import { LogoMark } from "./components/Logo";
 
 /** A abertura fica por cima enquanto o app carrega por baixo (os dados não esperam a animação). */
 export function App() {
@@ -61,9 +62,7 @@ function Screens() {
     return (
       <div style={{ minHeight: "100dvh", display: "grid", placeItems: "center", background: "var(--dark)", color: "#fff" }}>
         <div style={{ display: "grid", justifyItems: "center", gap: 14 }}>
-          <div className="brand-mark" style={{ width: 56, height: 56, fontSize: 28, borderRadius: 16 }}>
-            n
-          </div>
+          <LogoMark size={56} />
           <Spinner size={22} />
         </div>
       </div>

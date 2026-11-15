@@ -9,6 +9,7 @@ import { DigestModal } from "../modals/DigestModal";
 import { MoreSheet, QuickAddSheet } from "../modals/MenuSheets";
 import { markWelcomeSeen, welcomeSeen, WelcomeModal } from "../modals/WelcomeModal";
 import { useApp } from "../state";
+import { LogoMark } from "./Logo";
 import { Avatar } from "./ui";
 
 const BOTTOM = BOTTOM_KEYS.map((key) => NAV.find((n) => n.key === key)!);
@@ -170,7 +171,7 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
     <div className={`app ${mode}`}>
       <aside className="sidebar" aria-label="Menu">
         <div className="brand">
-          <div className="brand-mark">n</div>
+          <LogoMark size={40} className="brand-mark" />
           <div>
             <div className="brand-name">
               ninho<span>.</span>
@@ -203,7 +204,7 @@ export function Layout({ page, children }: { page: string; children: ReactNode }
         <header className="topbar">
           <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
             <div className="mobile-brand">
-              <div className="brand-mark">n</div>
+              <LogoMark size={34} className="brand-mark" />
               <span>
                 ninho<span style={{ color: "var(--green-ink)" }}>.</span>
               </span>

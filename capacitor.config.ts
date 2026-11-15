@@ -9,7 +9,7 @@ const config: CapacitorConfig = {
   appName: "ninho.",
   // O APK abre o site publicado; dentro dele vai só a página de "sem conexão".
   webDir: "android-web",
-  backgroundColor: "#0d2922",
+  backgroundColor: "#0a0a0a",
   server: {
     url: APP_URL,
     androidScheme: "https",

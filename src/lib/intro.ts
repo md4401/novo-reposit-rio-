@@ -50,11 +50,6 @@ export function markIntroShown() {
   write(DAY, localDay());
 }
 
-/** Quantas pessoas a família tinha na última vez (um pontinho de luz para cada). */
-export function rememberedMembers() {
-  const n = Number(read(MEMBERS));
-  return Number.isFinite(n) && n >= 1 ? Math.min(6, n) : 3;
-}
 export function rememberHousehold(members: number, uiMode: string) {
   write(MEMBERS, String(Math.max(1, Math.min(6, members))));
   write(UI_MODE, uiMode);

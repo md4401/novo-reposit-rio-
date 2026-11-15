@@ -5,16 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ninho. — sem conexão</title>
     <style>
-      body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0d2922; color: #fff; font-family: system-ui, Roboto, sans-serif; text-align: center; padding: 24px; box-sizing: border-box; }
-      .mark { width: 64px; height: 64px; border-radius: 18px; background: #c7f46c; color: #0d2922; font-weight: 900; font-size: 32px; display: grid; place-items: center; margin: 0 auto 20px; }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0a0a0a; color: #fff; font-family: system-ui, Roboto, sans-serif; text-align: center; padding: 24px; box-sizing: border-box; }
+      .mark { display: block; width: 72px; height: 72px; margin: 0 auto 20px; }
       h1 { font-size: 22px; margin: 0 0 8px; }
       p { color: #a9c4b5; max-width: 320px; margin: 0 auto 24px; line-height: 1.5; }
-      button { background: #c7f46c; color: #0d2922; border: 0; border-radius: 12px; padding: 14px 22px; font-weight: 800; font-size: 15px; }
+      button { background: #d4ff00; color: #0a0a0a; border: 0; border-radius: 12px; padding: 14px 22px; font-weight: 800; font-size: 15px; }
     </style>
   </head>
   <body>
     <div>
-      <div class="mark">n</div>
+      <svg class="mark" viewBox="0 0 48 48" aria-hidden="true">
+        <circle cx="24" cy="24" r="24" fill="#d4ff00"/>
+        <ellipse cx="24" cy="20.5" rx="4.6" ry="6" fill="#0a0a0a"/>
+        <ellipse cx="16.2" cy="23" rx="3.7" ry="4.8" transform="rotate(-16 16.2 23)" fill="#0a0a0a"/>
+        <ellipse cx="31.8" cy="23" rx="3.7" ry="4.8" transform="rotate(16 31.8 23)" fill="#0a0a0a"/>
+        <path d="M7.5 25.5 C14 30.5 34 30.5 40.5 25.5" fill="none" stroke="#d4ff00" stroke-width="7" stroke-linecap="round"/>
+        <g fill="none" stroke="#0a0a0a" stroke-linecap="round"><path d="M8.5 26 C14.5 30.5 33.5 30.5 39.5 26" stroke-width="3.6"/><path d="M11 31.6 C17 36 31 36 37 31.6" stroke-width="3.6"/><path d="M15.5 37 C20.5 39.6 27.5 39.6 32.5 37" stroke-width="3.4"/></g>
+      </svg>
       <h1>Sem conexão</h1>
       <p>Não conseguimos abrir o ninho. Confira sua internet e tente de novo.</p>
       <button onclick="location.href='https://ninho-financas-familia.vercel.app'">Tentar de novo</button>

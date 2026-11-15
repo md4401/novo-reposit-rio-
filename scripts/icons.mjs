@@ -1,35 +1,47 @@
 // Gera os ícones do app (PWA e Android) a partir do desenho em SVG. Uso: npm run icons
-// Precisa do Playwright (Chromium) instalado na máquina.
+// Precisa do Playwright (Chromium) instalado na máquina. O desenho não usa fontes.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
 const { chromium } = require("playwright");
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const font = pathToFileURL(resolve(root, "node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2")).href;
+// Mesmo desenho de src/components/Logo.tsx (viewBox 48): três ovos num ninho de galhos, no círculo lima
+const LIME = "#d4ff00";
+const INK = "#0a0a0a";
+function mark(x, y, size) {
+  const k = size / 48;
+  return `<g transform="translate(${x} ${y}) scale(${k})">
+    <circle cx="24" cy="24" r="24" fill="${LIME}"/>
+    <ellipse cx="24" cy="20.5" rx="4.6" ry="6" fill="${INK}"/>
+    <ellipse cx="16.2" cy="23" rx="3.7" ry="4.8" transform="rotate(-16 16.2 23)" fill="${INK}"/>
+    <ellipse cx="31.8" cy="23" rx="3.7" ry="4.8" transform="rotate(16 31.8 23)" fill="${INK}"/>
+    <path d="M7.5 25.5 C14 30.5 34 30.5 40.5 25.5" fill="none" stroke="${LIME}" stroke-width="7" stroke-linecap="round"/>
+    <g fill="none" stroke="${INK}" stroke-linecap="round">
+      <path d="M8.5 26 C14.5 30.5 33.5 30.5 39.5 26" stroke-width="3.6"/>
+      <path d="M11 31.6 C17 36 31 36 37 31.6" stroke-width="3.6"/>
+      <path d="M15.5 37 C20.5 39.6 27.5 39.6 32.5 37" stroke-width="3.4"/>
+    </g>
+  </g>`;
+}
 
-// mark: tamanho do quadrado verde-limão em relação ao ícone (menor no ícone "maskable")
-function svg({ mark = 0.62, background = "#0d2922", rounded = false }) {
+// mark: tamanho do círculo em relação ao ícone (menor no ícone "maskable" e na camada do Android)
+function svg({ mark: fraction = 0.74, background = "#0a0a0a", rounded = false }) {
   const s = 512;
-  const m = s * mark;
+  const m = s * fraction;
   const o = (s - m) / 2;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 ${s} ${s}">
-  <defs><style>@font-face{font-family:Inter;src:url(${font})}</style></defs>
   <rect width="${s}" height="${s}" rx="${rounded ? 112 : 0}" fill="${background}"/>
-  <circle cx="${s * 0.86}" cy="${s * 0.12}" r="${s * 0.34}" fill="none" stroke="#2e5546" stroke-width="3"/>
-  <circle cx="${s * 0.86}" cy="${s * 0.12}" r="${s * 0.48}" fill="none" stroke="#24493c" stroke-width="3"/>
-  <rect x="${o}" y="${o}" width="${m}" height="${m}" rx="${m * 0.27}" fill="#c7f46c"/>
-  <text x="${s / 2 - m * 0.04}" y="${s / 2 + m * 0.2}" text-anchor="middle" font-family="Inter" font-weight="800" font-size="${m * 0.62}" fill="#0d2922">n</text>
-  <circle cx="${s / 2 + m * 0.25}" cy="${s / 2 + m * 0.17}" r="${m * 0.055}" fill="#0d2922"/>
+  ${mark(o, o, m)}
 </svg>`;
 }
 
 const outputs = [
   { file: "public/icons/icon-512.png", size: 512, opts: {} },
   { file: "public/icons/icon-192.png", size: 192, opts: {} },
-  { file: "public/icons/icon-maskable-512.png", size: 512, opts: { mark: 0.5 } },
+  { file: "public/icons/icon-maskable-512.png", size: 512, opts: { mark: 0.56 } },
   { file: "public/icons/apple-touch-icon.png", size: 180, opts: {} },
   // Android (Capacitor): ícone legado e camada da frente do ícone adaptativo
   ...[
@@ -41,11 +53,11 @@ const outputs = [
   ].flatMap(([density, legacy, fg]) => [
     { file: `android/app/src/main/res/mipmap-${density}/ic_launcher.png`, size: legacy, opts: { rounded: true } },
     { file: `android/app/src/main/res/mipmap-${density}/ic_launcher_round.png`, size: legacy, opts: { rounded: true } },
-    { file: `android/app/src/main/res/mipmap-${density}/ic_launcher_foreground.png`, size: fg, opts: { mark: 0.42, background: "transparent" } },
+    { file: `android/app/src/main/res/mipmap-${density}/ic_launcher_foreground.png`, size: fg, opts: { mark: 0.5, background: "transparent" } },
   ]),
 ];
 
-writeFileSync(resolve(root, "public/icons/favicon.svg"), svg({ rounded: true }).replace(/<defs>.*<\/defs>/s, ""));
+writeFileSync(resolve(root, "public/icons/favicon.svg"), svg({ rounded: true }));
 const browser = await chromium.launch();
 const page = await browser.newPage();
 for (const { file, size, opts } of outputs) {

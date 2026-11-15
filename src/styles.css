@@ -963,6 +963,19 @@ button.insight:hover { background: var(--tint); }
 .app.kid .content { zoom: 1.08; }
 .sidebar-all { margin: 12px 12px 0; font-size: 12.5px; color: #e8e8e3; }
 
+/* ===================== Logo ===================== */
+.logo-mark { display: block; flex-shrink: 0; overflow: visible; }
+.logo-mark .lg-bg { fill: var(--accent); }
+.logo-mark .lg-egg { fill: var(--on-accent); }
+.logo-mark .lg-halo { fill: none; stroke: var(--accent); stroke-width: 7; stroke-linecap: round; }
+.logo-mark .lg-twig { fill: none; stroke: var(--on-accent); stroke-width: 3.6; stroke-linecap: round; }
+.logo-mark .lg-twig.t2 { stroke-width: 3.4; }
+.logo-mark .lg-bg, .logo-mark .lg-egg { transform-box: fill-box; transform-origin: center; }
+.logo-mark .lg-egg { transform-origin: 50% 100%; }
+/* A marca no topo, no menu e no login: só o desenho (sem a caixa da letra antiga) */
+svg.brand-mark { background: none; border-radius: 50%; }
+.brand-mark.logo-mark { width: auto; height: auto; }
+
 /* ===================== Abertura: o ninho se forma ===================== */
 .intro {
   position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; overflow: hidden;
@@ -970,67 +983,72 @@ button.insight:hover { background: var(--tint); }
   touch-action: none; user-select: none; -webkit-tap-highlight-color: transparent;
 }
 .intro-light {
-  position: absolute; width: 520px; height: 520px; left: 50%; top: 50%; margin: -260px 0 0 -260px; border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 16%, transparent) 0%, color-mix(in srgb, var(--accent) 5%, transparent) 35%, transparent 65%);
-  opacity: 0; animation: intro-light 2.2s ease-out forwards;
+  position: absolute; width: 560px; height: 560px; left: 50%; top: 50%; margin: -280px 0 0 -280px; border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 22%, transparent) 0%, color-mix(in srgb, var(--accent) 6%, transparent) 38%, transparent 66%);
+  opacity: 0; animation: intro-light 1.6s ease-out 0.2s forwards;
 }
-@keyframes intro-light { 0% { opacity: 0; transform: scale(0.6); } 60% { opacity: 1; } 100% { opacity: 0.8; transform: scale(1); } }
-.intro-stage { position: relative; width: 240px; height: 240px; display: grid; place-items: center; }
-.intro-nest { position: absolute; inset: 0; overflow: visible; transition: opacity 0.45s ease, transform 0.6s cubic-bezier(0.5, 0, 0.2, 1); }
-.intro .twig { fill: none; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: intro-twig 0.8s cubic-bezier(0.6, 0.1, 0.2, 1) forwards; }
-.intro .t0 { stroke: var(--accent); stroke-width: 3.2; opacity: 0.92; }
-.intro .t1 { stroke: #f4f4f0; stroke-width: 4.4; opacity: 0.85; }
-.intro .t2 { stroke: #9a9a94; stroke-width: 2.4; opacity: 0.75; }
-@keyframes intro-twig { to { stroke-dashoffset: 0; } }
-.intro .kin {
-  fill: var(--accent-hi); opacity: 0; transform-box: fill-box; transform-origin: center;
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 90%, transparent));
-  animation: intro-kin 0.62s cubic-bezier(0.2, 0.8, 0.25, 1) forwards;
+@keyframes intro-light { 0% { opacity: 0; transform: scale(0.5); } 100% { opacity: 1; transform: scale(1); } }
+.intro-stage { position: relative; width: 260px; height: 260px; display: grid; place-items: center; }
+.intro-mark { position: relative; width: 112px; height: 112px; will-change: transform; filter: drop-shadow(0 18px 40px rgba(0, 0, 0, 0.35)); }
+/* O círculo nasce do pontinho da tela de carregamento (14px = 0,125 × 112px) */
+.intro-full .intro-mark .lg-bg { animation: intro-pop 0.62s cubic-bezier(0.2, 1.45, 0.35, 1) 0.12s both; }
+@keyframes intro-pop { from { transform: scale(0.125); } to { transform: scale(1); } }
+.intro-ripple {
+  position: absolute; width: 112px; height: 112px; border-radius: 50%; border: 2px solid var(--accent); opacity: 0;
 }
-@keyframes intro-kin {
-  0% { opacity: 0; transform: translate(var(--fx), var(--fy)) scale(0.4); }
-  35% { opacity: 1; }
-  85% { transform: translate(0, 0) scale(1.25); }
+.intro-full .intro-ripple { animation: intro-ripple 0.9s ease-out 0.42s both; }
+@keyframes intro-ripple { 0% { opacity: 0.7; transform: scale(0.9); } 100% { opacity: 0; transform: scale(2.1); } }
+/* Galhos: desenhados um a um */
+.intro-full .lg-twig { stroke-dasharray: 1; stroke-dashoffset: 1; animation: intro-draw 0.42s cubic-bezier(0.6, 0.1, 0.25, 1) both; }
+.intro-full .lg-twig.t0 { animation-delay: 0.52s; }
+.intro-full .lg-twig.t1 { animation-delay: 0.64s; }
+.intro-full .lg-twig.t2 { animation-delay: 0.76s; }
+.intro-full .lg-halo { opacity: 0; animation: intro-show 0.01s linear 0.5s forwards; }
+/* Escondido até começar: a ponta arredondada de um traço "vazio" ainda aparece como um pontinho */
+@keyframes intro-draw { 0% { stroke-dashoffset: 1; opacity: 0; } 2% { opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 1; } }
+@keyframes intro-show { to { opacity: 1; } }
+/* Ovos: caem no ninho e se acomodam, o do meio primeiro */
+.intro-full .lg-egg { animation: intro-egg 0.62s cubic-bezier(0.3, 1.4, 0.45, 1) both; }
+.intro-full .lg-egg.e1 { animation-delay: 0.86s; }
+.intro-full .lg-egg.e0 { animation-delay: 0.97s; }
+.intro-full .lg-egg.e2 { animation-delay: 1.08s; }
+@keyframes intro-egg {
+  0% { opacity: 0; transform: translateY(-34px) scale(0.7, 0.9); }
+  45% { opacity: 1; transform: translateY(1px) scale(1.08, 0.88); }
+  70% { transform: translateY(-2px) scale(0.97, 1.04); }
   100% { opacity: 1; transform: none; }
 }
-/* O "ovo de luz": o mesmo ponto da moldura do index.html */
-.intro-egg {
-  position: absolute; width: 14px; height: 14px; border-radius: 50%; background: var(--accent);
-  box-shadow: 0 0 22px 4px color-mix(in srgb, var(--accent) 45%, transparent); animation: intro-egg 1.2s ease-in-out infinite;
-  transition: opacity 0.3s ease, transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
-}
-@keyframes intro-egg { 50% { box-shadow: 0 0 30px 8px color-mix(in srgb, var(--accent) 60%, transparent); } }
-.intro-mark {
-  position: absolute; width: 76px; height: 76px; border-radius: 22px; background: var(--accent); color: var(--on-accent);
-  font-weight: 900; font-size: 40px; letter-spacing: -1px; display: grid; place-items: center;
-  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 50%, transparent), 0 18px 50px rgba(0, 0, 0, 0.35);
-  opacity: 0; transform: scale(0.18); will-change: transform;
-}
+/* Esperando os dados: os ovos balançam devagar */
+.intro-full.is-hold .lg-egg { opacity: 1; animation: intro-wobble 1.4s ease-in-out infinite; }
+.intro-full.is-hold .lg-egg.e0 { animation-delay: 0.15s; }
+.intro-full.is-hold .lg-egg.e2 { animation-delay: 0.3s; }
+@keyframes intro-wobble { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(-5deg); } 60% { transform: rotate(4deg); } }
+/* Abertura curta: tudo aparece rápido */
+.intro-short .intro-mark { animation: intro-pop-quick 0.38s cubic-bezier(0.2, 1.4, 0.35, 1) both; }
+.intro-short .lg-egg { animation: intro-egg 0.4s cubic-bezier(0.3, 1.4, 0.45, 1) both; }
+.intro-short .lg-egg.e0 { animation-delay: 0.08s; }
+.intro-short .lg-egg.e2 { animation-delay: 0.14s; }
+@keyframes intro-pop-quick { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: none; } }
+/* Nome */
 .intro-word {
-  position: absolute; top: 172px; left: 0; right: 0; text-align: center; color: #f4f4f0;
-  font-size: 30px; font-weight: 800; letter-spacing: -1px; transition: opacity 0.2s ease;
+  position: absolute; top: 196px; left: 0; right: 0; text-align: center; color: #fff;
+  font-size: 34px; font-weight: 850; letter-spacing: -1.4px; transition: opacity 0.2s ease;
 }
-.intro-word span { display: inline-block; opacity: 0; transform: translateY(8px); animation: intro-letter 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+.intro-word span { display: inline-block; opacity: 0; transform: translateY(10px); animation: intro-letter 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
 .intro-word .dot { color: var(--accent); animation-name: intro-dot; animation-duration: 0.6s; }
 @keyframes intro-letter { to { opacity: 1; transform: none; } }
-@keyframes intro-dot { 0% { opacity: 0; transform: scale(0.2); } 60% { opacity: 1; transform: scale(1.6); } 100% { opacity: 1; transform: none; } }
+@keyframes intro-dot { 0% { opacity: 0; transform: scale(0.2); } 60% { opacity: 1; transform: scale(1.8); } 100% { opacity: 1; transform: none; } }
 .intro-tag {
-  position: absolute; top: 214px; left: -40px; right: -40px; text-align: center; color: #a6a6a0;
-  font-size: 11px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase;
-  opacity: 0; animation: intro-letter 0.6s ease forwards 1.75s; transition: opacity 0.2s ease;
+  position: absolute; top: 244px; left: -40px; right: -40px; text-align: center; color: #ffffffa6;
+  font-size: 11px; font-weight: 700; letter-spacing: 3.4px; text-transform: uppercase;
+  opacity: 0; animation: intro-letter 0.6s ease forwards 1.62s; transition: opacity 0.2s ease;
 }
-/* Fases */
-.intro-full.is-nest .intro-mark { opacity: 0; }
-.intro-full.is-mark .intro-nest, .intro-full.is-hold .intro-nest, .intro-full.is-exit .intro-nest { opacity: 0.18; transform: scale(1.35); }
-.intro.is-mark .intro-mark, .intro.is-hold .intro-mark, .intro.is-exit .intro-mark { animation: intro-mark-in 0.6s cubic-bezier(0.2, 1.35, 0.4, 1) forwards; }
-.intro.is-mark .intro-egg, .intro.is-hold .intro-egg, .intro.is-exit .intro-egg { opacity: 0; transform: scale(3); }
-@keyframes intro-mark-in { to { opacity: 1; transform: scale(1); } }
-.intro.is-hold .intro-mark { animation: intro-mark-in 0.6s cubic-bezier(0.2, 1.35, 0.4, 1) forwards, intro-breathe 1.6s ease-in-out 0.6s infinite; }
-@keyframes intro-breathe { 50% { box-shadow: 0 0 0 14px color-mix(in srgb, var(--accent) 0%, transparent), 0 18px 50px rgba(0, 0, 0, 0.35); transform: scale(1.04); } 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 35%, transparent), 0 18px 50px rgba(0, 0, 0, 0.35); opacity: 1; transform: scale(1); } }
-.intro.is-exit .intro-word, .intro.is-exit .intro-tag, .intro.is-exit .intro-nest, .intro.is-exit .intro-light { opacity: 0 !important; transition: opacity 0.18s ease; }
+:root:not([data-theme="dark"]) .intro-word { font-family: var(--display); font-weight: 400; letter-spacing: 1px; text-transform: uppercase; font-size: 40px; }
+/* Saída: nome e brilho somem; o logo voa (Intro.tsx) */
+.intro.is-exit .intro-word, .intro.is-exit .intro-tag, .intro.is-exit .intro-light, .intro.is-exit .intro-ripple { opacity: 0 !important; transition: opacity 0.18s ease; }
+.intro.is-exit .lg-egg { animation: none; opacity: 1; }
 /* Esmaecida (pouco movimento, modo simples/criança): logo parado e some */
-.intro-fade .intro-mark { opacity: 1; transform: none; animation: none !important; }
-.intro-fade .intro-egg, .intro-fade .intro-word, .intro-fade .intro-light { display: none; }
+.intro-fade .intro-word, .intro-fade .intro-light, .intro-fade .intro-ripple { display: none; }
 .intro-fade-out { animation: intro-fade 0.3s ease forwards; }
 @keyframes intro-fade { to { opacity: 0; } }
 /* Chegada: os cartões da tela sobem em sequência */

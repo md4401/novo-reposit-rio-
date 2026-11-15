@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Spinner } from "../components/ui";
 import { api } from "../lib/api";
 import { useApp } from "../state";
+import { LogoMark } from "../components/Logo";
 
 type Mode = "login" | "register" | "forgot";
 
@@ -130,7 +131,7 @@ export function AuthPage() {
           <i />
         </div>
         <div className="brand" style={{ padding: 0 }}>
-          <div className="brand-mark">n</div>
+          <LogoMark size={40} className="brand-mark" />
           <div>
             <div className="brand-name">
               ninho<span>.</span>

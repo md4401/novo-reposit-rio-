@@ -37,6 +37,6 @@
         android:gravity="center"
         android:paddingHorizontal="14dp"
         android:text="+ Despesa"
-        android:textColor="#0D2922"
+        android:textColor="#0A0A0A"
         android:textStyle="bold" />
 </LinearLayout>

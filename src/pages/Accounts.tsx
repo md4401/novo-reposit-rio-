@@ -1,11 +1,13 @@
-import { CreditCard, FileUp, Landmark, PiggyBank, Plus, Utensils, Wallet } from "lucide-react";
-import { useState } from "react";
-import type { Account, AccountKind } from "../../shared/types";
+import { CreditCard, FileUp, Landmark, Link2, PiggyBank, Plus, RefreshCw, Utensils, Wallet } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import type { Account, AccountKind, BankConnection, OpenFinanceInfo } from "../../shared/types";
 import { BalanceHelp } from "../components/help";
 import { Heading, ModalHeader, Money, Panel, Spinner, Toggle } from "../components/ui";
 import { api } from "../lib/api";
 import { centsToInput, parseMoney, relativeDays } from "../lib/format";
 import { ImportModal, KIND_LABEL, NewAccountModal } from "../modals/AccountModals";
+import { connectBank, type ConnectResult } from "../lib/openfinance";
+import { useData } from "../lib/useData";
 import { useApp } from "../state";
 
 const ICON: Record<AccountKind, React.ReactNode> = {
@@ -138,6 +140,148 @@ function Sparkline({ points }: { points: { month: string; balanceCents: number }
   );
 }
 
+/** Resumo do que chegou do banco, numa frase. */
+function syncedText(r: ConnectResult) {
+  const parts = [`${r.accounts} conta${r.accounts === 1 ? "" : "s"}`];
+  parts.push(r.imported ? `${r.imported} transaç${r.imported === 1 ? "ão nova" : "ões novas"}` : "nenhuma transação nova");
+  if (r.investments) parts.push(`${r.investments} investimento${r.investments === 1 ? "" : "s"}`);
+  return `${parts.join(", ")}${r.pending ? `. ${r.pending} para revisar.` : "."}`;
+}
+
+/** Open Finance: conectar o banco uma vez e as contas, saldos e transações chegam sozinhos. */
+function OpenFinancePanel() {
+  const { refreshMe, toast, confirm } = useApp();
+  const { data, reload } = useData<OpenFinanceInfo>("openfinance");
+  const [busy, setBusy] = useState<string | null>(null);
+  const started = useRef(false);
+
+  async function connect(connectionId?: string) {
+    setBusy(connectionId ?? "new");
+    try {
+      await connectBank({
+        connectionId,
+        onSaved: (result) => {
+          setBusy(null);
+          reload();
+          void refreshMe();
+          toast(`Banco conectado: ${syncedText(result)}`);
+        },
+        onError: (message) => {
+          setBusy(null);
+          reload();
+          toast(message);
+        },
+        onClose: () => setBusy(null),
+      });
+    } catch (error) {
+      setBusy(null);
+      toast((error as Error).message);
+    }
+  }
+
+  // Atalho "Conectar banco" do botão +: abre o widget direto
+  useEffect(() => {
+    if (started.current || !data?.enabled || !window.location.hash.includes("conectar=1")) return;
+    started.current = true;
+    window.history.replaceState(null, "", "#/contas");
+    void connect();
+  }, [data?.enabled]);
+
+  async function sync(c: BankConnection) {
+    setBusy(c.id);
+    try {
+      const result = await api<ConnectResult>(`openfinance/connections/${c.id}/sync`, { body: {} });
+      await refreshMe();
+      toast(`${c.connectorName} atualizado: ${syncedText(result)}`);
+    } catch (error) {
+      toast((error as Error).message);
+    } finally {
+      setBusy(null);
+      reload();
+    }
+  }
+
+  async function disconnect(c: BankConnection) {
+    const ok = await confirm({
+      title: `Desconectar ${c.connectorName}?`,
+      text: "O ninho para de receber os dados e a autorização é cancelada. As contas e transações que já chegaram continuam aqui; os investimentos lidos saem do Patrimônio.",
+      confirmLabel: "Desconectar",
+      danger: true,
+    });
+    if (!ok) return;
+    setBusy(c.id);
+    try {
+      await api(`openfinance/connections/${c.id}`, { method: "DELETE" });
+      await refreshMe();
+      toast(`${c.connectorName} desconectado.`);
+    } catch (error) {
+      toast((error as Error).message);
+    } finally {
+      setBusy(null);
+      reload();
+    }
+  }
+
+  if (!data) return null;
+  if (!data.enabled)
+    return (
+      <div className="notice info" style={{ marginBottom: 17 }}>
+        <Link2 size={18} />
+        <div>
+          <h3>Conexão automática com bancos (Open Finance)</h3>
+          <p>Ainda não ligada neste app: falta colocar as chaves da Pluggy no servidor. Enquanto isso, importe o extrato (CSV ou OFX).</p>
+        </div>
+      </div>
+    );
+  return (
+    <Panel
+      className="openfinance-panel"
+      title="Bancos conectados"
+      action={
+        <button type="button" className="btn dark small" disabled={busy !== null} onClick={() => void connect()}>
+          {busy === "new" ? <Spinner /> : <Link2 size={14} />} Conectar banco
+        </button>
+      }
+    >
+      {data.connections.length === 0 ? (
+        <p className="muted small" style={{ marginBottom: 4 }}>
+          Conecte pelo <b>Open Finance</b> e as contas, os saldos, as transações e os investimentos chegam sozinhos, todo dia. Você autoriza
+          no app do banco; o ninho só lê (não faz pagamentos). Já usa o <b>Meu Pluggy</b>? Escolha “MeuPluggy” na lista.
+        </p>
+      ) : (
+        data.connections.map((c) => (
+          <div className="status-item" key={c.id}>
+            {c.connectorImage ? <img className="bank-logo" src={c.connectorImage} alt="" /> : <div className="status-dot"><Landmark size={18} /></div>}
+            <div>
+              <h4>{c.connectorName}</h4>
+              <p className={c.needsReconnect ? "down" : undefined}>
+                {c.errorMessage ??
+                  (c.updating && !c.lastSyncedAt
+                    ? "Recebendo os dados do banco…"
+                    : `${c.accounts} conta${c.accounts === 1 ? "" : "s"}${c.investments ? ` · ${c.investments} investimento${c.investments === 1 ? "" : "s"}` : ""} · atualizado ${relativeDays(c.lastSyncedAt)}`)}
+              </p>
+            </div>
+            <div className="bank-actions">
+              {c.needsReconnect ? (
+                <button type="button" className="btn dark small" disabled={busy !== null} onClick={() => void connect(c.id)}>
+                  {busy === c.id ? <Spinner /> : null} Reconectar
+                </button>
+              ) : (
+                <button type="button" className="btn ghost small" disabled={busy !== null} onClick={() => void sync(c)} aria-label={`Atualizar ${c.connectorName}`}>
+                  {busy === c.id ? <Spinner /> : <RefreshCw size={14} />} Atualizar
+                </button>
+              )}
+              <button type="button" className="btn ghost small danger-text" disabled={busy !== null} onClick={() => void disconnect(c)}>
+                Desconectar
+              </button>
+            </div>
+          </div>
+        ))
+      )}
+    </Panel>
+  );
+}
+
 export function AccountsPage() {
   const { me, openModal, refreshMe, toast } = useApp();
   const accounts = me?.accounts ?? [];
@@ -152,7 +296,7 @@ export function AccountsPage() {
     <>
       <Heading
         title="Bancos e cartões"
-        subtitle="Cadastre suas contas e cartões e importe o extrato do banco (CSV ou OFX)."
+        subtitle="Conecte o banco pelo Open Finance, ou cadastre a conta e importe o extrato (CSV ou OFX)."
         actions={
           <>
             <button type="button" className="btn ghost" onClick={() => openModal(<NewAccountModal />)}>
@@ -164,6 +308,7 @@ export function AccountsPage() {
           </>
         }
       />
+      <OpenFinancePanel />
       <div className="grid-2" style={{ marginTop: 0 }}>
         <Panel
           title={
@@ -184,6 +329,7 @@ export function AccountsPage() {
                 <p>
                   {KIND_LABEL[a.kind]}
                   {a.institution ? ` · ${a.institution}` : ""} · atualizada {relativeDays(a.lastSyncedAt)}
+                  {a.connected && <span className="chip lime" style={{ marginLeft: 6 }}>Open Finance</span>}
                 </p>
                 {a.kind === "credit_card" ? (
                   <button type="button" className="account-balance link-like" onClick={() => openModal(<CardDaysModal account={a} />)}>
@@ -205,7 +351,7 @@ export function AccountsPage() {
                   )
                 )}
               </div>
-              {a.active && a.kind !== "cash" && (
+              {a.active && a.kind !== "cash" && !a.connected && (
                 <button type="button" className="btn ghost small" onClick={() => openModal(<ImportModal accountId={a.id} />)}>
                   Importar
                 </button>
@@ -235,8 +381,8 @@ export function AccountsPage() {
             <div>
               <h3>Bancos reconhecidos</h3>
               <p>
-                O ninho reconhece sozinho o CSV de Nubank (conta e cartão), Inter, C6 e Mercado Pago — e lê OFX de qualquer banco. A conexão
-                automática (Open Finance) depende de contrato com um provedor e fica para depois.
+                O ninho reconhece sozinho o CSV de Nubank (conta e cartão), Inter, C6 e Mercado Pago — e lê OFX de qualquer banco. Para não
+                precisar importar, conecte o banco em <b>Bancos conectados</b> (Open Finance).
               </p>
             </div>
           </div>

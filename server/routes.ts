@@ -95,6 +95,9 @@ import {
 } from "./wealth.js";
 import { cardInvoices, deletePayable, listPayables, loadForecast, payPayable, savePayable, type PayableInput } from "./planning.js";
 import { importStatement } from "./statement-import.js";
+import { checkWebhook, connectToken, handleWebhook, openFinanceInfo, refreshConnection, removeConnection, saveConnection, syncStaleConnections } from "./openfinance.js";
+import { pluggyEnabled } from "./pluggy.js";
+import { waitUntil } from "@vercel/functions";
 import {
   abandonChallenge,
   createWish,
@@ -272,7 +275,7 @@ async function loadMe(user: SessionUser): Promise<Me> {
         [user.household_id],
       ),
       q(
-        `SELECT id, name, kind, institution, last4, active, last_synced_at, closing_day, due_day, is_reserve FROM financial_accounts
+        `SELECT id, name, kind, institution, last4, active, last_synced_at, closing_day, due_day, is_reserve, connection_id FROM financial_accounts
           WHERE profile_id = $1 ORDER BY active DESC, created_at, name, id`,
         [user.id],
       ),
@@ -333,6 +336,7 @@ async function loadMe(user: SessionUser): Promise<Me> {
     pendingCount: num(pending[0].n),
     notifyDigest: Boolean(notify[0]?.notify_digest),
     aiEnabled: aiEnabled(),
+    openFinanceEnabled: pluggyEnabled(),
     voiceEnabled: transcriptionEnabled(),
     hasDemoData: Boolean(demo[0].has_demo),
     setup: {
@@ -371,6 +375,7 @@ function mapAccount(a: Record<string, unknown>, balance: Pick<Account, "balanceC
     closingDay: (a.closing_day as number | null) ?? null,
     dueDay: (a.due_day as number | null) ?? null,
     isReserve: Boolean(a.is_reserve),
+    connected: Boolean(a.connection_id),
   };
 }
 
@@ -790,7 +795,7 @@ route("POST", "transactions/:id/confirm", async ({ request, params }) => {
 route("DELETE", "transactions/:id", async ({ request, params }) => {
   const user = await requireUser(request);
   const tx = await getTransaction(user, uuid(params[0]));
-  if (tx.source === "csv" || tx.source === "ofx") {
+  if (tx.source === "csv" || tx.source === "ofx" || tx.source === "openfinance") {
     // Importadas nunca somem: ficam ignoradas (e não voltam ao reimportar o extrato)
     await query(`UPDATE transactions SET ignored = true, updated_at = now() WHERE id = $1 AND profile_id = $2`, [tx.id, user.id]);
     await pruneBasketItems(user, tx.id);
@@ -863,6 +868,52 @@ route("PATCH", "accounts/:id", async ({ request, params }) => {
     ],
   );
   return json((await withBalances(user, [row!]))[0]);
+});
+
+// ===========================================================================
+// Open Finance (Pluggy): conectar bancos e trazer contas, transações e investimentos
+
+route("GET", "openfinance", async ({ request }) => json(await openFinanceInfo(await requireUser(request))));
+
+route("POST", "openfinance/connect-token", async ({ request, url }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  await rateLimit(`of-token:${user.id}`, 20, 60);
+  const origin = process.env.APP_URL ?? url.origin;
+  return json(await connectToken(user, origin, body.connectionId ? uuid(body.connectionId, "conexão") : undefined));
+});
+
+route("POST", "openfinance/connections", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  await rateLimit(`of-save:${user.id}`, 20, 60);
+  const itemId = str(body, "itemId", { max: 80, label: "conexão" })!;
+  const result = await saveConnection(user, itemId);
+  await audit(user.id, "openfinance.connected", "bank_connection", itemId, result);
+  return json({ ...result, ...(await openFinanceInfo(user)) }, 201);
+});
+
+route("POST", "openfinance/connections/:id/sync", async ({ request, params }) => {
+  const user = await requireUser(request);
+  await rateLimit(`of-sync:${user.id}`, 12, 60);
+  const result = await refreshConnection(user, uuid(params[0], "conexão"));
+  return json({ ...result, ...(await openFinanceInfo(user)) });
+});
+
+route("DELETE", "openfinance/connections/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  const id = uuid(params[0], "conexão");
+  await removeConnection(user, id);
+  await audit(user.id, "openfinance.disconnected", "bank_connection", id);
+  return json(await openFinanceInfo(user));
+});
+
+// Aviso da Pluggy: responde na hora (ela espera no máximo 10 s) e busca os dados em seguida
+route("POST", "openfinance/webhook", async ({ request, url }) => {
+  const body = await readJson(request);
+  checkWebhook(url.searchParams.get("k"), body);
+  waitUntil(handleWebhook(body).catch(logError));
+  return json({ ok: true });
 });
 
 route("POST", "import", async ({ request }) => {
@@ -1243,7 +1294,8 @@ async function cronDigest({ url }: Ctx) {
   await rateLimit("cron:digest", 30, 60);
   const appUrl = process.env.APP_URL ?? url.origin;
   const allowances = await payDueAllowances();
-  return json({ ...(await sendDueDigests(appUrl.startsWith("https://") ? appUrl : "https://ninho-financas-familia.vercel.app")), allowances });
+  const openFinance = await syncStaleConnections().catch((error) => (logError(error), { synced: 0 }));
+  return json({ ...(await sendDueDigests(appUrl.startsWith("https://") ? appUrl : "https://ninho-financas-familia.vercel.app")), allowances, openFinance });
 }
 route("POST", "cron/digest", cronDigest);
 route("GET", "cron/digest", cronDigest);

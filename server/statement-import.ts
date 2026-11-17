@@ -34,16 +34,6 @@ export async function importStatement(
   }
   if (parsed.rows.length > 3000) throw new HttpError(400, "Arquivo com mais de 3.000 linhas. Divida por período.");
 
-  const existing = new Set(
-    (
-      await query<{ external_id: string }>(
-        `SELECT external_id FROM transactions
-          WHERE profile_id = $1 AND coalesce(account_id, $2::uuid) = $3 AND external_id = ANY($4::text[])`,
-        [user.id, NO_ACCOUNT, account.id, parsed.rows.map((r) => r.externalId)],
-      )
-    ).map((r) => r.external_id),
-  );
-
   // Fatura de cartão em CSV costuma trazer compras positivas: o banco reconhecido decide;
   // nos outros, a pessoa pode inverter.
   const invert = parsed.bank ? parsed.bank.creditCard : input.invertSigns;
@@ -51,26 +41,76 @@ export async function importStatement(
   const rows = parsed.rows.map((r) => {
     const signed = r.signedCents * sign;
     return {
-      ...r,
+      externalId: r.externalId,
+      occurredOn: r.occurredOn,
+      description: r.description,
       amountCents: Math.abs(signed),
       direction: (signed > 0 ? "income" : "expense") as "income" | "expense",
       // Só para a prévia: pagamento de fatura e transferências próprias não contam como gasto
       shownDirection: looksLikeTransfer(r.description) ? "transfer" : signed > 0 ? "income" : "expense",
-      duplicate: existing.has(r.externalId),
     };
   });
 
-  // Compras já capturadas pela notificação do banco: o extrato só completa (não duplica)
-  const captured = await query<{ id: string; amount_cents: string; direction: string; occurred_on: string }>(
-    `SELECT id, amount_cents, direction, occurred_on::text AS occurred_on FROM transactions
-      WHERE profile_id = $1 AND source = 'notification' AND external_id IS NULL AND NOT ignored
-        AND occurred_on BETWEEN $2::date - 3 AND $3::date + 3`,
-    [user.id, rows.reduce((m, r) => (r.occurredOn < m ? r.occurredOn : m), "9999-12-31"), rows.reduce((m, r) => (r.occurredOn > m ? r.occurredOn : m), "0000-01-01")],
+  const { duplicates, matches, imported, pending } = await ingestRows(user, account.id, rows, { source: parsed.format, commit: input.commit });
+  if (input.commit && (imported || matches.size)) await logRun(user, input, parsed.format, "success", rows.length, imported, rows.length - imported, null);
+
+  return {
+    format: parsed.format,
+    rows: rows.slice(0, 200).map((r) => ({
+      occurredOn: r.occurredOn,
+      description: r.description,
+      amountCents: r.amountCents,
+      direction: r.shownDirection as "income" | "expense" | "transfer",
+      duplicate: duplicates.has(r.externalId) || matches.has(r.externalId),
+    })),
+    total: rows.length,
+    duplicates: duplicates.size + matches.size,
+    imported,
+    committed: input.commit,
+    bank: parsed.bank?.name ?? null,
+    autoInverted: Boolean(parsed.bank?.creditCard),
+    latestMonth: rows.length ? rows.reduce((m, r) => (r.occurredOn > m ? r.occurredOn : m), "").slice(0, 7) : null,
+    pending,
+  };
+}
+
+/** Linha pronta para gravar: valor sempre positivo e o sentido (entrada ou saída) já decidido. */
+export type IncomingRow = { externalId: string; occurredOn: string; description: string; amountCents: number; direction: "income" | "expense" };
+
+/**
+ * Caminho único do extrato e do Open Finance: pula o que já entrou (mesmo id na mesma conta),
+ * completa as compras capturadas pela notificação do banco em vez de duplicar, classifica com as
+ * regras da pessoa (e a IA no que sobrar) e grava. Sem `commit`, só calcula a prévia.
+ */
+export async function ingestRows(
+  user: SessionUser,
+  accountId: string,
+  rows: IncomingRow[],
+  opts: { source: "csv" | "ofx" | "openfinance"; commit: boolean },
+) {
+  const duplicates = new Set(
+    (
+      await query<{ external_id: string }>(
+        `SELECT external_id FROM transactions
+          WHERE profile_id = $1 AND coalesce(account_id, $2::uuid) = $3 AND external_id = ANY($4::text[])`,
+        [user.id, NO_ACCOUNT, accountId, rows.map((r) => r.externalId)],
+      )
+    ).map((r) => r.external_id),
   );
+
+  // Compras já capturadas pela notificação do banco: o extrato só completa (não duplica)
+  const captured = rows.length
+    ? await query<{ id: string; amount_cents: string; direction: string; occurred_on: string }>(
+        `SELECT id, amount_cents, direction, occurred_on::text AS occurred_on FROM transactions
+          WHERE profile_id = $1 AND source = 'notification' AND external_id IS NULL AND NOT ignored
+            AND occurred_on BETWEEN $2::date - 3 AND $3::date + 3`,
+        [user.id, rows.reduce((m, r) => (r.occurredOn < m ? r.occurredOn : m), "9999-12-31"), rows.reduce((m, r) => (r.occurredOn > m ? r.occurredOn : m), "0000-01-01")],
+      )
+    : [];
   const used = new Set<string>();
   const matches = new Map<string, string>();
   for (const r of rows) {
-    if (r.duplicate) continue;
+    if (duplicates.has(r.externalId)) continue;
     const hit = captured.find(
       (c) => !used.has(c.id) && Number(c.amount_cents) === r.amountCents && c.direction === r.direction && Math.abs(daysBetween(c.occurred_on, r.occurredOn)) <= 3,
     );
@@ -79,10 +119,10 @@ export async function importStatement(
       matches.set(r.externalId, hit.id);
     }
   }
-  const fresh = rows.filter((r) => !r.duplicate && !matches.has(r.externalId));
+  const fresh = rows.filter((r) => !duplicates.has(r.externalId) && !matches.has(r.externalId));
   let imported = 0;
   let pending = 0;
-  if (input.commit && (fresh.length || matches.size)) {
+  if (opts.commit && (fresh.length || matches.size)) {
     const classifier = await loadClassifier(user.id, user.default_scope);
     const records = fresh.map((r) => {
       const merchant = normalizeMerchant(r.description);
@@ -97,7 +137,7 @@ export async function importStatement(
         status: c.status,
         classified_by: c.classifiedBy,
         external_id: r.externalId,
-        inflow: r.signedCents * sign > 0,
+        inflow: r.direction === "income",
         category_id: c.allocation?.categoryId ?? null,
         scope: c.allocation?.scope ?? null,
       };
@@ -139,9 +179,9 @@ export async function importStatement(
             WHERE r.category_id IS NOT NULL
          )
          SELECT count(*)::int AS n FROM ins`,
-        [user.id, JSON.stringify(records), account.id, parsed.format],
+        [user.id, JSON.stringify(records), accountId, opts.source],
       ),
-      q(`UPDATE financial_accounts SET last_synced_at = now() WHERE id = $1`, [account.id]),
+      q(`UPDATE financial_accounts SET last_synced_at = now() WHERE id = $1`, [accountId]),
     ]);
     imported = Number(inserted[0]?.n ?? 0);
     pending = Math.min(imported, records.filter((r) => r.status === "pending").length);
@@ -149,32 +189,13 @@ export async function importStatement(
       // Liga a captura à linha do extrato: reimportar continua sem duplicar
       await batch(
         [...matches].map(([externalId, id]) =>
-          q(`UPDATE transactions SET external_id = $3, account_id = $4, updated_at = now() WHERE id = $1 AND profile_id = $2`, [id, user.id, externalId, account.id]),
+          q(`UPDATE transactions SET external_id = $3, account_id = $4, updated_at = now() WHERE id = $1 AND profile_id = $2`, [id, user.id, externalId, accountId]),
         ),
       );
     }
     await applyGoalRules(user.id, records.map((r) => r.id));
-    await logRun(user, input, parsed.format, "success", rows.length, imported, rows.length - imported, null);
   }
-
-  return {
-    format: parsed.format,
-    rows: rows.slice(0, 200).map((r) => ({
-      occurredOn: r.occurredOn,
-      description: r.description,
-      amountCents: r.amountCents,
-      direction: r.shownDirection as "income" | "expense" | "transfer",
-      duplicate: r.duplicate || matches.has(r.externalId),
-    })),
-    total: rows.length,
-    duplicates: rows.filter((r) => r.duplicate).length + matches.size,
-    imported,
-    committed: input.commit,
-    bank: parsed.bank?.name ?? null,
-    autoInverted: Boolean(parsed.bank?.creditCard),
-    latestMonth: rows.length ? rows.reduce((m, r) => (r.occurredOn > m ? r.occurredOn : m), "").slice(0, 7) : null,
-    pending,
-  };
+  return { duplicates, matches, imported, pending };
 }
 
 async function logRun(

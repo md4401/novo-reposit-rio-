@@ -40,6 +40,8 @@ export type Account = {
   dueDay: number | null;
   /** Conta faz parte da reserva de emergência */
   isReserve: boolean;
+  /** Vem de um banco conectado pelo Open Finance (atualiza sozinha) */
+  connected: boolean;
 };
 
 export type Me = {
@@ -74,6 +76,8 @@ export type Me = {
   /** Quer receber a notificação do resumo diário */
   notifyDigest: boolean;
   aiEnabled: boolean;
+  /** Conexão com bancos pelo Open Finance (Pluggy) configurada no servidor */
+  openFinanceEnabled: boolean;
   /** Mensagens de voz gravadas e transcritas no servidor (Whisper) */
   voiceEnabled: boolean;
   hasDemoData: boolean;
@@ -93,7 +97,7 @@ export type Transaction = {
   direction: Direction;
   status: TxStatus;
   classifiedBy: ClassifiedBy | null;
-  source: "manual" | "csv" | "ofx" | "voice" | "receipt" | "demo" | "notification" | "allowance";
+  source: "manual" | "csv" | "ofx" | "voice" | "receipt" | "demo" | "notification" | "allowance" | "openfinance";
   accountId: string | null;
   accountName: string | null;
   method: string | null;
@@ -630,3 +634,26 @@ export type PlanBase = {
 
 export type ShoppingItem = { id: string; name: string; quantity: number; checked: boolean; addedBy: string | null; estimateCents: number | null };
 export type ShoppingList = { items: ShoppingItem[]; estimateCents: number; unknownCount: number };
+
+/** Banco conectado pelo Open Finance (Pluggy). Só a própria pessoa vê. */
+export type BankConnection = {
+  id: string;
+  connectorName: string;
+  connectorImage: string | null;
+  status: string;
+  errorMessage: string | null;
+  needsReconnect: boolean;
+  /** O banco ainda está mandando os dados */
+  updating: boolean;
+  lastSyncedAt: string | null;
+  accounts: number;
+  investments: number;
+};
+
+export type OpenFinanceInfo = {
+  /** Chaves da Pluggy configuradas no servidor */
+  enabled: boolean;
+  connections: BankConnection[];
+};
+
+export type OpenFinanceSync = { accounts: number; imported: number; pending: number; investments: number };

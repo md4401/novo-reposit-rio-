@@ -75,7 +75,7 @@ import {
 } from "./http.js";
 import { createBill, deleteBill, duplicateBill, listBills, payShare, unpayShare } from "./bills.js";
 import { listBudgets, summarize } from "./budgets.js";
-import { deleteAccount, leaveHousehold, removeMember, setRole } from "./household.js";
+import { deleteAccount, leaveHousehold, removeMember, setRole, wipeMyData } from "./household.js";
 import { askNia, listMessages } from "./nia.js";
 import { changePassword, createResetCode, requestReset, resetWithCode } from "./password.js";
 import { sendDueDigests, vapidKeys } from "./push.js";
@@ -1246,6 +1246,15 @@ route("POST", "household/leave", async ({ request }) => {
   const user = await requireUser(request);
   await leaveHousehold(user);
   return json(await loadMe((await requireUser(request))));
+});
+
+// Apagar todos os meus dados (a conta e a família continuam)
+route("POST", "me/wipe", async ({ request }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  await rateLimit(`wipe:${user.id}`, 5, 15);
+  await wipeMyData(user, str(body, "password", { max: 200, label: "senha" })!);
+  return json(await loadMe(user));
 });
 
 route("POST", "me/delete", async ({ request }) => {

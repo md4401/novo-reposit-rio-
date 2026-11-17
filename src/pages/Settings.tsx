@@ -8,7 +8,7 @@ import { category } from "../lib/format";
 import { captureAvailable, captureStatus, checkUpdate, hasNativeUpdater, isNative, openCaptureSettings, type UpdateInfo } from "../lib/native";
 import { disableNotifications, enableNotifications, notificationsSupported, syncNativeReminder } from "../lib/notifications";
 import { GuardianPanel, ModePanel } from "../components/CarePanels";
-import { ChangePasswordModal, DeleteAccountModal, ResetCodeModal } from "../modals/SecurityModals";
+import { ChangePasswordModal, DeleteAccountModal, ResetCodeModal, WipeDataModal } from "../modals/SecurityModals";
 import { UpdateModal } from "../modals/UpdateModal";
 import { canInstall, isInstalled, onInstallChange, promptInstall } from "../lib/pwa";
 import { getThemePref, onThemeChange, setThemePref, type ThemePref } from "../lib/theme";
@@ -264,6 +264,15 @@ export function SettingsPage() {
                   </div>
                   <button type="button" className="btn ghost small" onClick={() => openModal(<ChangePasswordModal />)}>
                     <KeyRound size={13} /> Trocar senha
+                  </button>
+                </div>
+                <div className="setting-row">
+                  <div>
+                    <h4>Apagar todos os meus dados</h4>
+                    <p>Recomeça do zero: some todo o seu histórico (transações, contas, metas, conversas…). A conta e a família continuam.</p>
+                  </div>
+                  <button type="button" className="btn danger small" onClick={() => openModal(<WipeDataModal />)}>
+                    <Trash2 size={13} /> Apagar dados
                   </button>
                 </div>
                 <div className="setting-row">

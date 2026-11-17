@@ -2,6 +2,8 @@
 import { useState } from "react";
 import { ModalHeader, Spinner } from "../components/ui";
 import { api } from "../lib/api";
+import { clearCache } from "../lib/useData";
+import { navigate } from "../lib/router";
 import { useApp } from "../state";
 
 export function ChangePasswordModal() {
@@ -132,6 +134,65 @@ export function DeleteAccountModal() {
       <div className="modal-actions">
         <button type="submit" className="btn danger" disabled={busy || confirmText.trim().toUpperCase() !== "APAGAR"}>
           {busy && <Spinner />} Apagar tudo
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/** Recomeçar do zero: apaga o histórico da pessoa, mas a conta e a família continuam. */
+export function WipeDataModal() {
+  const { refreshMe, toast, closeModal } = useApp();
+  const [password, setPassword] = useState("");
+  const [confirmText, setConfirmText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await api("me/wipe", { body: { password } });
+      clearCache();
+      await refreshMe();
+      closeModal(() => navigate(""));
+      toast("Pronto: seus dados foram apagados. A conta e a família continuam.");
+    } catch (err) {
+      setError((err as Error).message);
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit}>
+      <ModalHeader title="Apagar todos os meus dados" subtitle="Recomeçar do zero. Não dá para desfazer." />
+      <div className="notice warn" style={{ marginBottom: 12 }}>
+        <div>
+          <b>Some:</b> todas as suas transações e extratos importados, contas e cartões, bancos conectados (a autorização é cancelada), metas e
+          orçamentos pessoais, regras automáticas, conversa com a Nia, fotos de notas, documentos, contas a pagar e a receber, patrimônio e
+          dívidas, pontos, etiquetas, desafios e o “E se eu faltar?”.
+        </div>
+      </div>
+      <div className="modal-note" style={{ marginBottom: 14 }}>
+        <b>Fica:</b> sua conta, senha e configurações, e o que é da família (metas da casa, contas divididas, lista de compras, desejos,
+        combinados e acertos). Suas compras deixam de contar nos totais da família.
+      </div>
+      {error && <div className="form-error">{error}</div>}
+      <div className="field">
+        <label htmlFor="wipe-pass">Sua senha</label>
+        <input id="wipe-pass" type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+      </div>
+      <div className="field">
+        <label htmlFor="wipe-confirm">Digite APAGAR para confirmar</label>
+        <input id="wipe-confirm" required value={confirmText} onChange={(e) => setConfirmText(e.target.value)} />
+      </div>
+      <div className="modal-actions">
+        <button type="button" className="btn ghost" onClick={() => closeModal()}>
+          Cancelar
+        </button>
+        <button type="submit" className="btn danger" disabled={busy || confirmText.trim().toUpperCase() !== "APAGAR"}>
+          {busy && <Spinner />} Apagar meus dados
         </button>
       </div>
     </form>

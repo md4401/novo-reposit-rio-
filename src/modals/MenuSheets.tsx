@@ -1,5 +1,5 @@
 // "Adicionar" (botão + da barra) e "Menu" (as seções, pela foto no topo) — abrem como painel de baixo no celular.
-import { Camera, ChevronRight, FileUp, Lock, MessageCircle, Minus, Plus } from "lucide-react";
+import { Camera, ChevronRight, FileUp, Link2, Lock, MessageCircle, Minus, Plus } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Avatar, ModalHeader } from "../components/ui";
 import { KID_NAV, NAV, navContext, sectionOf, SIMPLE_NAV, visibleTabs } from "../lib/nav";
@@ -23,7 +23,7 @@ function SheetOption({ icon, title, text, tone, onClick }: { icon: ReactNode; ti
 }
 
 export function QuickAddSheet() {
-  const { openModal, closeModal } = useApp();
+  const { me, openModal, closeModal } = useApp();
   const then = (node: ReactNode) => closeModal(() => openModal(node));
   return (
     <div>
@@ -31,6 +31,9 @@ export function QuickAddSheet() {
       <div className="sheet-list">
         <SheetOption tone="dark" icon={<Minus size={18} />} title="Despesa" text="Uma compra ou conta paga" onClick={() => then(<NewTransactionModal />)} />
         <SheetOption tone="lime" icon={<Plus size={18} />} title="Receita" text="Salário, Pix recebido, reembolso" onClick={() => then(<NewTransactionModal direction="income" />)} />
+        {me?.openFinanceEnabled && (
+          <SheetOption icon={<Link2 size={18} />} title="Conectar banco" text="Open Finance: as transações chegam sozinhas" onClick={() => closeModal(() => navigate("contas?conectar=1"))} />
+        )}
         <SheetOption icon={<FileUp size={18} />} title="Importar extrato" text="CSV ou OFX baixado do app do banco" onClick={() => then(<ImportModal />)} />
         <SheetOption icon={<Camera size={18} />} title="Foto da nota fiscal" text="A Nia lê os itens e as categorias" onClick={() => then(<ReceiptModal />)} />
         <SheetOption icon={<MessageCircle size={18} />} title="Contar para a Nia" text="“Gastei 80 no mercado” — por texto ou voz" onClick={() => closeModal(() => navigate("nia"))} />

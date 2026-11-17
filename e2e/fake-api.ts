@@ -42,6 +42,7 @@ function account(data: Partial<Account>): Account {
     closingDay: null,
     dueDay: null,
     isReserve: false,
+    connected: false,
     ...data,
   };
 }
@@ -149,6 +150,7 @@ export class FakeApi {
       pendingCount: this.pending().length,
       notifyDigest: false,
       aiEnabled: false,
+      openFinanceEnabled: false,
       voiceEnabled: false,
       hasDemoData: false,
       setup: { hasTransactions: this.transactions.length > 0, hasBudget: false, hasGoal: false },

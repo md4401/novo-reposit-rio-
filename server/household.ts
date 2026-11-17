@@ -1,8 +1,10 @@
-// Família: papéis, remover integrante, sair da família e apagar a conta (LGPD).
+// Família: papéis, remover integrante, sair da família, apagar os dados e apagar a conta (LGPD).
 // Quem sai leva os próprios dados para uma família nova só sua; nada pessoal fica para trás.
 import { audit, newInviteCode, verifyPassword, type SessionUser } from "./auth.js";
 import { batch, one, q, query } from "./db.js";
-import { HttpError } from "./http.js";
+import { clearDemo } from "./demo.js";
+import { HttpError, logError } from "./http.js";
+import { deleteItem, pluggyEnabled } from "./pluggy.js";
 
 type Member = { id: string; name: string; role: "admin" | "member"; is_demo: boolean };
 
@@ -102,4 +104,53 @@ export async function deleteAccount(user: SessionUser, password: string) {
   if (next) await query(`DELETE FROM profiles WHERE id = $1`, [user.id]);
   // Era a última pessoa: apaga a família inteira (inclui integrantes de exemplo e metas)
   else await query(`DELETE FROM households WHERE id = $1`, [user.household_id]);
+}
+
+/**
+ * "Apagar todos os meus dados": recomeça do zero sem perder a conta. Some tudo o que é só da pessoa
+ * (transações, contas, bancos conectados, metas e orçamentos pessoais, conversa com a Nia, notas,
+ * documentos, planejamento, patrimônio…). Fica a conta, a família e o que é da casa (metas e contas
+ * divididas, lista de compras, desejos, combinados, acertos), porque apagar isso mexeria nos outros.
+ */
+export async function wipeMyData(user: SessionUser, password: string) {
+  const row = await one<{ password_hash: string }>(`SELECT password_hash FROM profiles WHERE id = $1`, [user.id]);
+  if (!row || !(await verifyPassword(password, row.password_hash))) throw new HttpError(400, "Senha incorreta");
+
+  // Bancos conectados: cancela a autorização na Pluggy (se falhar, a conexão some daqui mesmo assim)
+  const items = await query<{ pluggy_item_id: string }>(`SELECT pluggy_item_id FROM bank_connections WHERE profile_id = $1`, [user.id]);
+  if (pluggyEnabled())
+    for (const item of items) await deleteItem(item.pluggy_item_id).catch((error) => logError(error));
+
+  // Dados de exemplo (inclusive os integrantes de exemplo, se for quem administra)
+  await clearDemo(user);
+
+  const id = user.id;
+  await batch([
+    // Transações levam junto divisões, etiquetas, fotos e itens das notas, e contribuições ligadas a elas
+    q(`DELETE FROM transactions WHERE profile_id = $1`, [id]),
+    q(`DELETE FROM receipts WHERE profile_id = $1`, [id]),
+    q(`DELETE FROM receipt_items WHERE profile_id = $1`, [id]),
+    q(`DELETE FROM bank_connections WHERE profile_id = $1`, [id]),
+    q(`DELETE FROM financial_accounts WHERE profile_id = $1`, [id]),
+    q(`DELETE FROM import_runs WHERE profile_id = $1`, [id]),
+    q(`DELETE FROM categorization_rules WHERE profile_id = $1`, [id]),
+    q(`DELETE FROM goal_rules WHERE profile_id = $1`, [id]),
+    q(`DELETE FROM financial_goals WHERE owner_id = $1 AND scope = 'personal'`, [id]),
+    q(`DELETE FROM budgets WHERE owner_id = $1 AND scope = 'personal'`, [id]),
+    q(`DELETE FROM ai_messages WHERE profile_id = $1`, [id]),
+    q(`DELETE FROM alert_dismissals WHERE profile_id = $1`, [id]),
+    q(`DELETE FROM payables WHERE profile_id = $1`, [id]),
+    q(`DELETE FROM receivables WHERE profile_id = $1`, [id]),
+    q(`DELETE FROM tags WHERE profile_id = $1`, [id]),
+    q(`DELETE FROM assets WHERE profile_id = $1`, [id]),
+    q(`DELETE FROM debts WHERE profile_id = $1`, [id]),
+    q(`DELETE FROM net_worth_snapshots WHERE profile_id = $1`, [id]),
+    q(`DELETE FROM challenges WHERE profile_id = $1`, [id]),
+    q(`DELETE FROM loyalty WHERE profile_id = $1`, [id]),
+    q(`DELETE FROM documents WHERE profile_id = $1`, [id]),
+    q(`DELETE FROM legacy_vault WHERE profile_id = $1`, [id]),
+    q(`DELETE FROM download_tokens WHERE profile_id = $1`, [id]),
+    q(`UPDATE profiles SET self_salary_cents = NULL WHERE id = $1`, [id]),
+  ]);
+  await audit(id, "profile.data_wiped");
 }

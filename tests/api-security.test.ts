@@ -17,7 +17,7 @@ const PROTECTED: [string, string][] = [
   ["POST", `goals/${ID}/contributions`], ["DELETE", `goals/${ID}`], ["GET", "alerts"], ["POST", "alerts/dismiss"],
   ["GET", "health"], ["GET", "rules"], ["PATCH", `rules/${ID}`], ["DELETE", `rules/${ID}`], ["GET", "nia"],
   ["POST", "nia"], ["POST", "nia/clear"], ["POST", "nia/transcribe"], ["POST", "nia/receipt"],
-  ["POST", "me/password"], ["POST", "me/delete"], ["POST", "household/leave"], ["POST", `household/members/${ID}/role`],
+  ["POST", "me/password"], ["POST", "me/delete"], ["POST", "me/wipe"], ["POST", "household/leave"], ["POST", `household/members/${ID}/role`],
   ["POST", `household/members/${ID}/reset-code`], ["DELETE", `household/members/${ID}`], ["POST", "push/subscribe"],
   ["POST", "push/unsubscribe"], ["GET", "budgets"], ["PUT", "budgets"], ["DELETE", `budgets/${ID}`], ["GET", "bills"],
   ["POST", "bills"], ["POST", `bills/${ID}/pay`], ["POST", `bills/${ID}/unpay`], ["POST", `bills/${ID}/duplicate`],
@@ -43,6 +43,9 @@ const PROTECTED: [string, string][] = [
   ["GET", "security"], ["GET", "income"], ["GET", "guardians"], ["POST", "guardians"], ["DELETE", `guardians/${ID}`],
   ["GET", `guardians/${ID}/summary`], ["PUT", `household/members/${ID}/mode`], ["GET", "kid"], ["GET", "plan-base"],
   ["GET", "shopping"], ["POST", "shopping"], ["PATCH", `shopping/${ID}`], ["DELETE", `shopping/${ID}`], ["POST", "shopping/clear"],
+  // Open Finance
+  ["GET", "openfinance"], ["POST", "openfinance/connect-token"], ["POST", "openfinance/connections"],
+  ["POST", `openfinance/connections/${ID}/sync`], ["DELETE", `openfinance/connections/${ID}`],
 ];
 
 const call = (method: string, path: string, init: RequestInit = {}) =>
@@ -95,5 +98,20 @@ describe("API: erros internos", () => {
     expect(text).not.toMatch(/DATABASE_URL|stack|at /);
     expect(spy.mock.calls.flat().join(" ")).not.toContain("segredo-123");
     spy.mockRestore();
+  });
+});
+
+describe("Open Finance: aviso da Pluggy", () => {
+  it("sem as chaves configuradas ou com o segredo errado, recusa", async () => {
+    delete process.env.PLUGGY_CLIENT_ID;
+    expect((await call("POST", "openfinance/webhook?k=x", { body: JSON.stringify({ event: "item/updated", itemId: "i" }) })).status).toBe(401);
+    process.env.PLUGGY_CLIENT_ID = "cliente";
+    process.env.PLUGGY_CLIENT_SECRET = "segredo";
+    try {
+      expect((await call("POST", "openfinance/webhook?k=errado", { body: JSON.stringify({ event: "item/updated", itemId: "i" }) })).status).toBe(401);
+    } finally {
+      delete process.env.PLUGGY_CLIENT_ID;
+      delete process.env.PLUGGY_CLIENT_SECRET;
+    }
   });
 });

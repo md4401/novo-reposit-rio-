@@ -119,7 +119,7 @@ npm run test:e2e            # testes de tela (Chromium do Playwright; não preci
 
 ## Publicação
 
-- **Vercel** (projeto `novo-reposit-rio` → https://ninho-financas-familia.vercel.app): importado deste repositório; cada `git push` na `main` publica. Variáveis: `DATABASE_URL` (obrigatória) e, se quiser IA, `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL` (ver `.env.example`).
+- **Vercel** (projeto `novo-reposit-rio` → https://ninho-financas-familia.vercel.app): importado deste repositório; cada `git push` na `main` publica. Variáveis: `DATABASE_URL` (obrigatória) e, se quiser IA, `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL`; para conectar bancos pelo Open Finance, `PLUGGY_CLIENT_ID` e `PLUGGY_CLIENT_SECRET` (ver `.env.example`).
 - **Banco**: projeto `ninho` no Neon (região São Paulo). `npm run db:migrate` aplica as migrations.
 - **APK**: `public/download/ninho.apk` (baixável em `/download/ninho.apk` e em Configurações → App). O GitHub Actions (`.github/workflows/android.yml`) compila o app a cada mudança; o APK de produção é gerado manualmente (*Run workflow*), assinado com a chave guardada nos secrets, e vira um rascunho de *Release*. O APK abre o site publicado, então atualizações do site chegam sem reinstalar; só é preciso gerar outro APK se mudar algo do Android (ícone, permissões, endereço).
 

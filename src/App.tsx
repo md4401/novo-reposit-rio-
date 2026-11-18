@@ -38,6 +38,7 @@ import { TaxPage } from "./pages/Tax";
 import { TransactionsPage } from "./pages/Transactions";
 import { useApp } from "./state";
 import { LogoMark } from "./components/Logo";
+import { ReceiptsPage } from "./pages/Receipts";
 
 /** A abertura fica por cima enquanto o app carrega por baixo (os dados não esperam a animação). */
 export function App() {
@@ -103,6 +104,7 @@ function Screens() {
     saude: <HealthPage />,
     contas: <AccountsPage />,
     ajustes: <SettingsPage />,
+    notas: <ReceiptsPage />,
   };
   const page = pages[route.page] ? route.page : "inicio";
   return <Layout page={page}>{pages[page]}</Layout>;

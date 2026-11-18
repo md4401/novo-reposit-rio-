@@ -13,14 +13,14 @@ import { addDays } from "../../shared/time";
 export function NewTransactionModal({
   proposal,
   source = "manual",
-  receiptImage,
+  receiptId,
   direction: initialDirection = "expense",
   receiptItems,
 }: {
   proposal?: Proposal;
   source?: "manual" | "voice" | "receipt";
-  /** Foto da nota (já comprimida) para guardar junto com o lançamento */
-  receiptImage?: string;
+  /** Nota já guardada em Notas fiscais: fica ligada ao lançamento */
+  receiptId?: string;
   /** Começar como despesa ou receita (botão "Adicionar") */
   direction?: Direction;
   /** Produtos lidos da nota (alimentam a cesta da família) */
@@ -64,7 +64,7 @@ export function NewTransactionModal({
         toast("Sem internet: guardei no aparelho e envio sozinho quando a conexão voltar.");
         return;
       }
-      if (receiptImage) await api("receipts", { body: { image: receiptImage, transactionId: created.id }, silent: true }).catch(() => undefined);
+      if (receiptId) await api(`receipts/${receiptId}`, { method: "PATCH", body: { transactionId: created.id } }).catch(() => undefined);
       if (receiptItems?.length)
         await api(`transactions/${created.id}/items`, { method: "PUT", body: { items: receiptItems }, silent: true }).catch(() => undefined);
       await refreshMe();

@@ -21,7 +21,7 @@ const PROTECTED: [string, string][] = [
   ["POST", `household/members/${ID}/reset-code`], ["DELETE", `household/members/${ID}`], ["POST", "push/subscribe"],
   ["POST", "push/unsubscribe"], ["GET", "budgets"], ["PUT", "budgets"], ["DELETE", `budgets/${ID}`], ["GET", "bills"],
   ["POST", "bills"], ["POST", `bills/${ID}/pay`], ["POST", `bills/${ID}/unpay`], ["POST", `bills/${ID}/duplicate`],
-  ["DELETE", `bills/${ID}`], ["GET", "report"], ["POST", "report/link"], ["POST", "receipts"], ["GET", `receipts/${ID}`],
+  ["DELETE", `bills/${ID}`], ["GET", "report"], ["POST", "report/link"], ["POST", "receipts"], ["GET", "receipts"], ["PATCH", `receipts/${ID}`], ["GET", `receipts/${ID}`],
   ["DELETE", `receipts/${ID}`],
   // Planejamento, patrimônio, família e captura
   ["GET", "invoices"], ["GET", "payables"], ["POST", "payables"], ["PATCH", `payables/${ID}`], ["POST", `payables/${ID}/pay`],

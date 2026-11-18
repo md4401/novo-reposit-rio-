@@ -1433,3 +1433,25 @@ h3 { font-weight: 750; }
   .openfinance-panel .status-item { flex-wrap: wrap; }
   .openfinance-panel .bank-actions { width: 100%; justify-content: flex-start; padding-left: 48px; }
 }
+
+/* Notas fiscais guardadas */
+.receipt-month { margin-bottom: 18px; }
+.receipt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; margin-top: 8px; }
+.receipt-card {
+  display: flex; flex-direction: column; text-align: left; border-radius: 20px; overflow: hidden; padding: 0;
+  background: var(--glass); border: 1px solid var(--glass-line); box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow);
+  -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+}
+.receipt-card:active { transform: scale(0.98); }
+.receipt-card-text { display: flex; flex-direction: column; gap: 3px; padding: 10px 12px 12px; min-width: 0; }
+.receipt-card-text b { font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.receipt-card-text small { color: var(--muted); font-size: 12px; }
+.receipt-card-text .chip { align-self: flex-start; margin-top: 4px; }
+.receipt-photo { width: 100%; aspect-ratio: 4 / 3; background: var(--tint); display: grid; place-items: center; color: var(--muted); overflow: hidden; }
+.receipt-photo img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.receipt-photo .skeleton { width: 100%; height: 100%; border-radius: 0; }
+.receipt-photo.large { aspect-ratio: auto; max-height: 56vh; border-radius: 16px; background: #fff; }
+.receipt-photo.large img { object-fit: contain; max-height: 56vh; }
+@media (max-width: 660px) {
+  .receipt-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+}

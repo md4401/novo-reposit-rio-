@@ -79,7 +79,7 @@ import { deleteAccount, leaveHousehold, removeMember, setRole, wipeMyData } from
 import { askNia, listMessages } from "./nia.js";
 import { changePassword, createResetCode, requestReset, resetWithCode } from "./password.js";
 import { sendDueDigests, vapidKeys } from "./push.js";
-import { deleteReceipt, receiptImage, saveReceipt } from "./receipts.js";
+import { cleanItems, deleteReceipt, listReceipts, receiptImage, saveReceipt, updateReceipt, type ReceiptInfo } from "./receipts.js";
 import { buildReport, createReportLink, redeemReportLink, reportPdf, taxPdf } from "./report.js";
 import {
   createTag,
@@ -2061,12 +2061,36 @@ route("GET", "report/pdf", async ({ url }) => {
 // ===========================================================================
 // Fotos das notas fiscais
 
+/** Loja, total, data e itens que vieram junto com a foto (todos opcionais). */
+function receiptInfo(body: Record<string, unknown>): ReceiptInfo {
+  return {
+    ...(body.merchant !== undefined ? { merchant: body.merchant === null ? null : str(body, "merchant", { max: 80, optional: true }) } : {}),
+    ...(body.totalCents !== undefined ? { totalCents: body.totalCents === null ? null : cents(body.totalCents, "total") } : {}),
+    ...(body.issuedOn !== undefined ? { issuedOn: body.issuedOn === null ? null : dateKey(body.issuedOn, "data da nota") } : {}),
+    ...(body.items !== undefined ? { items: cleanItems(body.items) } : {}),
+  };
+}
+
+route("GET", "receipts", async ({ request }) => json(await listReceipts(await requireUser(request))));
+
 route("POST", "receipts", async ({ request }) => {
   const user = await requireUser(request);
   const body = await readJson(request, 1024 * 1024);
   await rateLimit(`receipts:${user.id}`, 30, 60);
-  const id = await saveReceipt(user, typeof body.image === "string" ? body.image : "", uuid(body.transactionId, "transação"));
+  const transactionId = body.transactionId ? uuid(body.transactionId, "transação") : null;
+  const id = await saveReceipt(user, typeof body.image === "string" ? body.image : "", transactionId, receiptInfo(body));
   return json({ id }, 201);
+});
+
+route("PATCH", "receipts/:id", async ({ request, params }) => {
+  const user = await requireUser(request);
+  const body = await readJson(request);
+  const id = uuid(params[0], "nota");
+  await updateReceipt(user, id, {
+    ...receiptInfo(body),
+    ...(body.transactionId !== undefined ? { transactionId: body.transactionId === null ? null : uuid(body.transactionId, "transação") } : {}),
+  });
+  return json({ ok: true });
 });
 
 route("GET", "receipts/:id", async ({ request, params }) => {

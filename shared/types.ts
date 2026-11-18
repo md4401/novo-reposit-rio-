@@ -321,6 +321,19 @@ export type NiaMessage = {
 };
 
 export type ReceiptItem = { name: string; amountCents: number; categoryId: string };
+/** Nota fiscal guardada no arquivo (a foto vem à parte, por receipts/:id). */
+export type StoredReceipt = {
+  id: string;
+  merchant: string | null;
+  totalCents: number | null;
+  issuedOn: string | null;
+  items: ReceiptItem[];
+  sizeBytes: number;
+  createdAt: string;
+  /** Compra que a nota comprova, se já foi lançada */
+  transaction: { id: string; description: string; amountCents: number; occurredOn: string } | null;
+};
+
 export type ReceiptReading = {
   merchant: string | null;
   occurredOn: string | null;

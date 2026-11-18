@@ -16,7 +16,10 @@ export const NAV: NavItem[] = [
     label: "Transações",
     hint: "O que entrou e saiu",
     icon: (s) => <ArrowLeftRight size={s} />,
-    tabs: [{ key: "transacoes", label: "Transações" }],
+    tabs: [
+      { key: "transacoes", label: "Transações" },
+      { key: "notas", label: "Notas fiscais" },
+    ],
   },
   {
     key: "patrimonio",
